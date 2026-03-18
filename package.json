@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
+    "@anthropic-ai/sdk": "^0.79.0",
     "clsx": "^2.1.1",
     "gray-matter": "^4.0.3",
     "next": "14.2.35",

@@ -53,7 +53,7 @@ export default function MemberDetailPage({ params }: PageProps) {
       </div>
 
       {/* Chat sidebar — wider for readability */}
-      <div className="w-96 border-l border-gray-200 bg-white flex flex-col">
+      <div className="w-[520px] border-l border-gray-200 bg-white flex flex-col">
         <ChatSidebar
           memberName={member.name}
           memberContext={member.rawMarkdown}
