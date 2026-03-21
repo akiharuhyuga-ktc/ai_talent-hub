@@ -5910,4 +5910,23 @@ interface PolicyWizardProps {
 
 ---
 
+---
+
+## 15. 既知の未実装事項（バックログ）
+
+v2.1時点で設計済みだが未実装の項目を以下に記録する。各項目は推奨対応時期に達した段階で実装を検討すること。
+
+| # | 内容 | 優先度 | 推奨対応時期 | 関連セクション |
+|---|------|--------|------------|--------------|
+| 1 | 評価ウィザードStep1に期間セレクター追加（`availablePeriods`を`EvaluationWizardState`に追加し、目標が存在する期間のみ選択可能にする） | 中 | 2026年9月（次評価サイクル前） | 14.4.3 |
+| 2 | 評価ウィザードで`filterOneOnOnesByPeriod()`を適用（選択期間の1on1記録のみをAIに送信） | 中 | 同上 | 14.4.3 |
+| 3 | `OneOnOneWizardContextData`に`activePeriod`フィールドを追加 | 低 | 1on1記録の期間フィルタリングが必要になった時点 | 14.4.2 |
+| 4 | `GoalWizardState`に`targetPeriod`フィールドを追加（現在は`WizardContextData`経由で代用中） | 低 | 必要時 | 14.4.1 |
+| 5 | Goals POST API（`/api/members/[name]/goals`）の`period`パラメータ必須化（現在は`getActivePeriod()`フォールバック） | 低 | 必要時 | 14.3.4 |
+| 6 | カオナビAPI v2連携による自己評価自動取得（Consumer Key/Secret発行・シートID確認が前提） | 低 | API環境整備後 | 11.2 |
+| 7 | コンディションスコア推移グラフのダッシュボード表示 | 低 | 将来検討 | 10.1 |
+| 8 | 評価履歴の推移グラフ表示 | 低 | 将来検討 | 11.1 |
+
+---
+
 > 以上
