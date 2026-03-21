@@ -17,9 +17,10 @@ export default function MemberDetailPage({ params }: PageProps) {
   const wizardContext = {
     memberName: member.name,
     memberProfile: member.rawMarkdown,
-    departmentPolicy: shared.policy,
+    orgPolicy: shared.policy,
     evaluationCriteria: shared.criteria,
     guidelines: shared.guidelines,
+    targetPeriod: member.activePeriod,  // MemberDetailClientで選択期間に上書きされる
   }
 
   // 1on1 context
@@ -27,7 +28,7 @@ export default function MemberDetailPage({ params }: PageProps) {
   const oneOnOneContext = {
     memberName: member.name,
     memberProfile: member.rawMarkdown,
-    departmentPolicy: shared.policy,
+    orgPolicy: shared.policy,
     guidelines: shared.guidelines,
     goalsRawMarkdown: member.goals?.rawMarkdown || null,
     previousOneOnOne: latestOneOnOne,
@@ -41,7 +42,7 @@ export default function MemberDetailPage({ params }: PageProps) {
   const evaluationContext = {
     memberName: member.name,
     memberProfile: member.rawMarkdown,
-    departmentPolicy: shared.policy,
+    orgPolicy: shared.policy,
     evaluationCriteria: shared.criteria,
     guidelines: shared.guidelines,
     goalsRawMarkdown: member.goals?.rawMarkdown || null,

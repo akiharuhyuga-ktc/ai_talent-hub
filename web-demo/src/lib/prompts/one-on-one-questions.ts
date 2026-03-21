@@ -26,7 +26,7 @@ export function buildQuestionsUserMessage(params: {
   condition: { motivation: number | null; workload: number | null; teamRelations: number | null; comment: string }
   previousCondition: { motivation: number | null; workload: number | null; teamRelations: number | null } | null
   previousSummary: string
-  departmentPolicy: string
+  orgPolicy: string
 }): string {
   const parts = [
     `## メンバー：${params.memberName}`,
@@ -69,8 +69,8 @@ export function buildQuestionsUserMessage(params: {
     parts.push('', '## 前回の申し送り事項', params.previousSummary)
   }
 
-  if (params.departmentPolicy) {
-    parts.push('', '## グループ方針（参考）', params.departmentPolicy.slice(0, 500))
+  if (params.orgPolicy) {
+    parts.push('', '## 組織方針（参考）', params.orgPolicy.slice(0, 500))
   }
 
   parts.push('', '上記の情報をもとに、ヒアリング質問を3つ生成してください。')

@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { NextRequest, NextResponse } from 'next/server'
 import { getMembersDir } from '@/lib/fs/paths'
+import { getActivePeriod } from '@/lib/utils/period'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export async function POST(
       return NextResponse.json({ error: 'content is required' }, { status: 400 })
     }
 
-    const filename = period || '2026-h1'
+    const filename = period || getActivePeriod()
     const reviewsDir = path.join(memberDir, 'reviews')
     fs.mkdirSync(reviewsDir, { recursive: true })
 

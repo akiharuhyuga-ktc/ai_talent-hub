@@ -1,8 +1,8 @@
 # AIタレントハブ システム設計書
 
-> 文書バージョン：1.6
+> 文書バージョン：2.0
 > 作成日：2026-03-21
-> 最終更新：2026-03-21（AIチャットサイドバー廃止、デモモード機能追加、モックレスポンス削除を反映）
+> 最終更新：2026-03-21（組織方針ウィザードのレビュー指摘を反映（C1-C2, I1-I9対応））
 > 対象システム：KTC TalentHub（モバイルアプリ開発部 AIタレントマネジメントシステム）
 
 ---
@@ -57,7 +57,7 @@ Claude を「AI秘書」として活用し、以下を実現する。
 │                        ブラウザ（localhost:3000）                    │
 │                                                                     │
 │  ┌──────────┐  ┌──────────────┐  ┌──────────┐  ┌─────────────┐   │
-│  │ダッシュボード│  │メンバー詳細    │  │部方針ドキュメント│  │目標設定ウィザード│   │
+│  │ダッシュボード│  │メンバー詳細    │  │組織方針ドキュメント│  │目標設定ウィザード│   │
 │  │ (/)       │  │(/members/[name])│  │(/docs)    │  │(モーダル)     │   │
 │  └──────────┘  └──────────────┘  └──────────┘  └─────────────┘   │
 │                                             ┌─────────────┐        │
@@ -66,6 +66,10 @@ Claude を「AI秘書」として活用し、以下を実現する。
 │                                             └─────────────┘        │
 │                                             ┌─────────────┐        │
 │                                             │評価ウィザード  │        │
+│                                             │(モーダル)     │        │
+│                                             └─────────────┘        │
+│                                             ┌─────────────┐        │
+│                                             │組織方針ウィザード│        │
 │                                             │(モーダル)     │        │
 │                                             └─────────────┘        │
 └──────────────┬──────────────────────────────────────────────────┘
@@ -87,6 +91,10 @@ Claude を「AI秘書」として活用し、以下を実現する。
 │  POST /api/members/[name]/reviews/draft         AI評価ドラフト生成    │
 │  POST /api/members/[name]/reviews/comment       AI評価者コメント生成  │
 │  POST /api/members/[name]/reviews               評価保存              │
+│  POST /api/docs/policy/direction                AI組織方針の方向性提案│
+│  POST /api/docs/policy/draft                    AI組織方針ドラフト生成│
+│  POST /api/docs/policy/refine                   AI組織方針リファイン  │
+│  POST /api/docs/policy/save                     組織方針保存          │
 └──────────────┬──────────────┬──────────────────────────────────┘
                │              │
     ┌──────────▼───┐    ┌────▼──────────────────────┐
@@ -132,7 +140,8 @@ Talent_Management_AI/
 ├── talent-management/          ← 共有ドキュメント・テンプレート
 │   ├── CLAUDE.md               ← AI行動指針
 │   ├── shared/
-│   │   ├── department-policy.md    ← 部方針
+│   │   ├── department-policy.md    ← 組織方針（旧名。後方互換のため残存）
+│   │   ├── org-policy-{year}.md   ← 組織方針（年度別、v1.7新設）
 │   │   ├── evaluation-criteria.md  ← 評価基準（キャリアラダー）
 │   │   └── guidelines.md          ← 運用ガイドライン
 │   ├── templates/
@@ -625,6 +634,40 @@ Talent_Management_AI/
 | リクエスト | `{ period: string, content: string }` |
 | レスポンス | `{ success: true, path: string }` |
 | 詳細 | セクション11.4.3を参照 |
+
+### 5.14 POST /api/docs/policy/draft
+
+**ファイル**：`app/api/docs/policy/draft/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる組織方針ドラフトを生成 |
+| リクエスト | `{ year: number, previousPolicy?: string, evaluationCriteria: string, guidelines: string, managerContext: string }` |
+| レスポンス | `{ draft: string, mode: 'live' }` |
+| 詳細 | セクション14.6を参照 |
+
+### 5.15 POST /api/docs/policy/refine
+
+**ファイル**：`app/api/docs/policy/refine/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる組織方針リファイン（壁打ち） |
+| リクエスト | `{ currentDraft: string, feedback: string, previousPolicy?: string, evaluationCriteria: string, guidelines: string }` |
+| レスポンス | `{ refined: string, mode: 'live' }` |
+| 詳細 | セクション14.6を参照 |
+
+### 5.16 POST /api/docs/policy/save
+
+**ファイル**：`app/api/docs/policy/save/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | 組織方針をMarkdownファイルとして保存 |
+| リクエスト | `{ year: number, content: string }` |
+| レスポンス | `{ success: true, path: string }` |
+| エラー | 400: year または content 未指定、500: 書き込み失敗 |
+| 詳細 | セクション14.6を参照 |
 
 ---
 
@@ -2504,6 +2547,7 @@ export interface EvaluationWizardContextData {
   memberProfile: string                   // profile.md rawMarkdown
   memberGrade: string                     // 等級（profileから抽出）
   goalsRawMarkdown: string | null         // goals/2026-h1.md
+  goalsByPeriod: Record<string, string>  // 全期間の目標rawMarkdown
   oneOnOneRecords: OneOnOneRecord[]       // 全1on1記録
   goalProgressHistory: {                  // 1on1記録から抽出した目標進捗トレンド
     yearMonth: string
@@ -2528,6 +2572,8 @@ export interface EvaluationWizardContextData {
   guidelines: string
 }
 ```
+
+> **期間切替の最適化**：`goalsByPeriod` により、期間変更時は `goalsByPeriod[selectedPeriod]` でクライアント側で切り替える。APIコール不要。
 
 > **コンテキスト構築**：`EvaluationWizardContextData` のうち `goalProgressHistory`、`conditionHistory`、`completedActions`、`hearingMemos` は、サーバーコンポーネント（`app/members/[name]/page.tsx`）で全1on1記録をパースして構築する。`parseActionItems()`、`parseConditionScore()`、`parseSummary()` の既存パーサーを活用する。
 
@@ -3468,6 +3514,2386 @@ getMembersDir() // → MEMBERS_DIR or DEMO_MEMBERS_DIR
 | `web-demo/src/app/api/members/[name]/goals/route.ts` | `getMembersDir()` 経由でパスを解決するよう変更 |
 | `web-demo/src/app/api/members/[name]/one-on-one/route.ts` | 同上 |
 | `web-demo/src/app/api/members/[name]/reviews/route.ts` | 同上 |
+
+---
+
+## 14. 複数期間対応・組織方針バージョン管理
+
+### 14.1 概要
+
+本セクションでは、KTC TalentHub の以下2つの拡張を設計する。
+
+#### 14.1.1 複数期間対応
+
+現行システムは目標ファイル `goals/2026-h1.md` をハードコードで参照しており、単一期間（2026年上期）のみに対応している。本拡張により、過去・未来の複数期間にわたる目標・1on1・評価データの管理を可能にする。
+
+- **期間定義**：h1=4月〜9月（上期）、h2=10月〜翌3月（下期）
+- **アクティブ期間の自動判定**：現在日付から自動的にアクティブな期間を算出
+- **UI上の期間セレクター**：目標タブで過去・現在の期間を切り替えて表示
+- **ウィザードのアクティブ期間対応**：目標設定・1on1・評価の各ウィザードがアクティブ期間を自動参照
+
+#### 14.1.2 組織方針バージョン管理
+
+現行システムは `department-policy.md` を単一ファイルで管理しているが、年度ごとに方針が更新される運用に対応するため、年度別バージョン管理を導入する。
+
+- **用語統一**：「部方針」→「組織方針」（department-policy → org-policy）
+- **年度別ファイル**：`org-policy-{year}.md`（例：`org-policy-2026.md`）
+- **AIウィザード**：前年度方針の有無で継続/初回モードに自動分岐し、AIが方向性提案→ドラフト生成→壁打ち精緻化を行う7ステップウィザード
+
+### 14.2 期間管理基盤（`lib/utils/period.ts`）
+
+#### 14.2.1 型定義
+
+```typescript
+// lib/utils/period.ts
+
+/**
+ * 期間識別子。"YYYY-h1" または "YYYY-h2" の形式。
+ * 例: "2026-h1" = 2026年度上期（4月〜9月）
+ *      "2025-h2" = 2025年度下期（10月〜翌3月）
+ */
+export type Period = `${number}-h${'1' | '2'}`
+
+/**
+ * 期間設定の定数。
+ * h1: 上期（4月〜9月）、h2: 下期（10月〜翌3月）
+ */
+export const PERIOD_CONFIG = {
+  h1: {
+    label: '上期',
+    startMonth: 4,   // 4月
+    endMonth: 9,     // 9月
+    monthRange: '4月〜9月',
+  },
+  h2: {
+    label: '下期',
+    startMonth: 10,  // 10月
+    endMonth: 3,     // 翌3月
+    monthRange: '10月〜3月',
+  },
+} as const
+
+export type HalfYear = keyof typeof PERIOD_CONFIG
+```
+
+#### 14.2.2 アクティブ期間の算出
+
+```typescript
+/**
+ * 現在日付からアクティブな期間を算出する。
+ *
+ * ロジック:
+ *   - 4月〜9月  → YYYY-h1（当年の上期）
+ *   - 10月〜12月 → YYYY-h2（当年の下期）
+ *   - 1月〜3月  → (YYYY-1)-h2（前年の下期）
+ *
+ * エッジケース:
+ *   - 2027年1月 → "2026-h2"（2026年度下期に属する）
+ *   - 2026年4月 → "2026-h1"（2026年度上期の開始月）
+ *   - 2026年3月 → "2025-h2"（2025年度下期の最終月）
+ *
+ * @param now - 基準日付。省略時は現在日時
+ * @returns アクティブな Period 識別子
+ */
+export function getActivePeriod(now: Date = new Date()): Period {
+  const month = now.getMonth() + 1  // 1-12
+  const year = now.getFullYear()
+
+  if (month >= 4 && month <= 9) {
+    return `${year}-h1`
+  } else if (month >= 10) {
+    return `${year}-h2`
+  } else {
+    // 1月〜3月は前年の下期
+    return `${year - 1}-h2`
+  }
+}
+```
+
+#### 14.2.3 期間ラベルのフォーマット
+
+```typescript
+/**
+ * Period 識別子を日本語ラベルに変換する。
+ *
+ * @example
+ *   formatPeriodLabel("2026-h1") → "2026年上期（4月〜9月）"
+ *   formatPeriodLabel("2025-h2") → "2025年下期（10月〜3月）"
+ *
+ * @param period - Period 識別子
+ * @returns 日本語表示ラベル
+ */
+export function formatPeriodLabel(period: Period): string {
+  const match = period.match(/^(\d{4})-h([12])$/)
+  if (!match) return period
+
+  const year = match[1]
+  const half = `h${match[2]}` as HalfYear
+  const config = PERIOD_CONFIG[half]
+
+  return `${year}年${config.label}（${config.monthRange}）`
+}
+```
+
+#### 14.2.4 期間のソート
+
+```typescript
+/**
+ * Period 配列を新しい順（降順）にソートする。
+ *
+ * ソート順: 年が新しいほうが先、同年ならh2がh1より先。
+ *
+ * @example
+ *   sortPeriods(["2025-h2", "2026-h1", "2025-h1"])
+ *   → ["2026-h1", "2025-h2", "2025-h1"]
+ *
+ * @param periods - ソート対象の Period 配列
+ * @returns 降順ソート済みの新しい配列
+ */
+export function sortPeriods(periods: Period[]): Period[] {
+  return [...periods].sort((a, b) => {
+    const [yearA, halfA] = a.split('-') as [string, string]
+    const [yearB, halfB] = b.split('-') as [string, string]
+    if (yearA !== yearB) return parseInt(yearB) - parseInt(yearA)
+    return halfB.localeCompare(halfA)  // h2 > h1
+  })
+}
+```
+
+#### 14.2.5 ファイル名からの期間パース
+
+```typescript
+/**
+ * ファイル名から Period を抽出する。
+ *
+ * 対応フォーマット:
+ *   - "2026-h1.md" → "2026-h1"
+ *   - "2025-h2.md" → "2025-h2"
+ *   - "profile.md" → null（期間情報なし）
+ *
+ * @param filename - ファイル名（拡張子付き）
+ * @returns Period または null
+ */
+export function parsePeriodFromFilename(filename: string): Period | null {
+  const match = filename.match(/^(\d{4}-h[12])\.md$/)
+  return match ? match[1] as Period : null
+}
+```
+
+#### 14.2.6 年度の算出
+
+```typescript
+/**
+ * Period 識別子から年度（fiscal year）を返す。
+ * h1/h2 いずれも Period の年部分がそのまま年度となる。
+ *
+ * @example
+ *   getFiscalYear("2026-h1") → 2026
+ *   getFiscalYear("2026-h2") → 2026
+ *
+ * @param period - Period 識別子
+ * @returns 年度（数値）
+ */
+export function getFiscalYear(period: Period): number {
+  return parseInt(period.split('-')[0])
+}
+```
+
+#### 14.2.7 1on1記録の期間フィルタリング
+
+```typescript
+/**
+ * 1on1記録のファイル名（YYYY-MM.md）から所属する Period を判定する。
+ *
+ * マッピングルール:
+ *   - 4月〜9月  → {year}-h1
+ *   - 10月〜12月 → {year}-h2
+ *   - 1月〜3月  → {year-1}-h2
+ *
+ * @param filename - 1on1記録のファイル名（例: "2026-04.md"）
+ * @returns 対応する Period、または判定不能の場合 null
+ */
+export function getOneOnOnePeriod(filename: string): Period | null {
+  // YYYY-MM.md → Period mapping
+  const match = filename.match(/^(\d{4})-(\d{2})\.md$/)
+  if (!match) return null
+
+  const year = parseInt(match[1])
+  const month = parseInt(match[2])
+
+  if (month >= 4 && month <= 9) {
+    return `${year}-h1`
+  } else if (month >= 10) {
+    return `${year}-h2`
+  } else {
+    // 1月〜3月は前年の下期
+    return `${year - 1}-h2`
+  }
+}
+
+/**
+ * 1on1記録を指定期間でフィルタリングする。
+ *
+ * @param records - 全1on1記録
+ * @param period - フィルタ対象の期間
+ * @returns 指定期間に属する1on1記録のみ
+ */
+export function filterOneOnOnesByPeriod(records: OneOnOneRecord[], period: Period): OneOnOneRecord[] {
+  return records.filter(r => getOneOnOnePeriod(r.filename) === period)
+}
+```
+
+### 14.3 目標の複数期間対応
+
+#### 14.3.1 `members.ts` の変更
+
+**`getAllGoalPeriods()`**：指定メンバーの `goals/` ディレクトリを走査し、存在するすべての期間を返す。
+
+```typescript
+// lib/fs/members.ts に追加
+
+import { parsePeriodFromFilename, sortPeriods, type Period } from '../utils/period'
+
+/**
+ * メンバーの目標ファイルから全期間を取得する。
+ *
+ * @param encodedName - URLエンコード済みメンバー名
+ * @returns 降順ソート済みの Period 配列
+ */
+export function getAllGoalPeriods(encodedName: string): Period[] {
+  const membersDir = getMembersDir()
+  const name = decodeURIComponent(encodedName)
+  const goalsDir = path.join(membersDir, name, 'goals')
+
+  if (!fs.existsSync(goalsDir)) return []
+
+  const periods = fs.readdirSync(goalsDir)
+    .filter(f => f.endsWith('.md'))
+    .map(f => parsePeriodFromFilename(f))
+    .filter((p): p is Period => p !== null)
+
+  return sortPeriods(periods)
+}
+```
+
+> ※ 期間数が10を超える場合は直近5期間のみロードする最適化を将来検討
+
+**`getGoalsByPeriod()`**：指定期間の目標データを取得する。
+
+```typescript
+/**
+ * 指定期間の目標データを取得する。
+ *
+ * @param encodedName - URLエンコード済みメンバー名
+ * @param period - 期間識別子（例: "2026-h1"）
+ * @returns GoalsData または null
+ */
+export function getGoalsByPeriod(encodedName: string, period: Period): GoalsData | null {
+  const membersDir = getMembersDir()
+  const name = decodeURIComponent(encodedName)
+  const goalsPath = path.join(membersDir, name, 'goals', `${period}.md`)
+
+  if (!fs.existsSync(goalsPath)) return null
+
+  return parseGoals(fs.readFileSync(goalsPath, 'utf-8'))
+}
+```
+
+**`getMemberDetail()` の変更**：
+
+```typescript
+// 変更前（ハードコード）
+const goalsPath = path.join(memberDir, 'goals', '2026-h1.md')
+let goals = null
+if (fs.existsSync(goalsPath)) {
+  goals = parseGoals(fs.readFileSync(goalsPath, 'utf-8'))
+}
+
+// 変更後（アクティブ期間＋全期間マップ）
+import { getActivePeriod, type Period } from '../utils/period'
+
+const activePeriod = getActivePeriod()
+const allGoalPeriods = getAllGoalPeriods(encodedName)
+const goalsByPeriod: Record<string, GoalsData> = {}
+
+for (const period of allGoalPeriods) {
+  const g = getGoalsByPeriod(encodedName, period)
+  if (g) goalsByPeriod[period] = g
+}
+
+const goals = goalsByPeriod[activePeriod] ?? null
+```
+
+#### 14.3.2 `MemberDetail` 型の変更
+
+```typescript
+// lib/types.ts
+
+export interface MemberDetail extends MemberProfile {
+  goals: GoalsData | null                    // アクティブ期間の目標（後方互換）
+  goalsByPeriod: Record<string, GoalsData>   // 全期間の目標マップ（v1.7新設）
+  activePeriod: string                       // アクティブ期間（v1.7新設）
+  oneOnOnes: OneOnOneRecord[]
+  reviews: ReviewData[]
+}
+```
+
+#### 14.3.3 `GoalsTab.tsx` の期間セレクターUI
+
+```typescript
+// components/member/GoalsTab.tsx
+
+'use client'
+
+import { useState } from 'react'
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
+import { EmptyState } from '@/components/ui/EmptyState'
+import type { GoalsData } from '@/lib/types'
+
+interface GoalsTabProps {
+  goals: GoalsData | null                    // アクティブ期間の目標
+  goalsByPeriod: Record<string, GoalsData>   // 全期間の目標マップ
+  activePeriod: string                       // アクティブ期間
+  onStartWizard?: () => void
+}
+
+export function GoalsTab({ goals, goalsByPeriod, activePeriod, onStartWizard }: GoalsTabProps) {
+  const periods = Object.keys(goalsByPeriod).sort().reverse()
+  const [selectedPeriod, setSelectedPeriod] = useState(activePeriod)
+  const currentGoals = goalsByPeriod[selectedPeriod] ?? null
+
+  const isEmpty = !currentGoals || !currentGoals.rawMarkdown.includes('目標内容') &&
+    !currentGoals.rawMarkdown.includes('目標①')
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-3xl font-semibold text-gray-800">半期目標</h3>
+          {/* 期間セレクター */}
+          {periods.length > 1 ? (
+            <select
+              value={selectedPeriod}
+              onChange={e => setSelectedPeriod(e.target.value)}
+              className="mt-2 text-xl text-gray-600 border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
+            >
+              {periods.map(p => (
+                <option key={p} value={p}>
+                  {formatPeriodLabel(p)}{p === activePeriod ? '（現在）' : ''}
+                </option>
+              ))}
+            </select>
+          ) : (
+            currentGoals && <p className="text-2xl text-gray-500 mt-1">{currentGoals.period}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {isEmpty && (
+            <span className="text-xl bg-amber-50 text-amber-600 px-5 py-2 rounded-full border border-amber-200 font-medium">
+              未記入
+            </span>
+          )}
+          {onStartWizard && selectedPeriod === activePeriod && (
+            <button
+              onClick={onStartWizard}
+              className="text-lg bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              目標設定ウィザード
+            </button>
+          )}
+        </div>
+      </div>
+      {currentGoals ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-10">
+          <MarkdownRenderer content={currentGoals.rawMarkdown} />
+        </div>
+      ) : (
+        <EmptyState
+          title="目標設定ファイルが見つかりません"
+          description="ウィザードから目標を作成できます"
+          icon="🎯"
+        />
+      )}
+    </div>
+  )
+}
+```
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h3: 半期目標                                    │
+│ [select: 2026年上期（4月〜9月）（現在） ▼]        │
+│          2025年下期（10月〜3月）                  │
+│                                    [未記入]      │
+│                              [目標設定ウィザード]  │
+│                                                  │
+│ ┌─ 目標内容 ──────────────────────────────────┐ │
+│ │ {選択された期間の目標 Markdown}              │ │
+│ └──────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────┘
+```
+
+**挙動仕様**：
+
+| 項目 | 内容 |
+|------|------|
+| セレクターの表示条件 | `goalsByPeriod` のキー数が2以上の場合にセレクターを表示。1以下の場合は従来通りテキスト表示 |
+| デフォルト選択 | アクティブ期間 |
+| ウィザードボタンの表示条件 | 選択中の期間がアクティブ期間と一致する場合のみ表示 |
+| 「（現在）」ラベル | アクティブ期間のオプションにのみ付与 |
+
+> **タブラベルの動的化**：`MemberDetailClient.tsx` のタブラベル `目標（2026上期）` を `目標（${formatPeriodLabel(activePeriod)}）` に動的化する。
+
+#### 14.3.4 目標保存APIの期間パラメータ変更
+
+**変更前**（`POST /api/members/[name]/goals`）：
+
+```typescript
+const { content, period } = await req.json()
+const filename = period || '2026-h1'  // period は optional、デフォルト '2026-h1'
+```
+
+**変更後**：
+
+```typescript
+const { content, period } = await req.json()
+if (!content || typeof content !== 'string') {
+  return NextResponse.json({ error: 'content is required' }, { status: 400 })
+}
+if (!period || typeof period !== 'string' || !/^\d{4}-h[12]$/.test(period)) {
+  return NextResponse.json({ error: 'period is required (format: YYYY-h1 or YYYY-h2)' }, { status: 400 })
+}
+const filename = period
+
+// 対象期間ラベルの動的生成
+const periodLabel = formatPeriodLabel(period)
+const markdown = [
+  '# 半期目標設定',
+  '',
+  `- 対象期間：${periodLabel}`,
+  `- 作成日：${today}`,
+  `- メンバー：${memberName}`,
+  '',
+  '## 目標一覧',
+  '',
+  content,
+  '',
+].join('\n')
+```
+
+| 項目 | 変更前 | 変更後 |
+|------|--------|--------|
+| `period` パラメータ | optional（デフォルト `'2026-h1'`） | **required**（バリデーション付き） |
+| 期間ラベル | ハードコード `'2026年上半期（4月〜9月）'` | `formatPeriodLabel()` で動的生成 |
+| エラー | なし | 400: period 未指定または不正フォーマット |
+
+### 14.4 ウィザードのアクティブ期間対応
+
+#### 14.4.1 目標設定ウィザード
+
+**`GoalWizardState` への `targetPeriod` 追加**：
+
+```typescript
+// lib/types.ts（GoalWizardState に追加）
+
+export interface GoalWizardState {
+  currentStep: number
+  targetPeriod: string           // v1.7新設：目標の対象期間（例: "2026-h1"）
+  managerInput: ManagerInput
+  memberInput: MemberInput
+  previousPeriod: PreviousPeriod
+  diagnosis: string | null
+  diagnosisConfirmed: boolean
+  generatedGoals: string | null
+  refinementMessages: ChatMessage[]
+  refinementCount: number
+  finalGoals: string | null
+}
+```
+
+**ウィザードヘッダーの変更**：
+
+```
+変更前: "{メンバー名}さんの目標設定"
+変更後: "{メンバー名}さんの目標設定（{formatPeriodLabel(targetPeriod)}）"
+```
+
+**保存時の期間指定**：
+
+```typescript
+// Step7Refinement.tsx での保存処理
+
+const handleSave = async () => {
+  const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/goals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: state.finalGoals,
+      period: state.targetPeriod,  // 必須パラメータとして送信
+    }),
+  })
+  // ...
+}
+```
+
+**初期化**：
+
+```typescript
+// GoalWizard.tsx の初期状態
+
+const initialState: GoalWizardState = {
+  currentStep: 1,
+  targetPeriod: getActivePeriod(),  // アクティブ期間を自動設定
+  // ... 他フィールド
+}
+```
+
+#### 14.4.2 1on1ウィザード
+
+**`OneOnOneWizardContextData` への `activePeriod` 追加**：
+
+```typescript
+// lib/types.ts（OneOnOneWizardContextData に追加）
+
+export interface OneOnOneWizardContextData {
+  memberName: string
+  memberProfile: string
+  departmentPolicy: string       // → orgPolicy に改名（14.7節参照）
+  guidelines: string
+  goalsRawMarkdown: string | null  // アクティブ期間の目標
+  activePeriod: string             // v1.7新設：アクティブ期間
+  previousOneOnOne: OneOnOneRecord | null
+  previousActionItems: ActionItem[]
+  previousCondition: ConditionScore | null
+  previousSummary: string
+}
+```
+
+**目標参照の期間対応**：
+
+```typescript
+// app/members/[name]/page.tsx での目標取得
+
+// 変更前
+goalsRawMarkdown: member.goals?.rawMarkdown || null,
+
+// 変更後
+goalsRawMarkdown: member.goalsByPeriod[member.activePeriod]?.rawMarkdown || null,
+activePeriod: member.activePeriod,
+```
+
+#### 14.4.3 評価ウィザード
+
+**Step1の期間セレクター追加**：
+
+評価ウィザードの Step1（素材収集）に、評価対象期間を選択するセレクターを追加する。利用可能な期間は `goalsByPeriod` のキーから取得する。
+
+```typescript
+// lib/types.ts（EvaluationWizardState に追加）
+
+export interface EvaluationWizardState {
+  currentStep: number
+  period: string                          // v1.7変更：セレクターで選択可能に
+  availablePeriods: string[]              // v1.7新設：選択可能な期間一覧
+  selfEvaluation: SelfEvaluation
+  managerSupplementary: ManagerSupplementary
+  aiDraft: EvaluationDraft | null
+  confirmedDraft: EvaluationDraft | null
+  evaluatorComment: string
+  aiCommentDraft: string | null
+}
+```
+
+**UIレイアウト（Step1冒頭部分）**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 評価素材の収集                              │
+│                                                  │
+│ 評価対象期間:                                    │
+│ [select: 2026年上期（4月〜9月） ▼]               │
+│                                                  │
+│ ┌─ 自動収集データ ────────────────────────────┐ │
+│ │ （選択された期間のデータが表示される）        │ │
+│ └──────────────────────────────────────────────┘ │
+│ ...                                              │
+└──────────────────────────────────────────────────┘
+```
+
+> **Step2の1on1フィルタリング**：評価ウィザードのStep2では `filterOneOnOnesByPeriod()` で選択期間の1on1記録のみをAIに送信する。
+
+### 14.5 組織方針バージョン管理
+
+#### 14.5.1 ファイル構成の変更
+
+**変更前**：
+
+```
+talent-management/shared/
+├── department-policy.md         ← 単一ファイル
+├── evaluation-criteria.md
+└── guidelines.md
+```
+
+**変更後**：
+
+```
+talent-management/shared/
+├── department-policy.md         ← 後方互換のため残存（最新年度へのフォールバック）
+├── org-policy-2025.md          ← 2025年度組織方針
+├── org-policy-2026.md          ← 2026年度組織方針
+├── evaluation-criteria.md
+└── guidelines.md
+```
+
+**命名規則**：`org-policy-{年度}.md`（例：`org-policy-2026.md`）
+
+**フォールバックロジック**：年度別ファイルが存在しない場合は `department-policy.md` を参照する。これにより、既存データとの後方互換性を維持する。
+
+#### 14.5.2 `shared-docs.ts` の変更
+
+```typescript
+// lib/fs/shared-docs.ts
+
+import fs from 'fs'
+import path from 'path'
+import { SHARED_DIR, SHARED_DOCS } from './paths'
+import { getActivePeriod, getFiscalYear } from '../utils/period'
+
+/**
+ * 指定年度の組織方針を読み込む。
+ *
+ * 優先順位:
+ *   1. shared/org-policy-{year}.md が存在すればそれを返す
+ *   2. 存在しなければ shared/department-policy.md をフォールバック
+ *   3. どちらも存在しなければ空文字列
+ *
+ * @param year - 年度（例: 2026）
+ * @returns 組織方針の Markdown テキスト
+ */
+export function loadOrgPolicy(year: number): string {
+  const orgPolicyPath = path.join(SHARED_DIR, `org-policy-${year}.md`)
+  try {
+    return fs.readFileSync(orgPolicyPath, 'utf-8')
+  } catch {
+    // フォールバック: 旧ファイル名
+    try {
+      return fs.readFileSync(SHARED_DOCS.policy, 'utf-8')
+    } catch {
+      return ''
+    }
+  }
+}
+
+/**
+ * 存在するすべての組織方針の年度一覧を取得する。
+ *
+ * shared/ ディレクトリから org-policy-{year}.md パターンのファイルを走査し、
+ * department-policy.md のみ存在する場合は空配列を返す。
+ *
+ * @returns 降順ソート済みの年度配列（例: [2026, 2025]）
+ */
+export function getOrgPolicyYears(): number[] {
+  try {
+    const files = fs.readdirSync(SHARED_DIR)
+    const years = files
+      .map(f => {
+        const match = f.match(/^org-policy-(\d{4})\.md$/)
+        return match ? parseInt(match[1]) : null
+      })
+      .filter((y): y is number => y !== null)
+    return years.sort((a, b) => b - a)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 共有ドキュメントを読み込む。
+ * orgPolicy は指定年度のものを返す。年度未指定時はアクティブ期間から算出。
+ */
+export function loadSharedDocs(year?: number): {
+  orgPolicy: string
+  criteria: string
+  guidelines: string
+} {
+  const targetYear = year ?? getFiscalYear(getActivePeriod())  // 期間整合性を保つ（例：3月は前年度の方針を参照）
+  const read = (p: string) => {
+    try { return fs.readFileSync(p, 'utf-8') } catch { return '' }
+  }
+  return {
+    orgPolicy: loadOrgPolicy(targetYear),
+    criteria: read(SHARED_DOCS.criteria),
+    guidelines: read(SHARED_DOCS.guidelines),
+  }
+}
+```
+
+#### 14.5.3 `GET /api/docs` の変更
+
+```typescript
+// app/api/docs/route.ts
+
+import { NextRequest, NextResponse } from 'next/server'
+import fs from 'fs'
+import { SHARED_DOCS } from '@/lib/fs/paths'
+import { loadOrgPolicy, getOrgPolicyYears } from '@/lib/fs/shared-docs'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const yearParam = searchParams.get('year')
+    const year = yearParam ? parseInt(yearParam) : new Date().getFullYear()
+
+    return NextResponse.json({
+      orgPolicy: loadOrgPolicy(year),
+      availableYears: getOrgPolicyYears(),
+      criteria: fs.readFileSync(SHARED_DOCS.criteria, 'utf-8'),
+      guidelines: fs.readFileSync(SHARED_DOCS.guidelines, 'utf-8'),
+    })
+  } catch (error) {
+    console.error('Failed to read docs:', error)
+    return NextResponse.json({ error: 'Failed to read documents' }, { status: 500 })
+  }
+}
+```
+
+**レスポンスの変更**：
+
+| フィールド | 変更前 | 変更後 |
+|-----------|--------|--------|
+| `policy` | `string` | **削除**（`orgPolicy` に置換） |
+| `orgPolicy` | なし | `string`（指定年度の組織方針） |
+| `availableYears` | なし | `number[]`（利用可能な年度一覧、降順） |
+| `criteria` | `string` | 変更なし |
+| `guidelines` | `string` | 変更なし |
+
+**クエリパラメータ**：
+
+| パラメータ | 型 | 必須 | デフォルト | 説明 |
+|-----------|------|------|-----------|------|
+| `year` | number | いいえ | 現在の年 | 組織方針の年度 |
+
+#### 14.5.4 `DocsTabs.tsx` の変更
+
+```typescript
+// components/docs/DocsTabs.tsx
+
+'use client'
+
+import { useState } from 'react'
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
+import { clsx } from 'clsx'
+
+interface DocsTabsProps {
+  docs: {
+    orgPolicy: string
+    availableYears: number[]
+    criteria: string
+    guidelines: string
+  }
+}
+
+const TABS = [
+  { id: 'policy', label: '組織方針', icon: '🏢' },
+  { id: 'criteria', label: '評価基準', icon: '📊' },
+  { id: 'guidelines', label: '運用ガイドライン', icon: '📋' },
+] as const
+
+type TabId = typeof TABS[number]['id']
+
+export function DocsTabs({ docs }: DocsTabsProps) {
+  const [active, setActive] = useState<TabId>('policy')
+  const [selectedYear, setSelectedYear] = useState<number>(
+    docs.availableYears[0] ?? new Date().getFullYear()
+  )
+  const [policyContent, setPolicyContent] = useState(docs.orgPolicy)
+
+  // 年度変更時にAPIから取得
+  const handleYearChange = async (year: number) => {
+    setSelectedYear(year)
+    try {
+      const res = await fetch(`/api/docs?year=${year}`)
+      const data = await res.json()
+      setPolicyContent(data.orgPolicy)
+    } catch {
+      setPolicyContent('')
+    }
+  }
+
+  const content: Record<TabId, string> = {
+    policy: policyContent,
+    criteria: docs.criteria,
+    guidelines: docs.guidelines,
+  }
+
+  return (
+    <div className="flex gap-8 items-start">
+      {/* Left sidebar nav */}
+      <aside className="w-80 shrink-0 sticky top-28">
+        <nav className="flex flex-col gap-3">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActive(tab.id)}
+              className={clsx(
+                'flex items-center gap-4 px-6 py-5 rounded-xl text-left text-2xl font-medium transition-colors',
+                active === tab.id
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+              )}
+            >
+              <span className="text-3xl">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
+        {/* 組織方針タブ選択時に年度セレクターを表示 */}
+        {active === 'policy' && docs.availableYears.length > 0 && (
+          <div className="flex items-center gap-4 mb-6">
+            <label className="text-xl font-medium text-gray-700">年度：</label>
+            <select
+              value={selectedYear}
+              onChange={e => handleYearChange(parseInt(e.target.value))}
+              className="text-xl border border-gray-300 rounded-lg px-4 py-2 bg-white"
+            >
+              {docs.availableYears.map(y => (
+                <option key={y} value={y}>{y}年度</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="bg-white border border-gray-200 rounded-xl p-12">
+          <MarkdownRenderer content={content[active]} />
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+**変更点まとめ**：
+
+| 項目 | 変更前 | 変更後 |
+|------|--------|--------|
+| タブラベル | `部方針` | `組織方針` |
+| データプロパティ | `docs.policy` | `docs.orgPolicy` |
+| 年度セレクター | なし | 組織方針タブ選択時に表示。`availableYears` から選択肢を生成 |
+| 年度変更時の挙動 | なし | `GET /api/docs?year={year}` でAPIから取得してコンテンツを更新 |
+
+### 14.6 組織方針ウィザード（PolicyWizard）— 7ステップ分岐フロー
+
+#### 14.6.1 概要・方針
+
+組織方針ウィザードは、年度の組織方針策定をAIが支援する**7ステップの分岐フロー**ウィザードである。前年度方針の有無によって**継続モード（continuous）**と**初回モード（initial）**に自動分岐し、それぞれに最適化されたインプット収集を行った上で、AIが方向性の提案 → ドラフト生成 → 壁打ち精緻化 → 確認保存の流れで方針策定を支援する。
+
+**設計方針**：
+
+- **分岐フローによるコンテキスト最適化**：前年度方針が存在する「継続」ケースと、初めて策定する「初回」ケースで、収集すべき情報が大きく異なるため、Step2・Step3を分岐させて各モードに最適なインプットを収集する
+- **方向性提案（Direction）の導入**：ドラフト生成前にAIが方向性の骨子を提案し、マネージャーが方向性レベルで合意してからドラフトに進むことで、大幅な手戻りを防止する
+- **前年度方針の継承と進化**（継続モード）：前年度の振り返りを構造化して収集し、何を継続し何を変えるかを明確にする
+- **構造化された方針策定**：ミッション・環境認識・重点施策・チーム体制・KPIの構成要素を網羅的にカバー
+- **差分プレビュー**：保存前に前年度方針との差分をテキストベースで確認可能（継続モード）
+- **目標設定ウィザードとの連携**：保存された方針は目標設定ウィザードのコンテキストとして自動的に参照される
+
+**途中離脱の確認**: ウィザードのStep2以降で「閉じる」ボタンを押した場合、入力データが存在するときは確認ダイアログ「入力内容が破棄されます。閉じてよろしいですか？」を表示する。Step1のみの場合は確認なしで閉じる。
+
+#### 14.6.2 フロー全体図
+
+```
+Step1: 年度選択（共通）
+  │
+  ├─ 前年度方針あり ──→ flowMode = 'continuous'
+  │                       │
+  │                   Step2A: 前年度振り返り
+  │                       │
+  │                   Step3A: 来期テーマ・環境変化
+  │                       │
+  │                       ├──→ Step4: AI方向性提案（共通）
+  │                                    │
+  └─ 前年度方針なし ──→ flowMode = 'initial'
+                          │
+                      Step2B: 現在の組織状態
+                          │
+                      Step3B: 上位組織方針（任意）
+                          │
+                          ├──→ Step4: AI方向性提案（共通）
+                                       │
+                                   Step5: AIドラフト生成（共通）
+                                       │
+                                   Step6: 壁打ち・精緻化（共通）
+                                       │
+                                   Step7: 確認・保存（共通）
+                                     │
+                                     ├─ continuous: 差分プレビュー + 全文プレビュー
+                                     └─ initial: 全文プレビューのみ
+```
+
+**ステップ対応表**：
+
+| ステップ | 共通/分岐 | 継続モード | 初回モード |
+|---------|----------|-----------|-----------|
+| Step1 | 共通 | 年度選択 | 年度選択 |
+| Step2 | 分岐 | Step2A: 前年度振り返り | Step2B: 現在の組織状態 |
+| Step3 | 分岐 | Step3A: 来期テーマ・環境変化 | Step3B: 上位組織方針 |
+| Step4 | 共通 | AI方向性提案 | AI方向性提案 |
+| Step5 | 共通 | AIドラフト生成 | AIドラフト生成 |
+| Step6 | 共通 | 壁打ち・精緻化 | 壁打ち・精緻化 |
+| Step7 | 共通 | 差分確認 + 保存 | 全文確認 + 保存 |
+
+#### 14.6.3 画面設計（7ステップ）
+
+**全体レイアウト**：
+
+目標設定ウィザード・1on1ウィザード・評価ウィザードと同一のレイアウト構造を採用する。
+
+| 要素 | Tailwind クラス | 備考 |
+|------|----------------|------|
+| コンテナ | `fixed inset-0 z-50 bg-white flex flex-col` | 全画面モーダル |
+| ヘッダー | `px-16 py-5 border-b border-gray-200 bg-gray-50` | `{year}年度 組織方針ウィザード` + フローモードバッジ + 閉じるボタン |
+| ステッパー | `px-16 py-5 border-b border-gray-100` | 7ステップ進捗バー（分岐ステップはモードに応じたラベルを表示） |
+| コンテンツ領域 | `max-w-5xl mx-auto px-16 py-8` | 中央寄せ + 左右余白 |
+
+**フォントサイズ規約**：
+
+他ウィザードと同一（セクション4.5参照）。
+
+**ステッパー**：
+
+`PolicyStepper` コンポーネントで7ステップの進捗を視覚的に表示する。分岐ステップ（Step2, Step3）はフローモードに応じたラベルを動的に切り替える。
+
+ステップラベル（継続モード）：
+1. 年度選択
+2. 前年度振り返り
+3. 来期テーマ
+4. AI方向性提案
+5. AIドラフト
+6. 壁打ち・精緻化
+7. 確認・保存
+
+ステップラベル（初回モード）：
+1. 年度選択
+2. 組織状態
+3. 上位方針
+4. AI方向性提案
+5. AIドラフト
+6. 壁打ち・精緻化
+7. 確認・保存
+
+**フローインジケーター**：
+
+ヘッダー右側にフローモードをバッジ表示する。
+
+- 継続モード：`bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm`、ラベル「継続策定」
+- 初回モード：`bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm`、ラベル「新規策定」
+- Step1完了前（未決定）：バッジ非表示
+
+#### Step1: 年度選択（共通）
+
+**コンポーネント名**：`PolicyStep1Year`
+
+**Props**：
+```typescript
+interface PolicyStep1YearProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+  availableYears: number[]
+}
+```
+
+**表示内容**：
+- 対象年度の選択
+- 前年度方針の有無を自動検出し、フローモード（継続/初回）を表示
+- フローの概要説明
+
+**入力フィールド**：
+- 対象年度（select、`text-xl`）：現在の年度がデフォルト選択。前後2年分の選択肢を提供
+
+**前年度方針の検出**：
+- 対象年度の前年（`targetYear - 1`）の `org-policy-{year}.md` が存在するかをAPI経由で確認
+- 前年度方針の検出は年度入力のonChange時にリアルタイムで実行する。年度が変更されるたびに `/api/docs?year={targetYear-1}` をfetchし、レスポンスの `orgPolicy` が空でないかで判定する。検出結果に応じてフロー案内テキストを即座に切り替える。
+- 存在する場合：「前年度（{year-1}年度）の組織方針が見つかりました。前年度を振り返りながら方針を策定します。」（`bg-blue-50 border-blue-200 p-4 rounded-lg`）
+- 存在しない場合：「前年度の組織方針がありません。新規に組織方針を策定します。」（`bg-green-50 border-green-200 p-4 rounded-lg`）
+
+**フロー概要表示**：
+```
+┌──────────────────────────────────────────────────┐
+│ ┌─ フロー概要 ───────────────────────────────┐    │
+│ │ bg-gray-50 border-gray-200 p-6 rounded-lg  │    │
+│ │                                             │    │
+│ │ [継続モードの場合]                           │    │
+│ │ 1. 年度選択 → 2. 前年度振り返り →            │    │
+│ │ 3. 来期テーマ → 4. AI方向性提案 →            │    │
+│ │ 5. AIドラフト → 6. 壁打ち → 7. 確認・保存    │    │
+│ │                                             │    │
+│ │ [初回モードの場合]                           │    │
+│ │ 1. 年度選択 → 2. 組織状態 →                  │    │
+│ │ 3. 上位方針 → 4. AI方向性提案 →              │    │
+│ │ 5. AIドラフト → 6. 壁打ち → 7. 確認・保存    │    │
+│ └──────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────┘
+```
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 組織方針の策定                              │
+│ p: 年度の組織方針をAIと一緒に策定します。        │
+│                                                  │
+│ 対象年度: [select: 2026年度 ▼]                   │
+│                                                  │
+│ ┌─ フロー検出結果 ─────────────────────────── ┐ │
+│ │ bg-blue-50（継続）/ bg-green-50（初回）      │ │
+│ │ {検出メッセージ}                             │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ フロー概要 ─────────────────────────────── ┐ │
+│ │ {7ステップの概要}                            │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│                                    [次へ進む]     │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「次へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。常に有効。押下で `SET_FLOW_MODE` をdispatchし、Step2（A or B）へ遷移
+
+**バリデーション**：なし（年度はデフォルト値あり）
+
+#### Step2A: 前年度振り返り（継続モード）
+
+**コンポーネント名**：`PolicyStep2AReview`
+
+**Props**：
+```typescript
+interface PolicyStep2AReviewProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+}
+```
+
+**表示内容**：
+- 前年度方針の全文をアコーディオンで参照表示
+- 前年度の振り返り3項目の入力
+
+**入力フィールド**：
+- うまくいったこと（textarea、`text-xl`、placeholder: 「前年度方針のうち、成果が出た施策・継続したい取り組みを記入」、5行）：**必須**、state キー `whatWorked`
+- うまくいかなかったこと（textarea、`text-xl`、placeholder: 「期待した成果が出なかった施策・改善が必要な取り組みを記入」、5行）：**必須**、state キー `whatDidntWork`
+- 積み残し・持ち越し（textarea、`text-xl`、placeholder: 「着手できなかった課題・来期に持ち越す事項を記入」、4行）：任意、state キー `leftBehind`
+
+**前年度方針の表示**：
+- アコーディオン形式（`bg-gray-50 border-gray-200 p-6 rounded-lg`）
+- デフォルトは折りたたみ状態
+- ヘッダー：「{year-1}年度組織方針（クリックで展開）」
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 前年度の振り返り                            │
+│ p: 前年度の方針を振り返り、来期の方針策定に      │
+│    活かします。                                  │
+│                                                  │
+│ ┌─ {year-1}年度組織方針（参考）────────────── ┐ │
+│ │ ▼ クリックで展開                            │ │
+│ │ bg-gray-50 border-gray-200 p-6 rounded-lg  │ │
+│ │ {前年度方針の全文}                          │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ うまくいったこと（必須）:                         │
+│ [textarea: whatWorked]                           │
+│                                                  │
+│ うまくいかなかったこと（必須）:                    │
+│ [textarea: whatDidntWork]                        │
+│                                                  │
+│ 積み残し・持ち越し:                               │
+│ [textarea: leftBehind]                           │
+│                                                  │
+│ [戻る]                           [次へ進む]      │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`。Step1へ遷移
+- 「次へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。`whatWorked` と `whatDidntWork` が入力済みの場合に有効化。Step3Aへ遷移
+
+**バリデーション**：
+- `whatWorked`：必須（空文字不可）
+- `whatDidntWork`：必須（空文字不可）
+- `leftBehind`：任意
+
+#### Step2B: 現在の組織状態（初回モード）
+
+**コンポーネント名**：`PolicyStep2BCurrentState`
+
+**Props**：
+```typescript
+interface PolicyStep2BCurrentStateProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+}
+```
+
+**表示内容**：
+- 組織の現在の状態を多角的に収集するための入力フォーム
+
+**入力フィールド**：
+- チーム構成・人数（textarea、`text-xl`、placeholder: 「チーム構成、各チームの人数、主要メンバーの役割などを記入」、4行）：**必須**、state キー `teamInfo`
+- 現在の課題（textarea、`text-xl`、placeholder: 「組織が抱えている課題・ボトルネック・改善したい点を記入」、5行）：**必須**、state キー `challenges`
+- 組織の強み（textarea、`text-xl`、placeholder: 「組織が持つ強み・競争優位性・得意分野を記入」、4行）：**必須**、state キー `strengths`
+- ミッション・役割（textarea、`text-xl`、placeholder: 「部門のミッション・会社内での役割・期待されていることを記入」、4行）：**必須**、state キー `mission`
+- 注力テーマ（textarea、`text-xl`、placeholder: 「今期特に注力したいテーマ・方向性を記入」、4行）：**必須**、state キー `themes`
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 現在の組織状態                              │
+│ p: 方針策定の基礎となる、組織の現状を            │
+│    教えてください。                              │
+│                                                  │
+│ チーム構成・人数（必須）:                         │
+│ [textarea: teamInfo]                            │
+│                                                  │
+│ 現在の課題（必須）:                               │
+│ [textarea: challenges]                          │
+│                                                  │
+│ 組織の強み（必須）:                               │
+│ [textarea: strengths]                           │
+│                                                  │
+│ ミッション・役割（必須）:                         │
+│ [textarea: mission]                             │
+│                                                  │
+│ 注力テーマ（必須）:                               │
+│ [textarea: themes]                              │
+│                                                  │
+│ [戻る]                           [次へ進む]      │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`。Step1へ遷移
+- 「次へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。全必須フィールドが入力済みの場合に有効化。Step3Bへ遷移
+
+**バリデーション**：
+- `teamInfo`：必須（空文字不可）
+- `challenges`：必須（空文字不可）
+- `strengths`：必須（空文字不可）
+- `mission`：必須（空文字不可）
+- `themes`：必須（空文字不可）
+
+#### Step3A: 来期テーマ・環境変化（継続モード）
+
+**コンポーネント名**：`PolicyStep3AThemes`
+
+**Props**：
+```typescript
+interface PolicyStep3AThemesProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+}
+```
+
+**表示内容**：
+- 来期の環境変化・注力テーマの入力
+
+**入力フィールド**：
+- 来期の環境変化（textarea、`text-xl`、placeholder: 「来期の事業環境の変化、組織変更、技術動向の変化などを記入」、6行）：**必須**、state キー `environmentChanges`
+- 来期の注力テーマ（textarea、`text-xl`、placeholder: 「来期に特に注力したいテーマ・新たな方向性を記入」、4行）：**必須**、state キー `focusThemes`
+- 補足情報（textarea、`text-xl`、placeholder: 「その他、方針に反映したい情報があれば記入（上位方針、予算変更など）」、4行）：任意、state キー `supplementary`
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 来期のテーマ・環境変化                      │
+│ p: 来期に向けた環境変化と注力テーマを            │
+│    教えてください。                              │
+│                                                  │
+│ 来期の環境変化（必須）:                           │
+│ [textarea: environmentChanges]                  │
+│                                                  │
+│ 来期の注力テーマ（必須）:                         │
+│ [textarea: focusThemes]                         │
+│                                                  │
+│ 補足情報:                                        │
+│ [textarea: supplementary]                       │
+│                                                  │
+│ [戻る]                   [AI方向性提案へ進む]     │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`。Step2Aへ遷移
+- 「AI方向性提案へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。`environmentChanges` と `focusThemes` が入力済みの場合に有効化。Step4へ遷移
+
+**バリデーション**：
+- `environmentChanges`：必須（空文字不可）
+- `focusThemes`：必須（空文字不可）
+- `supplementary`：任意
+
+#### Step3B: 上位組織方針（初回モード）
+
+**コンポーネント名**：`PolicyStep3BUpperPolicy`
+
+**Props**：
+```typescript
+interface PolicyStep3BUpperPolicyProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+}
+```
+
+**表示内容**：
+- 上位組織（会社・事業部）の方針を任意で入力
+- 全フィールド任意であることを明示
+
+**入力フィールド**：
+- 上位組織の方針（textarea、`text-xl`、placeholder: 「会社全体や事業部の方針・戦略があればペーストまたは要約を記入」、8行）：任意、state キー `upperPolicy`
+- 補足情報（textarea、`text-xl`、placeholder: 「その他、方針に反映したい情報があれば記入（予算、人員計画など）」、4行）：任意、state キー `supplementary`
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 上位組織の方針（任意）                      │
+│ p: 会社や事業部の方針があれば入力してください。   │
+│    スキップしても問題ありません。                 │
+│                                                  │
+│ ┌─ 説明 ─────────────────────────────────── ┐  │
+│ │ bg-amber-50 border-amber-200 p-4 rounded   │  │
+│ │ このステップは任意です。上位方針の情報が      │  │
+│ │ あるとより整合性の高い方針を策定できますが、   │  │
+│ │ なくても問題ありません。                      │  │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ 上位組織の方針:                                   │
+│ [textarea: upperPolicy]                         │
+│                                                  │
+│ 補足情報:                                        │
+│ [textarea: supplementary]                       │
+│                                                  │
+│ [戻る]                   [AI方向性提案へ進む]     │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`。Step2Bへ遷移
+- 「AI方向性提案へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。常に有効（全フィールド任意のため）。Step4へ遷移
+
+**バリデーション**：なし（全フィールド任意）
+
+#### Step4: AI方向性提案（共通）
+
+**コンポーネント名**：`PolicyStep4Direction`
+
+**Props**：
+```typescript
+interface PolicyStep4DirectionProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+}
+```
+
+**表示内容**：
+- AIが生成した方向性の骨子をMarkdownで表示
+- マネージャーが方向性レベルで合意するか、フィードバックを返して再生成するかを選択
+
+**AI連携**：
+- Step3（A or B）からの遷移時に自動的に `POST /api/docs/policy/direction` を呼び出す
+- 生成済みの場合（`state.direction` が存在）は再呼び出ししない
+- AI呼び出し中はスピナーを表示
+
+**エラー表示**: API呼出失敗時は `bg-red-50 border-red-200 text-red-700 p-6 rounded-lg` でエラーメッセージを表示し、「再試行」ボタンを配置する。再試行ボタンクリックで同じAPIを再呼び出しする。
+
+**方向性の再生成**：
+- フィードバック入力欄（textarea、`text-xl`、placeholder: 「方向性に対するフィードバック・修正してほしい点を入力」、3行）
+- 「方向性を再生成」ボタンで `POST /api/docs/policy/direction` を再呼び出し（フィードバックを追加コンテキストとして送信）
+- 再生成回数は最大2回
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: AI方向性提案                                │
+│ p: 入力内容をもとに、AIが方針の方向性・骨子を     │
+│    提案しました。内容を確認してください。          │
+│                                                  │
+│ ┌─ 提案された方向性 ──────────────────────── ┐  │
+│ │ bg-white border-indigo-200 p-8 rounded-lg  │  │
+│ │ border-l-4 border-l-indigo-400             │  │
+│ │ {MarkdownRenderer: AI方向性提案}            │  │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ 方向性のフィードバック ──────────────────┐   │
+│ │ フィードバック:                             │   │
+│ │ [textarea]                                 │   │
+│ │                                             │   │
+│ │ [方向性を再生成]  再生成回数: 0/2            │   │
+│ │ bg-indigo-100 text-indigo-700              │   │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [戻る]                [この方向性でドラフト生成]   │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「方向性を再生成」：`bg-indigo-100 text-indigo-700 hover:bg-indigo-200`。フィードバック入力済みかつ再生成回数が2回未満の場合に有効化。2回到達後は非表示にし「再生成回数の上限に達しました。この方向性をベースにドラフトを生成してください。」と表示
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`。Step3（A or B）へ遷移
+- 「この方向性でドラフト生成」：`bg-indigo-600 text-white hover:bg-indigo-700`。AI生成が完了している場合に有効化。Step5へ遷移
+
+#### Step5: AIドラフト生成（共通）
+
+**コンポーネント名**：`PolicyStep5Draft`
+
+**Props**：
+```typescript
+interface PolicyStep5DraftProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+}
+```
+
+**表示内容**：
+- AIが生成した組織方針ドラフトをMarkdown形式で表示
+- AI呼び出し中はスピナーを表示
+
+**AI連携**：
+- Step4からの遷移時に自動的に `POST /api/docs/policy/draft` を呼び出す
+- `mode`（`'continuous'` or `'initial'`）と `direction`（Step4の方向性テキスト）をパラメータとして送信
+- 生成済みの場合（`state.aiDraft` が存在）は再呼び出ししない
+
+**エラー表示**: API呼出失敗時は `bg-red-50 border-red-200 text-red-700 p-6 rounded-lg` でエラーメッセージを表示し、「再試行」ボタンを配置する。再試行ボタンクリックで同じAPIを再呼び出しする。
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: AIドラフト                                  │
+│ p: 方向性をもとにAIが組織方針のドラフトを         │
+│    生成しました。内容を確認してください。          │
+│                                                  │
+│ ┌─ 生成されたドラフト ─────────────────────── ┐ │
+│ │ bg-white border-gray-200 p-8 rounded-lg     │ │
+│ │ {MarkdownRenderer: AIドラフト}               │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [戻る]                        [壁打ちへ進む]     │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`。Step4へ遷移
+- 「壁打ちへ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。AI生成が完了している場合に有効化。Step6へ遷移
+
+#### Step6: 壁打ち・精緻化（共通）
+
+**コンポーネント名**：`PolicyStep6Refine`
+
+**Props**：
+```typescript
+interface PolicyStep6RefineProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+}
+```
+
+**表示内容**：
+- 現在のドラフトをMarkdownエディタで表示（直接編集可能）
+- フィードバック入力欄とAIリファインのチャットインターフェース
+
+**入力フィールド**：
+- ドラフト全文編集（textarea、`text-xl font-mono`、全文が表示される十分な高さ）
+- フィードバック入力（textarea、`text-xl`、placeholder: 「修正してほしいポイント・追加したい内容を入力」、4行）
+
+**AI連携**：
+- 「AIに修正を依頼」ボタン押下で `POST /api/docs/policy/refine` を呼び出す
+- 現在のドラフト全文とフィードバックを送信
+- 壁打ち回数は最大5回とする（現行実装と同一）
+
+**UIレイアウト**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 壁打ち・精緻化                              │
+│ p: ドラフトを直接編集するか、AIに修正を            │
+│    依頼してください。                             │
+│                                                  │
+│ ┌─ ドラフト編集 ──────────────────────────────┐ │
+│ │ [textarea: ドラフト全文（編集可能）]          │ │
+│ │ min-h-[400px] font-mono                     │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ AIに修正を依頼 ───────────────────────────┐  │
+│ │ フィードバック:                              │ │
+│ │ [textarea]                                  │ │
+│ │                                              │ │
+│ │ [AIに修正を依頼]  壁打ち回数: 1/5            │ │
+│ │ bg-indigo-100 text-indigo-700               │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [戻る]                    [確認へ進む]            │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「AIに修正を依頼」：`bg-indigo-100 text-indigo-700 hover:bg-indigo-200`。フィードバック入力済みかつ壁打ち回数が5回未満の場合に有効化。5回到達後は非表示にし、「壁打ち回数の上限に達しました。直接編集で最終調整してください。」と表示
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`。Step5へ遷移
+- 「確認へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。常に有効。Step7へ遷移
+
+#### Step7: 確認・保存（共通）
+
+**コンポーネント名**：`PolicyStep7Confirm`
+
+**Props**：
+```typescript
+interface PolicyStep7ConfirmProps {
+  state: PolicyWizardState
+  dispatch: React.Dispatch<PolicyWizardAction>
+  onClose: () => void
+}
+```
+
+**表示内容**：
+- **継続モード**：前年度方針との差分をテキストベースで表示 + 最終版のプレビュー
+- **初回モード**：最終版のプレビューのみ（差分表示なし）
+
+**差分表示ロジック**（継続モードのみ）：
+- 前年度方針と新方針を行単位で比較
+- 追加行：`bg-green-50 border-l-4 border-green-400`
+- 削除行：`bg-red-50 border-l-4 border-red-400 line-through`
+
+**UIレイアウト（継続モード）**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 確認・保存                                  │
+│ p: 最終版を確認して保存してください。              │
+│                                                  │
+│ ┌─ 前年度からの変更点 ────────────────────────┐ │
+│ │ bg-gray-50 p-6 rounded-lg overflow-auto     │ │
+│ │ max-h-[300px]                               │ │
+│ │                                              │ │
+│ │ + 追加された行（bg-green-50）                │ │
+│ │ - 削除された行（bg-red-50 line-through）     │ │
+│ │   変更なしの行                               │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ 最終版プレビュー ─────────────────────────┐  │
+│ │ bg-white border-gray-200 p-8 rounded-lg     │ │
+│ │ {MarkdownRenderer: 最終版}                   │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ p: 保存先: talent-management/shared/             │
+│    org-policy-{year}.md                          │
+│                                                  │
+│ [戻る]                       [組織方針を保存]     │
+└──────────────────────────────────────────────────┘
+```
+
+**UIレイアウト（初回モード）**：
+
+```
+┌──────────────────────────────────────────────┐
+│ h2: 確認・保存                                  │
+│ p: 最終版を確認して保存してください。              │
+│                                                  │
+│ ┌─ 最終版プレビュー ─────────────────────────┐  │
+│ │ bg-white border-gray-200 p-8 rounded-lg     │ │
+│ │ {MarkdownRenderer: 最終版}                   │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ p: 保存先: talent-management/shared/             │
+│    org-policy-{year}.md                          │
+│                                                  │
+│ [戻る]                       [組織方針を保存]     │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`。Step6へ遷移
+- 「組織方針を保存」：`bg-indigo-600 text-white hover:bg-indigo-700`。押下で `POST /api/docs/policy/save` を呼び出し、成功時にStep8（完了画面）へ遷移する
+
+#### 完了画面（Step8）
+
+**コンポーネント名**: `PolicyStepComplete`
+
+保存成功後に表示される完了画面。他ウィザード（目標設定・1on1・評価）と同一のUIパターンを採用する。
+
+**表示内容**:
+- チェックマークアイコン（`bg-green-100 text-green-600 w-20 h-20 rounded-full`）
+- 「{targetYear}年度の組織方針を保存しました」
+- 保存先ファイルパス（`text-lg text-gray-500`）
+- 「組織方針を確認する」ボタン → ウィザードを閉じて`/docs`に戻る
+
+**ボタン**: 「閉じる」（`bg-indigo-600 text-white`）→ `onClose()` を呼び出し
+
+#### 14.6.4 型定義
+
+```typescript
+// lib/types.ts に追加
+
+/**
+ * 組織方針ウィザードのフローモード。
+ * - 'continuous': 前年度方針が存在する場合（継続策定）
+ * - 'initial': 前年度方針が存在しない場合（新規策定）
+ */
+export type PolicyFlowMode = 'continuous' | 'initial'
+
+export interface PolicyWizardState {
+  currentStep: number                     // 1-8（8は完了画面）
+  targetYear: number                      // 対象年度
+  flowMode: PolicyFlowMode | null         // フローモード（Step1完了後に確定）
+  previousPolicy: string | null           // 前年度方針テキスト
+
+  // Step2A（継続モード）：前年度振り返り
+  review: {
+    whatWorked: string                    // うまくいったこと
+    whatDidntWork: string                 // うまくいかなかったこと
+    leftBehind: string                    // 積み残し・持ち越し
+  }
+
+  // Step2B（初回モード）：現在の組織状態
+  currentState: {
+    teamInfo: string                      // チーム構成・人数
+    challenges: string                    // 現在の課題
+    strengths: string                     // 組織の強み
+    mission: string                       // ミッション・役割
+    themes: string                        // 注力テーマ
+  }
+
+  // Step3A（継続モード）：来期テーマ・環境変化
+  continuousThemes: {
+    environmentChanges: string            // 来期の環境変化
+    focusThemes: string                   // 来期の注力テーマ
+    supplementary: string                 // 補足情報
+  }
+
+  // Step3B（初回モード）：上位組織方針
+  upperPolicy: {
+    content: string                       // 上位組織の方針テキスト
+    supplementary: string                 // 補足情報
+  }
+
+  // Step4: AI方向性提案
+  direction: string | null                // AI生成の方向性テキスト
+  directionFeedback: string               // 方向性へのフィードバック
+  directionRegenerateCount: number        // 方向性の再生成回数（最大2）
+
+  // Step5-6: AIドラフト・精緻化
+  aiDraft: string | null                  // AI生成ドラフト
+  currentDraft: string | null             // 編集中のドラフト
+  refinementCount: number                 // 壁打ち回数（最大5）
+
+  // Step7: 保存
+  savedPath: string | null                // 保存先パス
+}
+```
+
+#### 14.6.5 Reducer Actions
+
+| Action | ペイロード | 効果 |
+|--------|----------|------|
+| `SET_TARGET_YEAR` | `{ year: number }` | 対象年度を設定し、前年度方針を自動ロード |
+| `SET_FLOW_MODE` | `{ mode: PolicyFlowMode, previousPolicy: string \| null }` | フローモードと前年度方針を確定。Step2（A or B）へ遷移。フローモード変更時に、前モード固有のフィールドをクリアする：continuous → initial に変更: `review`, `continuousThemes` をクリア。initial → continuous に変更: `currentState`, `upperPolicy` をクリア。両方共通: `direction`, `aiDraft`, `currentDraft` をクリア |
+| `SET_REVIEW` | `{ field: keyof PolicyWizardState['review'], value: string }` | 前年度振り返りの各フィールドを更新（継続モード） |
+| `SET_CURRENT_STATE` | `{ field: keyof PolicyWizardState['currentState'], value: string }` | 現在の組織状態の各フィールドを更新（初回モード） |
+| `SET_CONTINUOUS_THEMES` | `{ field: keyof PolicyWizardState['continuousThemes'], value: string }` | 来期テーマの各フィールドを更新（継続モード） |
+| `SET_UPPER_POLICY` | `{ field: keyof PolicyWizardState['upperPolicy'], value: string }` | 上位組織方針の各フィールドを更新（初回モード） |
+| `SET_DIRECTION` | `{ direction: string }` | AI方向性提案を保存 |
+| `SET_DIRECTION_FEEDBACK` | `{ feedback: string }` | 方向性フィードバックを保存 |
+| `REGENERATE_DIRECTION` | `{ direction: string }` | 方向性を再設定。`directionRegenerateCount` をインクリメント |
+| `SET_AI_DRAFT` | `{ draft: string }` | AIドラフトを保存。`currentDraft` も同じ値で初期化 |
+| `UPDATE_CURRENT_DRAFT` | `{ draft: string }` | 直接編集によるドラフト更新 |
+| `SET_REFINED_DRAFT` | `{ draft: string }` | AIリファイン結果を保存。`currentDraft` を更新。`refinementCount` をインクリメント |
+| `SET_SAVED_PATH` | `{ path: string }` | 保存先パスを保存 |
+| `NEXT_STEP` | なし | 次のステップへ遷移（フローモードに応じた分岐を考慮） |
+| `PREV_STEP` | なし | 前のステップへ遷移（フローモードに応じた分岐を考慮）。Step4以降に進んだ後にStep2/Step3に戻った場合、`direction` と `aiDraft` を `null` にリセットする。これにより、インプット変更後にStep4/Step5に再遷移した際にAI生成が再実行される。 |
+| `RESET_DOWNSTREAM` | なし | Step2/Step3の入力が変更された場合に `direction`, `aiDraft`, `currentDraft` を `null` にリセット |
+
+**ステップ遷移ロジック**（`NEXT_STEP` / `PREV_STEP`）：
+
+```typescript
+// NEXT_STEP のロジック
+function getNextStep(currentStep: number, flowMode: PolicyFlowMode | null): number {
+  // Step1 → Step2（flowMode に応じて 2A or 2B だが、内部的には step=2）
+  // Step2 → Step3（同上、3A or 3B）
+  // Step3 → Step4（共通）
+  // Step4 → Step5（共通）
+  // Step5 → Step6（共通）
+  // Step6 → Step7（共通）
+  // Step7 → Step8（完了画面、保存成功時にdispatch）
+  return Math.min(currentStep + 1, 8)
+}
+
+// PREV_STEP のロジック
+function getPrevStep(currentStep: number, flowMode: PolicyFlowMode | null): number {
+  return Math.max(currentStep - 1, 1)
+}
+```
+
+> **注記**：ステップ番号は内部的に1〜7の連番で管理する。Step2・Step3でどちらのコンポーネントを描画するかは `flowMode` で判定する。
+
+#### 14.6.6 API設計
+
+##### POST /api/docs/policy/direction（新規）
+
+**ファイル**：`app/api/docs/policy/direction/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる組織方針の方向性・骨子を提案 |
+| メソッド | POST |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  year: number                    // 対象年度
+  mode: 'continuous' | 'initial' // フローモード
+  previousPolicy?: string        // 前年度方針テキスト（継続モード時）
+  evaluationCriteria: string     // 評価基準
+  guidelines: string             // 運用ガイドライン
+  // 継続モード用
+  review?: {
+    whatWorked: string
+    whatDidntWork: string
+    leftBehind: string
+  }
+  continuousThemes?: {
+    environmentChanges: string
+    focusThemes: string
+    supplementary: string
+  }
+  // 初回モード用
+  currentState?: {
+    teamInfo: string
+    challenges: string
+    strengths: string
+    mission: string
+    themes: string
+  }
+  upperPolicy?: {
+    content: string
+    supplementary: string
+  }
+  // 再生成時のフィードバック（任意）
+  feedback?: string
+}
+```
+
+**レスポンス**：
+```typescript
+{
+  direction: string              // 生成された方向性テキスト（Markdown）
+  mode: 'live'
+}
+```
+
+**システムプロンプト（継続モード）**：
+
+```
+あなたはIT部門の組織戦略コンサルタントです。
+モバイルアプリ開発部のマネージャーが年度の組織方針を策定するにあたり、まず方針の「方向性・骨子」を提案してください。
+
+この段階ではドラフト全文ではなく、方向性レベルの提案を行います。マネージャーがこの方向性に合意してから、詳細なドラフトを生成します。
+
+【あなたに提供される情報】
+- 前年度の組織方針（全文）
+- 前年度の振り返り（うまくいったこと、うまくいかなかったこと、積み残し）
+- 来期の環境変化と注力テーマ
+- 評価基準（キャリアラダー）
+- 運用ガイドライン
+
+【方向性提案の原則】
+1. 前年度方針の振り返りを踏まえ、「継続すべきこと」「変えるべきこと」「新たに始めること」の3軸で整理すること
+2. 来期の環境変化を反映した、具体的かつ実行可能な方向性を提案すること
+3. 以下の構成で方向性を提案すること：
+   - ミッション方向性（継続 or 刷新、その理由）
+   - 重点施策の候補（2〜3本の柱とその背景）
+   - チーム体制の方向性（変更の有無とその理由）
+   - KPI方向性（注目すべき指標の候補）
+   - R&D方向性（研究開発テーマの候補）
+4. 各項目について「なぜその方向性なのか」の根拠を簡潔に付記すること
+
+【出力フォーマット】
+Markdown 形式で出力すること。見出しレベルは ## から開始すること。
+箇条書きで簡潔に記載すること（各項目3〜5行程度）。
+出力は日本語で行うこと。
+```
+
+**システムプロンプト（初回モード）**：
+
+```
+あなたはIT部門の組織戦略コンサルタントです。
+モバイルアプリ開発部のマネージャーが初めて年度の組織方針を策定するにあたり、まず方針の「方向性・骨子」を提案してください。
+
+この段階ではドラフト全文ではなく、方向性レベルの提案を行います。マネージャーがこの方向性に合意してから、詳細なドラフトを生成します。
+
+【あなたに提供される情報】
+- 組織の現在の状態（チーム構成、課題、強み、ミッション、注力テーマ）
+- 上位組織の方針（任意、提供されない場合もある）
+- 評価基準（キャリアラダー）
+- 運用ガイドライン
+
+【方向性提案の原則】
+1. 組織の現状（強み・課題）を踏まえた現実的な方向性を提案すること
+2. 以下の構成で方向性を提案すること：
+   - ミッション案（部門の存在意義、1〜2文の候補）
+   - 環境認識の要点（内部・外部環境から方針に影響する要素）
+   - 重点施策の候補（2〜3本の柱とその背景）
+   - チーム体制の活用方針（既存チーム構成をどう活かすか）
+   - KPI方向性（測定すべき指標の候補）
+   - R&D方向性（研究開発テーマの候補）
+3. 上位組織の方針が提供されている場合、それとの整合性を確保すること
+4. 各項目について「なぜその方向性なのか」の根拠を簡潔に付記すること
+
+【出力フォーマット】
+Markdown 形式で出力すること。見出しレベルは ## から開始すること。
+箇条書きで簡潔に記載すること（各項目3〜5行程度）。
+出力は日本語で行うこと。
+```
+
+**ユーザーメッセージ構築（継続モード）**：
+
+```
+## 対象年度：{year}年度（継続策定）
+
+## 前年度の組織方針
+{previousPolicy}
+
+## 前年度の振り返り
+
+### うまくいったこと
+{review.whatWorked}
+
+### うまくいかなかったこと
+{review.whatDidntWork}
+
+### 積み残し・持ち越し
+{review.leftBehind || '（なし）'}
+
+## 来期の環境変化
+{continuousThemes.environmentChanges}
+
+## 来期の注力テーマ
+{continuousThemes.focusThemes}
+
+## 補足情報
+{continuousThemes.supplementary || '（なし）'}
+
+## 評価基準（キャリアラダー）
+{evaluationCriteria}
+
+## 運用ガイドライン
+{guidelines}
+
+{feedback ? `## 方向性に対するフィードバック\n${feedback}\n\n上記のフィードバックを踏まえて、方向性を再提案してください。` : '上記の情報をもとに、方針の方向性・骨子を提案してください。'}
+```
+
+**ユーザーメッセージ構築（初回モード）**：
+
+```
+## 対象年度：{year}年度（新規策定）
+
+## 組織の現在の状態
+
+### チーム構成・人数
+{currentState.teamInfo}
+
+### 現在の課題
+{currentState.challenges}
+
+### 組織の強み
+{currentState.strengths}
+
+### ミッション・役割
+{currentState.mission}
+
+### 注力テーマ
+{currentState.themes}
+
+## 上位組織の方針
+{upperPolicy.content || '（提供なし）'}
+
+## 補足情報
+{upperPolicy.supplementary || '（なし）'}
+
+## 評価基準（キャリアラダー）
+{evaluationCriteria}
+
+## 運用ガイドライン
+{guidelines}
+
+{feedback ? `## 方向性に対するフィードバック\n${feedback}\n\n上記のフィードバックを踏まえて、方向性を再提案してください。` : '上記の情報をもとに、方針の方向性・骨子を提案してください。'}
+```
+
+**maxTokens**：2048
+
+##### POST /api/docs/policy/draft（変更）
+
+**ファイル**：`app/api/docs/policy/draft/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる組織方針ドラフトを生成（方向性をベースに） |
+| メソッド | POST |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**（変更後）：
+```typescript
+{
+  year: number                    // 対象年度
+  mode: 'continuous' | 'initial' // フローモード
+  direction: string              // Step4で合意された方向性テキスト（v1.9新設）
+  previousPolicy?: string        // 前年度方針テキスト（継続モード時）
+  evaluationCriteria: string     // 評価基準
+  guidelines: string             // 運用ガイドライン
+  // 継続モード用
+  review?: {
+    whatWorked: string
+    whatDidntWork: string
+    leftBehind: string
+  }
+  continuousThemes?: {
+    environmentChanges: string
+    focusThemes: string
+    supplementary: string
+  }
+  // 初回モード用
+  currentState?: {
+    teamInfo: string
+    challenges: string
+    strengths: string
+    mission: string
+    themes: string
+  }
+  upperPolicy?: {
+    content: string
+    supplementary: string
+  }
+}
+```
+
+**レスポンス**：
+```typescript
+{
+  draft: string                  // 生成された方針ドラフト（Markdown）
+  mode: 'live'
+}
+```
+
+**システムプロンプト（継続モード）**：
+
+```
+あなたはIT部門の組織戦略コンサルタントです。
+モバイルアプリ開発部のマネージャーが年度の組織方針を策定するためのドラフトを生成してください。
+
+マネージャーはすでに方針の「方向性・骨子」に合意しています。この方向性をベースに、詳細な組織方針ドラフトを生成してください。
+
+【方針策定の原則】
+1. 合意された方向性に忠実にドラフトを展開すること。方向性から大きく逸脱しないこと
+2. 前年度方針の振り返り（うまくいったこと、うまくいかなかったこと、積み残し）を適切に反映すること
+3. 具体的かつ実行可能な方針を策定すること。抽象的なスローガンのみは不可
+4. 以下のセクション構成を必ず含めること：
+   - ミッション（部門の存在意義、1〜2文）
+   - 来期環境認識（市場・技術・組織の変化）
+   - 重点施策（2〜3本の柱、各柱に具体的な施策を記載）
+   - チーム体制（Flutter / KMP / Producer の役割と連携）
+   - KPI・定量目標（測定可能な指標）
+   - R&D方針（研究開発の方向性）
+5. 評価基準（キャリアラダー）との整合性を確保すること
+6. 運用ガイドラインに記載された目標立案ルールを踏まえ、個人目標に展開可能な粒度で書くこと
+
+【禁止事項】
+- 前年度方針の単純なコピー（環境変化を反映していない繰り返しは不可）
+- 具体性のない抽象的な表現のみの方針（「DXを推進する」「品質を向上する」のみは不可）
+- 実現可能性を考慮しない過大な目標設定
+- 合意された方向性からの大幅な逸脱
+
+【出力フォーマット】
+Markdown 形式で出力すること。見出しレベルは ## から開始すること。
+出力は日本語で行うこと。
+```
+
+**システムプロンプト（初回モード）**：
+
+```
+あなたはIT部門の組織戦略コンサルタントです。
+モバイルアプリ開発部のマネージャーが初めて年度の組織方針を策定するためのドラフトを生成してください。
+
+マネージャーはすでに方針の「方向性・骨子」に合意しています。この方向性をベースに、詳細な組織方針ドラフトを生成してください。
+
+【方針策定の原則】
+1. 合意された方向性に忠実にドラフトを展開すること。方向性から大きく逸脱しないこと
+2. 組織の現状（チーム構成、強み、課題）を踏まえた実現可能な方針を策定すること
+3. 具体的かつ実行可能な方針を策定すること。抽象的なスローガンのみは不可
+4. 以下のセクション構成を必ず含めること：
+   - ミッション（部門の存在意義、1〜2文）
+   - 環境認識（内部・外部環境の現状分析）
+   - 重点施策（2〜3本の柱、各柱に具体的な施策を記載）
+   - チーム体制（各チームの役割と連携）
+   - KPI・定量目標（測定可能な指標）
+   - R&D方針（研究開発の方向性）
+5. 上位組織の方針が提供されている場合、それとの整合性を確保すること
+6. 評価基準（キャリアラダー）との整合性を確保すること
+7. 運用ガイドラインに記載された目標立案ルールを踏まえ、個人目標に展開可能な粒度で書くこと
+
+【禁止事項】
+- 具体性のない抽象的な表現のみの方針（「DXを推進する」「品質を向上する」のみは不可）
+- 実現可能性を考慮しない過大な目標設定
+- 合意された方向性からの大幅な逸脱
+
+【出力フォーマット】
+Markdown 形式で出力すること。見出しレベルは ## から開始すること。
+出力は日本語で行うこと。
+```
+
+**ユーザーメッセージ構築（継続モード）**：
+
+```
+## 対象年度：{year}年度（継続策定）
+
+## 合意された方向性・骨子
+{direction}
+
+## 前年度の組織方針
+{previousPolicy}
+
+## 前年度の振り返り
+
+### うまくいったこと
+{review.whatWorked}
+
+### うまくいかなかったこと
+{review.whatDidntWork}
+
+### 積み残し・持ち越し
+{review.leftBehind || '（なし）'}
+
+## 来期の環境変化
+{continuousThemes.environmentChanges}
+
+## 来期の注力テーマ
+{continuousThemes.focusThemes}
+
+## 補足情報
+{continuousThemes.supplementary || '（なし）'}
+
+## 評価基準（キャリアラダー）
+{evaluationCriteria}
+
+## 運用ガイドライン
+{guidelines}
+
+上記の方向性をベースに、{year}年度の組織方針ドラフト全文を生成してください。
+```
+
+**ユーザーメッセージ構築（初回モード）**：
+
+```
+## 対象年度：{year}年度（新規策定）
+
+## 合意された方向性・骨子
+{direction}
+
+## 組織の現在の状態
+
+### チーム構成・人数
+{currentState.teamInfo}
+
+### 現在の課題
+{currentState.challenges}
+
+### 組織の強み
+{currentState.strengths}
+
+### ミッション・役割
+{currentState.mission}
+
+### 注力テーマ
+{currentState.themes}
+
+## 上位組織の方針
+{upperPolicy.content || '（提供なし）'}
+
+## 補足情報
+{upperPolicy.supplementary || '（なし）'}
+
+## 評価基準（キャリアラダー）
+{evaluationCriteria}
+
+## 運用ガイドライン
+{guidelines}
+
+上記の方向性をベースに、{year}年度の組織方針ドラフト全文を生成してください。
+```
+
+**maxTokens**：4096
+
+##### POST /api/docs/policy/refine（修正あり）
+
+**修正あり**: リクエストボディを `{ currentContent, messages }` から `{ currentDraft, feedback, previousPolicy?, evaluationCriteria?, guidelines? }` に変更。レスポンスも `{ reply, updatedPolicy }` から `{ refined: string, mode: 'live' }` に変更。ただし、実装時にチャット形式のUIを採用する場合は現行の `{ currentContent, messages }` 形式を維持してもよい（実装判断に委ねる）。
+
+**ファイル**：`app/api/docs/policy/refine/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる組織方針リファイン（壁打ち） |
+| メソッド | POST |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  currentDraft: string           // 現在のドラフト全文
+  feedback: string               // マネージャーのフィードバック
+  previousPolicy?: string        // 前年度方針テキスト
+  evaluationCriteria: string     // 評価基準
+  guidelines: string             // 運用ガイドライン
+}
+```
+
+**レスポンス**：
+```typescript
+{
+  refined: string                // リファイン後のドラフト（Markdown）
+  mode: 'live'
+}
+```
+
+**システムプロンプト**：
+
+```
+あなたはIT部門の組織戦略コンサルタントです。
+マネージャーのフィードバックをもとに、組織方針ドラフトを修正・改善してください。
+
+【修正の原則】
+1. フィードバックで指摘されたポイントを確実に反映すること
+2. 修正していない箇所の品質を維持すること（無関係な箇所を不用意に書き換えない）
+3. 全体の整合性を確保すること（一部修正が他のセクションに影響する場合は連動して修正）
+4. 修正後もMarkdownの構造を維持すること
+
+【出力フォーマット】
+修正後の方針全文をMarkdown形式で出力すること。差分ではなく全文を出力すること。
+出力は日本語で行うこと。
+```
+
+**ユーザーメッセージ構築**：
+
+```
+## 現在のドラフト
+{currentDraft}
+
+## 前年度の組織方針（参考）
+{previousPolicy || '（なし）'}
+
+## 評価基準（参考）
+{evaluationCriteria}
+
+## 運用ガイドライン（参考）
+{guidelines}
+
+## マネージャーのフィードバック
+{feedback}
+
+上記のフィードバックを反映して、組織方針ドラフトを修正してください。修正後の全文を出力してください。
+```
+
+**maxTokens**：4096
+
+##### POST /api/docs/policy/save（変更なし）
+
+**ファイル**：`app/api/docs/policy/save/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | 組織方針をMarkdownファイルとして保存 |
+| メソッド | POST |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  year: number                   // 対象年度
+  content: string                // 組み立て済みMarkdown全文
+}
+```
+
+**処理**：
+1. `year` と `content` のバリデーション
+2. `SHARED_DIR` から共有ドキュメントディレクトリのパスを取得
+3. `shared/org-policy-{year}.md` にコンテンツを書き込み
+
+**レスポンス**：
+```typescript
+{
+  success: true
+  path: string    // 保存先の相対パス（例: "talent-management/shared/org-policy-2026.md"）
+}
+```
+
+**エラー**：
+- 400: `year` または `content` が未指定
+- 500: ファイル書き込み失敗
+
+**実装パターン**：`app/api/members/[name]/goals/route.ts` の POST 処理と同一パターンに従う。
+
+#### 14.6.7 コンポーネント一覧
+
+| ファイルパス | 種類 | 役割 |
+|------------|------|------|
+| `web-demo/src/components/policy/PolicyWizard.tsx` | Client Component | 組織方針ウィザード本体（useReducer + 7ステップ分岐描画） |
+| `web-demo/src/components/policy/PolicyStepper.tsx` | Client Component | ステッパーUI（7ステップの進捗表示、フローモードに応じたラベル切替） |
+| `web-demo/src/components/policy/steps/PolicyStep1Year.tsx` | Client Component | Step1: 年度選択 + フローモード検出 |
+| `web-demo/src/components/policy/steps/PolicyStep2AReview.tsx` | Client Component | Step2A: 前年度振り返り（継続モード） |
+| `web-demo/src/components/policy/steps/PolicyStep2BCurrentState.tsx` | Client Component | Step2B: 現在の組織状態（初回モード） |
+| `web-demo/src/components/policy/steps/PolicyStep3AThemes.tsx` | Client Component | Step3A: 来期テーマ・環境変化（継続モード） |
+| `web-demo/src/components/policy/steps/PolicyStep3BUpperPolicy.tsx` | Client Component | Step3B: 上位組織方針（初回モード） |
+| `web-demo/src/components/policy/steps/PolicyStep4Direction.tsx` | Client Component | Step4: AI方向性提案（共通） |
+| `web-demo/src/components/policy/steps/PolicyStep5Draft.tsx` | Client Component | Step5: AIドラフト表示（共通） |
+| `web-demo/src/components/policy/steps/PolicyStep6Refine.tsx` | Client Component | Step6: 壁打ち・精緻化（共通） |
+| `web-demo/src/components/policy/steps/PolicyStep7Confirm.tsx` | Client Component | Step7: 確認・保存（共通、フローモードに応じた差分表示切替） |
+| `web-demo/src/components/policy/steps/PolicyStepComplete.tsx` | Client Component | Step8: 完了画面（保存成功後の確認画面） |
+
+#### 14.6.8 ウィザードの起動
+
+組織方針ウィザードは `/docs` ページ（`DocsTabs`）から起動する。
+
+```typescript
+// components/docs/DocsTabs.tsx に追加
+
+{active === 'policy' && (
+  <button
+    onClick={() => setPolicyWizardOpen(true)}
+    className="text-lg bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+  >
+    組織方針ウィザード
+  </button>
+)}
+```
+
+`DocsTabs` から `criteria` と `guidelines` を `PolicyWizard` にpropsとして渡す。ウィザード内ではこれらをdirection API・draft APIのリクエストボディに含めて送信する。
+
+```typescript
+interface PolicyWizardProps {
+  onClose: () => void
+  availableYears: number[]
+  criteria: string       // 評価基準テキスト
+  guidelines: string     // 運用ガイドラインテキスト
+}
+```
+
+ウィザード閉了時に `router.refresh()` を実行し、組織方針タブの表示を更新する。
+
+### 14.7 用語置換一覧
+
+以下の用語をシステム全体で統一的に置換する。
+
+#### 14.7.1 変数名・プロパティ名
+
+`departmentPolicy` の全出現箇所をプロジェクト横断でgrep し、`orgPolicy` に一括置換する。対象にはコンポーネントのprops参照、プロンプトビルダーの型パラメータ名、APIルートのローカル変数を含む。
+
+補足置換:
+
+| 変更前 | 変更後 | 備考 |
+|--------|--------|------|
+| `policy` | `orgPolicy` | `loadSharedDocs()` の戻り値 `policy` → `orgPolicy` |
+| `policy` | `orgPolicy` | `SHARED_DOCS.policy` は残存（フォールバック用） |
+| `policy` | `orgPolicy` | `GET /api/docs` レスポンスの `policy` → `orgPolicy` |
+| `docs.policy` | `docs.orgPolicy` | `DocsTabs` の props |
+
+#### 14.7.2 ファイル名
+
+| 変更前 | 変更後 | 備考 |
+|--------|--------|------|
+| `department-policy.md` | `org-policy-{year}.md` | 旧ファイルはフォールバック用に残存 |
+
+#### 14.7.3 UIラベル
+
+| 変更前 | 変更後 | 対象箇所 |
+|--------|--------|---------|
+| `部方針` | `組織方針` | `DocsTabs` のタブラベル |
+| `部方針ドキュメント` | `組織方針ドキュメント` | NavBar のリンクラベル |
+| `部方針` | `組織方針` | 目標設定ウィザード Step1 の固定情報表示 |
+| `部方針` | `組織方針` | アーキテクチャ図（セクション2.1） |
+
+#### 14.7.4 AIプロンプト内テキスト
+
+| 変更前 | 変更後 | 対象箇所 |
+|--------|--------|---------|
+| `## 部方針` | `## 組織方針` | 診断用ユーザーメッセージ（`buildDiagnosisUserMessage`） |
+| `## 部方針` | `## 組織方針` | 目標生成用ユーザーメッセージ（`buildGoalGenerationUserMessage`） |
+| `## 部方針` | `## 組織方針` | 1on1質問生成ユーザーメッセージ（`buildOneOnOneQuestionsUserMessage`） |
+| `## 部方針` | `## 組織方針` | 評価ドラフトユーザーメッセージ（`buildReviewDraftUserMessage`） |
+| `## グループ方針` | `## 組織方針` | 診断用システムプロンプト内の参照テキスト |
+
+### 14.8 新規ファイル一覧
+
+#### 14.8.1 新規作成ファイル
+
+| ファイルパス | 種類 | 役割 |
+|------------|------|------|
+| `web-demo/src/lib/utils/period.ts` | Utility | 期間管理基盤（Period型、getActivePeriod、formatPeriodLabel、sortPeriods、parsePeriodFromFilename、getFiscalYear） |
+| `web-demo/src/components/policy/PolicyWizard.tsx` | Client Component | 組織方針ウィザード本体（useReducer + 7ステップ分岐描画） |
+| `web-demo/src/components/policy/PolicyStepper.tsx` | Client Component | ステッパーUI（7ステップの進捗表示、フローモードに応じたラベル切替） |
+| `web-demo/src/components/policy/steps/PolicyStep1Year.tsx` | Client Component | Step1: 年度選択 + フローモード検出 |
+| `web-demo/src/components/policy/steps/PolicyStep2AReview.tsx` | Client Component | Step2A: 前年度振り返り（継続モード） |
+| `web-demo/src/components/policy/steps/PolicyStep2BCurrentState.tsx` | Client Component | Step2B: 現在の組織状態（初回モード） |
+| `web-demo/src/components/policy/steps/PolicyStep3AThemes.tsx` | Client Component | Step3A: 来期テーマ・環境変化（継続モード） |
+| `web-demo/src/components/policy/steps/PolicyStep3BUpperPolicy.tsx` | Client Component | Step3B: 上位組織方針（初回モード） |
+| `web-demo/src/components/policy/steps/PolicyStep4Direction.tsx` | Client Component | Step4: AI方向性提案（共通） |
+| `web-demo/src/components/policy/steps/PolicyStep5Draft.tsx` | Client Component | Step5: AIドラフト表示（共通） |
+| `web-demo/src/components/policy/steps/PolicyStep6Refine.tsx` | Client Component | Step6: 壁打ち・精緻化（共通） |
+| `web-demo/src/components/policy/steps/PolicyStep7Confirm.tsx` | Client Component | Step7: 確認・保存（共通、フローモードに応じた差分表示切替） |
+| `web-demo/src/components/policy/steps/PolicyStepComplete.tsx` | Client Component | Step8: 完了画面（保存成功後の確認画面） |
+| `web-demo/src/app/api/docs/policy/direction/route.ts` | API Route | AI組織方針の方向性・骨子提案（v1.9新設） |
+| `web-demo/src/app/api/docs/policy/refine/route.ts` | API Route | AI組織方針リファイン |
+| `web-demo/src/app/api/docs/policy/save/route.ts` | API Route | 組織方針保存 |
+| `web-demo/src/lib/prompts/policy-direction.ts` | Prompt Builder | 組織方針方向性提案用プロンプト（buildPolicyDirectionSystemPrompt, buildPolicyDirectionUserMessage）（v1.9新設） |
+| `web-demo/src/lib/prompts/policy-draft.ts` | Prompt Builder | 組織方針ドラフト用プロンプト（buildPolicyDraftSystemPrompt, buildPolicyDraftUserMessage）（v1.9でモード別プロンプトに変更） |
+| `web-demo/src/lib/prompts/policy-refine.ts` | Prompt Builder | 組織方針リファイン用プロンプト（buildPolicyRefineSystemPrompt, buildPolicyRefineUserMessage） |
+
+#### 14.8.2 v1.9で廃止されたファイル（旧4ステップ設計）
+
+> 以下のファイルは v1.8 の旧4ステップ設計で定義されていたもので、v1.9 の7ステップ分岐フロー設計により廃止・置換された。
+
+| 廃止ファイルパス | 置換先 |
+|----------------|--------|
+| `web-demo/src/components/policy/steps/PolicyStep1Input.tsx` | `PolicyStep1Year.tsx` + `PolicyStep2AReview.tsx` / `PolicyStep2BCurrentState.tsx` + `PolicyStep3AThemes.tsx` / `PolicyStep3BUpperPolicy.tsx` に分割 |
+| `web-demo/src/components/policy/steps/PolicyStep2Draft.tsx` | `PolicyStep5Draft.tsx` に置換 |
+| `web-demo/src/components/policy/steps/PolicyStep3Refine.tsx` | `PolicyStep6Refine.tsx` に置換 |
+| `web-demo/src/components/policy/steps/PolicyStep4Preview.tsx` | `PolicyStep7Confirm.tsx` に置換 |
+
+#### 14.8.3 修正が必要な既存ファイル
+
+| ファイルパス | 修正内容 |
+|------------|---------|
+| `web-demo/src/lib/types.ts` | `MemberDetail` に `goalsByPeriod`, `activePeriod` を追加。`GoalWizardState` に `targetPeriod` を追加。`PolicyWizardState` 型を v1.9 の7ステップ分岐フロー仕様に新設（`PolicyFlowMode` 型、`review`, `currentState`, `continuousThemes`, `upperPolicy`, `direction` 等のフィールドを含む）。`EvaluationWizardState` に `availablePeriods` を追加 |
+| `web-demo/src/lib/fs/members.ts` | `getAllGoalPeriods()`, `getGoalsByPeriod()` を新設。`getMemberDetail()` を複数期間対応に改修 |
+| `web-demo/src/lib/fs/shared-docs.ts` | `loadOrgPolicy()`, `getOrgPolicyYears()` を新設。`loadSharedDocs()` を年度対応に改修。戻り値キーを `policy` → `orgPolicy` に変更 |
+| `web-demo/src/lib/fs/paths.ts` | `SHARED_DOCS.policy` は後方互換のため残存。`SHARED_DIR` のエクスポートを確認 |
+| `web-demo/src/app/api/docs/route.ts` | `year` クエリパラメータ対応。レスポンスキーを `policy` → `orgPolicy` に変更。`availableYears` を追加 |
+| `web-demo/src/app/api/members/[name]/goals/route.ts` | `period` パラメータを必須化。対象期間ラベルの動的生成。バリデーション追加 |
+| `web-demo/src/components/member/GoalsTab.tsx` | 期間セレクターUI追加。`goalsByPeriod`, `activePeriod` props を受け取る |
+| `web-demo/src/components/member/MemberDetailClient.tsx` | `GoalsTab` への `goalsByPeriod`, `activePeriod` props 追加。`policyWizardOpen` state は不要（/docs ページで管理） |
+| `web-demo/src/components/docs/DocsTabs.tsx` | タブラベル「部方針」→「組織方針」。年度セレクター追加。`orgPolicy` プロパティ対応。PolicyWizard 起動ボタン追加 |
+| `web-demo/src/app/docs/page.tsx` | `loadSharedDocs()` + `getOrgPolicyYears()` 経由に書き換え、`availableYears` を `DocsTabs` に渡す |
+| `web-demo/src/app/members/[name]/page.tsx` | `loadSharedDocs()` の戻り値変更に対応。`goalsByPeriod`, `activePeriod` の構築 |
+| `web-demo/src/components/layout/NavBar.tsx` | 「部方針」→「組織方針」リンクラベル変更 |
+| `web-demo/src/lib/prompts/diagnosis.ts` | ユーザーメッセージ内「部方針」→「組織方針」 |
+| `web-demo/src/lib/prompts/goal-generation.ts` | ユーザーメッセージ内「部方針」→「組織方針」 |
+| `web-demo/src/lib/prompts/one-on-one-questions.ts` | ユーザーメッセージ内「部方針」→「組織方針」 |
+| `web-demo/src/lib/prompts/one-on-one-summary.ts` | コンテキスト変数名 `departmentPolicy` → `orgPolicy` |
+| `web-demo/src/lib/prompts/review-draft.ts` | ユーザーメッセージ内「部方針」→「組織方針」、変数名 `departmentPolicy` → `orgPolicy` |
+| `web-demo/src/components/goals/GoalWizard.tsx` | `targetPeriod` の初期化・保存時送信。ヘッダーに期間ラベル表示 |
+| `web-demo/src/components/goals/steps/Step1AutoLoad.tsx` | 「部方針」→「組織方針」表示ラベル変更 |
+| `web-demo/src/app/api/members/[name]/reviews/draft/route.ts` | リクエストボディに `policyYear` パラメータを追加し、`loadOrgPolicy(policyYear)` で対応年度の方針を参照する |
+| `web-demo/src/app/api/members/[name]/reviews/route.ts` | `period \|\| '2026-h1'` のハードコードを `period \|\| getActivePeriod()` に変更 |
+| `web-demo/src/app/api/chat/route.ts` | `loadSharedDocs()` の戻り値型変更に追従（`shared.guidelines` のみ使用のため実質影響なし） |
+| `web-demo/src/app/api/docs/policy/draft/route.ts` | v1.9: `mode`, `direction` パラメータを追加。モード別のシステムプロンプト・ユーザーメッセージ構築に変更 |
+
+### 14.9 実装フェーズ
+
+#### フェーズ1: 期間管理基盤（見積：0.5日）
+
+1. `lib/utils/period.ts` を新規作成（Period型、getActivePeriod、formatPeriodLabel、sortPeriods、parsePeriodFromFilename、getFiscalYear）
+2. 単体テスト：エッジケース（1月=前年h2、4月=当年h1、12月=当年h2）の動作確認
+
+#### フェーズ2: 目標の複数期間対応 + ウィザードのアクティブ期間対応（見積：1.5日）
+
+> API変更とウィザード修正は同一フェーズで実施し、非互換状態を防ぐ。
+
+1. `lib/types.ts` に `goalsByPeriod`, `activePeriod` を `MemberDetail` に追加
+2. `lib/fs/members.ts` に `getAllGoalPeriods()`, `getGoalsByPeriod()` を新設
+3. `getMemberDetail()` を複数期間対応に改修
+4. `app/api/members/[name]/goals/route.ts` の `period` パラメータを必須化
+5. `components/member/GoalsTab.tsx` に期間セレクターUIを実装
+6. `components/member/MemberDetailClient.tsx` の props 更新
+7. `app/members/[name]/page.tsx` の `goalsByPeriod`, `activePeriod` 構築
+8. `GoalWizardState` に `targetPeriod` を追加
+9. `GoalWizard.tsx` のヘッダーに期間ラベル表示
+10. `Step7Refinement.tsx` の保存処理で `period` を送信
+11. `OneOnOneWizardContextData` の目標参照をアクティブ期間対応
+12. `EvaluationWizardState` に `availablePeriods` を追加
+
+#### フェーズ3: 組織方針バージョン管理（見積：1日）
+
+1. `lib/fs/shared-docs.ts` に `loadOrgPolicy()`, `getOrgPolicyYears()` を新設
+2. `loadSharedDocs()` の戻り値キーを `policy` → `orgPolicy` に変更
+3. `app/api/docs/route.ts` の `year` クエリパラメータ対応
+4. `components/docs/DocsTabs.tsx` のタブラベル変更と年度セレクター追加
+5. 手動マイグレーション実施: `cp talent-management/shared/department-policy.md talent-management/shared/org-policy-2026.md`。旧ファイルはフォールバック用に残す
+
+#### フェーズ4: 用語置換（見積：0.5日）
+
+1. 全ファイルの `departmentPolicy` → `orgPolicy` 変数名置換
+2. UIラベル「部方針」→「組織方針」置換
+3. AIプロンプト内テキスト置換
+4. NavBar リンクラベル変更
+
+#### フェーズ5: 組織方針ウィザード — 7ステップ分岐フロー（見積：3日）
+
+> v1.9 で旧4ステップ設計から7ステップ分岐フローに再設計。工数を1日増加（旧2日→新3日）。
+
+1. `PolicyStepper.tsx` を実装（7ステップ進捗バー、フローモードに応じたラベル切替）
+2. `PolicyWizard.tsx` を実装（useReducer + 7ステップ分岐描画 + フローモード判定）
+3. `PolicyStep1Year.tsx` を実装（年度選択 + 前年度方針検出 + フローモード表示）
+4. `PolicyStep2AReview.tsx` を実装（前年度振り返り入力、継続モード）
+5. `PolicyStep2BCurrentState.tsx` を実装（現在の組織状態入力、初回モード）
+6. `PolicyStep3AThemes.tsx` を実装（来期テーマ・環境変化、継続モード）
+7. `PolicyStep3BUpperPolicy.tsx` を実装（上位組織方針、初回モード）
+8. `PolicyStep4Direction.tsx` を実装（AI方向性提案 + フィードバック + 再生成）
+9. `PolicyStep5Draft.tsx` を実装（AIドラフト表示）
+10. `PolicyStep6Refine.tsx` を実装（エディタ + AIリファイン）
+11. `PolicyStep7Confirm.tsx` を実装（フローモードに応じた差分/全文プレビュー + 保存）
+12. `lib/prompts/policy-direction.ts` を実装（方向性提案用プロンプト、継続/初回モード別）
+13. `lib/prompts/policy-draft.ts` を実装（ドラフト用プロンプト、継続/初回モード別）
+14. `lib/prompts/policy-refine.ts` を実装（リファイン用プロンプト）
+15. `app/api/docs/policy/direction/route.ts` を実装
+16. `app/api/docs/policy/draft/route.ts` を実装（mode/direction パラメータ対応）
+17. `app/api/docs/policy/refine/route.ts` を実装
+18. `app/api/docs/policy/save/route.ts` を実装
+
+> ※ 既存の PolicyStep3Refine.tsx と PolicyStep4Confirm.tsx はUIパターンが大きく変更されるため、リネーム再利用ではなく新規作成として実装する。既存ファイルは削除する。
+
+#### フェーズ6: 統合テスト（見積：1日）
+
+> v1.9 で組織方針ウィザードのテストケースが増加（分岐フロー）。工数を0.5日増加（旧0.5日→新1日）。
+
+1. 複数期間の目標切り替え表示テスト
+2. 新規期間での目標設定ウィザード → 保存 → 表示の一連テスト
+3. 組織方針ウィザード：継続モードの7ステップ遷移テスト（前年度方針あり）
+4. 組織方針ウィザード：初回モードの7ステップ遷移テスト（前年度方針なし）
+5. 組織方針ウィザード：方向性提案の再生成テスト（最大2回）
+6. 組織方針ウィザード：壁打ちの上限テスト（最大3回）
+7. 組織方針ウィザード：継続モードの差分プレビュー表示テスト
+8. 組織方針ウィザード：初回モードの全文プレビュー表示テスト
+9. 組織方針の年度切り替え表示テスト
+10. 用語置換の網羅的確認（UI・AIプロンプト・API）
+11. 後方互換性テスト（`department-policy.md` のみ存在する環境での動作確認）
+12. デモデータに `2025-h2.md`（前期目標サンプル）を追加し、複数期間機能のデモを可能にする
+
+#### 見積合計
+
+| フェーズ | 見積 |
+|---------|------|
+| フェーズ1: 期間管理基盤 | 0.5日 |
+| フェーズ2: 目標の複数期間対応 + ウィザードのアクティブ期間対応 | 1.5日 |
+| フェーズ3: 組織方針バージョン管理 | 1日 |
+| フェーズ4: 用語置換 | 0.5日 |
+| フェーズ5: 組織方針ウィザード（7ステップ分岐フロー） | 3日 |
+| フェーズ6: 統合テスト | 1日 |
+| **合計** | **7.5日** |
 
 ---
 

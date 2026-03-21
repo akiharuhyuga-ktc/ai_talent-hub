@@ -11,6 +11,7 @@ import { ReviewsTab } from '@/components/member/ReviewsTab'
 import { GoalWizard } from '@/components/goals/GoalWizard'
 import { OneOnOneWizard } from '@/components/one-on-one/OneOnOneWizard'
 import { EvaluationWizard } from '@/components/evaluation/EvaluationWizard'
+import { formatPeriodLabel } from '@/lib/utils/period'
 import type { MemberDetail, WizardContextData, OneOnOneWizardContextData, EvaluationWizardContextData } from '@/lib/types'
 
 interface Props {
@@ -22,6 +23,7 @@ interface Props {
 
 export function MemberDetailClient({ member, wizardContext, oneOnOneContext, evaluationContext }: Props) {
   const [goalWizardOpen, setGoalWizardOpen] = useState(false)
+  const [goalWizardPeriod, setGoalWizardPeriod] = useState(member.activePeriod)
   const [oneOnOneWizardOpen, setOneOnOneWizardOpen] = useState(false)
   const [evalWizardOpen, setEvalWizardOpen] = useState(false)
   const router = useRouter()
@@ -29,6 +31,11 @@ export function MemberDetailClient({ member, wizardContext, oneOnOneContext, eva
   const handleCloseWizard = (setter: (v: boolean) => void) => () => {
     setter(false)
     router.refresh()
+  }
+
+  const handleStartGoalWizard = (period: string) => {
+    setGoalWizardPeriod(period)
+    setGoalWizardOpen(true)
   }
 
   const tabs = [
@@ -39,8 +46,14 @@ export function MemberDetailClient({ member, wizardContext, oneOnOneContext, eva
     },
     {
       id: 'goals',
-      label: '目標（2026上期）',
-      content: <GoalsTab goals={member.goals} onStartWizard={() => setGoalWizardOpen(true)} />,
+      label: `目標（${formatPeriodLabel(member.activePeriod)}）`,
+      content: (
+        <GoalsTab
+          goalsByPeriod={member.goalsByPeriod}
+          activePeriod={member.activePeriod}
+          onStartWizard={handleStartGoalWizard}
+        />
+      ),
     },
     {
       id: 'reviews',
@@ -59,6 +72,9 @@ export function MemberDetailClient({ member, wizardContext, oneOnOneContext, eva
     },
   ]
 
+  // Pass targetPeriod to goal wizard context
+  const goalWizardContext = { ...wizardContext, targetPeriod: goalWizardPeriod }
+
   return (
     <>
       <div className="h-[calc(100vh-56px)] overflow-y-auto">
@@ -74,7 +90,7 @@ export function MemberDetailClient({ member, wizardContext, oneOnOneContext, eva
         </div>
       </div>
 
-      {goalWizardOpen && <GoalWizard context={wizardContext} onClose={handleCloseWizard(setGoalWizardOpen)} />}
+      {goalWizardOpen && <GoalWizard context={goalWizardContext} onClose={handleCloseWizard(setGoalWizardOpen)} />}
       {oneOnOneWizardOpen && <OneOnOneWizard context={oneOnOneContext} onClose={handleCloseWizard(setOneOnOneWizardOpen)} />}
       {evalWizardOpen && <EvaluationWizard context={evaluationContext} onClose={handleCloseWizard(setEvalWizardOpen)} />}
     </>

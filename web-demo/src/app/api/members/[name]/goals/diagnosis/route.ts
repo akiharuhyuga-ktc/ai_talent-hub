@@ -20,7 +20,7 @@ export async function POST(
     const userMessage = buildDiagnosisUserMessage({
       memberName: decodeURIComponent(params.name),
       memberProfile: body.memberContext || '',
-      departmentPolicy: shared.policy,
+      orgPolicy: shared.policy,
       evaluationCriteria: shared.criteria,
       managerInput: body.managerInput,
       memberInput: body.memberInput,

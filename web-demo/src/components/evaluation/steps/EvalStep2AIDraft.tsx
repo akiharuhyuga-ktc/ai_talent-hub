@@ -61,7 +61,7 @@ export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: P
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             memberProfile: context.memberProfile,
-            departmentPolicy: context.departmentPolicy,
+            orgPolicy: context.orgPolicy,
             evaluationCriteria: context.evaluationCriteria,
             guidelines: context.guidelines,
             goalsRawMarkdown: context.goalsRawMarkdown,

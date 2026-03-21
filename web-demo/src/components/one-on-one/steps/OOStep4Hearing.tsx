@@ -40,7 +40,7 @@ export function OOStep4Hearing({ state, context, onNext, onBack, prefetchedQuest
             condition: state.condition,
             previousCondition: context.previousCondition,
             previousSummary: context.previousSummary,
-            departmentPolicy: context.departmentPolicy,
+            orgPolicy: context.orgPolicy,
           }),
         })
         const data = await res.json()

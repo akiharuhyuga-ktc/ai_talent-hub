@@ -1,0 +1,206 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
+import type { PolicyWizardState } from '../PolicyWizard'
+
+const MAX_REGENERATIONS = 3
+
+interface PolicyStep4DirectionProps {
+  state: PolicyWizardState
+  onConfirm: (direction: string) => void
+  onBack: () => void
+}
+
+export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4DirectionProps) {
+  const [direction, setDirection] = useState(state.direction || '')
+  const [loading, setLoading] = useState(!state.direction)
+  const [error, setError] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState('')
+  const [regenCount, setRegenCount] = useState(0)
+
+  const fetchDirection = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const body: Record<string, unknown> = { mode: state.flowMode }
+
+      if (state.flowMode === 'continuous') {
+        body.prevContent = state.baseContent
+        body.whatWorked = state.review.whatWorked
+        body.whatDidntWork = state.review.whatDidntWork
+        body.leftBehind = state.review.leftBehind
+        body.envChanges = state.continuousThemes.envChanges
+        body.techChanges = state.continuousThemes.techChanges
+        body.focusThemes = state.continuousThemes.focusThemes
+      } else {
+        body.teamInfo = state.currentState.teamInfo
+        body.techDomains = state.currentState.techDomains
+        body.challenges = state.currentState.challenges
+        body.strengths = state.currentState.strengths
+        body.mission = state.currentState.mission
+        body.themes = state.currentState.themes
+        body.upperOrgPolicy = state.upperPolicy
+      }
+
+      const res = await fetch('/api/docs/policy/direction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'AI方向性の生成に失敗しました')
+      }
+
+      const data = await res.json()
+      if (data.direction) {
+        setDirection(data.direction)
+        setEditText(data.direction)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'AI方向性の生成に失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!state.direction) {
+      fetchDirection()
+    } else {
+      setEditText(state.direction)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleRegenerate = async () => {
+    if (regenCount >= MAX_REGENERATIONS) return
+    setRegenCount(prev => prev + 1)
+    setEditing(false)
+    await fetchDirection()
+  }
+
+  const handleToggleEdit = () => {
+    if (editing) {
+      // Save edits
+      setDirection(editText)
+      setEditing(false)
+    } else {
+      setEditText(direction)
+      setEditing(true)
+    }
+  }
+
+  const handleConfirm = () => {
+    const finalDirection = editing ? editText : direction
+    onConfirm(finalDirection)
+  }
+
+  return (
+    <div>
+      <h2 className="text-4xl font-bold text-gray-800 mb-3">
+        {state.flowMode === 'continuous' ? 'AI方向性の提案' : 'AI骨格の提案'}
+      </h2>
+      <p className="text-xl text-gray-500 mb-8">
+        入力内容をもとにAIが方針の方向性を提案します。確認・修正してから草案生成に進みます。
+      </p>
+
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-6" />
+          <p className="text-xl text-gray-500">AIが方向性を生成中...</p>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="text-center py-12">
+          <p className="text-xl text-red-600 bg-red-50 border border-red-200 rounded-lg px-5 py-4 mb-6">
+            {error}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={onBack}
+              className="px-8 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              戻る
+            </button>
+            <button
+              onClick={handleRegenerate}
+              disabled={regenCount >= MAX_REGENERATIONS}
+              className="px-8 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40"
+            >
+              再試行
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && direction && (
+        <>
+          {/* Edit toggle */}
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={handleToggleEdit}
+              className="text-xl text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+            >
+              {editing ? '編集を確定' : '修正する'}
+            </button>
+            {editing && (
+              <button
+                onClick={() => { setEditText(direction); setEditing(false) }}
+                className="text-lg text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                キャンセル
+              </button>
+            )}
+          </div>
+
+          {/* Content */}
+          {editing ? (
+            <textarea
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 h-[400px]"
+              spellCheck={false}
+            />
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-lg p-8 mb-4 max-h-[500px] overflow-y-auto">
+              <MarkdownRenderer content={direction} />
+            </div>
+          )}
+
+          {/* Regenerate info */}
+          <p className="text-lg text-gray-400 mt-4 mb-6">
+            再生成: {regenCount}/{MAX_REGENERATIONS}回
+          </p>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <button
+              onClick={onBack}
+              className="py-4 px-8 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            >
+              戻る
+            </button>
+            <button
+              onClick={handleRegenerate}
+              disabled={regenCount >= MAX_REGENERATIONS}
+              className="py-4 px-8 text-xl border border-indigo-300 text-indigo-600 rounded-lg font-medium hover:bg-indigo-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              再生成
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              この方向性で草案を生成する
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

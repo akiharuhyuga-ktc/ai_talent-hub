@@ -66,7 +66,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
       const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/goals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: currentGoals }),
+        body: JSON.stringify({ content: currentGoals, period: context.targetPeriod }),
       })
       if (res.ok) {
         setSaved(true)

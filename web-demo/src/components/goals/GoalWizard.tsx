@@ -9,6 +9,7 @@ import { Step4PreviousPeriod } from './steps/Step4PreviousPeriod'
 import { Step5Diagnosis } from './steps/Step5Diagnosis'
 import { Step6GoalGeneration } from './steps/Step6GoalGeneration'
 import { Step7Refinement } from './steps/Step7Refinement'
+import { formatPeriodLabel } from '@/lib/utils/period'
 import type { GoalWizardState, WizardContextData, ManagerInput, MemberInput, PreviousPeriod, ChatMessage } from '@/lib/types'
 
 type Action =
@@ -72,6 +73,7 @@ interface GoalWizardProps {
 }
 
 export function GoalWizard({ context, onClose }: GoalWizardProps) {
+  const targetPeriod = context.targetPeriod
   const [state, dispatch] = useReducer(reducer, initialState)
 
   const renderStep = () => {
@@ -143,7 +145,7 @@ export function GoalWizard({ context, onClose }: GoalWizardProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-16 py-5 border-b border-gray-200 bg-gray-50">
         <h1 className="text-4xl font-bold text-gray-800">
-          {context.memberName}さんの目標設定ウィザード
+          {context.memberName}さんの目標設定 - {formatPeriodLabel(targetPeriod)}
         </h1>
         <button
           onClick={onClose}

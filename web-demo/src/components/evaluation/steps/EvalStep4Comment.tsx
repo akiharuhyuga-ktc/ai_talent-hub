@@ -31,7 +31,7 @@ export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             memberProfile: context.memberProfile,
-            departmentPolicy: context.departmentPolicy,
+            orgPolicy: context.orgPolicy,
             evaluationCriteria: context.evaluationCriteria,
             guidelines: context.guidelines,
             goalsRawMarkdown: context.goalsRawMarkdown,

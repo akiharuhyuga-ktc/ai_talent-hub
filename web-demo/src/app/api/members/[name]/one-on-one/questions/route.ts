@@ -35,7 +35,7 @@ export async function POST(
       condition: body.condition || {},
       previousCondition: body.previousCondition || null,
       previousSummary: body.previousSummary || '',
-      departmentPolicy: body.departmentPolicy || '',
+      orgPolicy: body.orgPolicy || '',
     })
 
     const result = await callClaude({

@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { NextRequest, NextResponse } from 'next/server'
 import { getMembersDir } from '@/lib/fs/paths'
+import { getActivePeriod, formatPeriodLabel } from '@/lib/utils/period'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export async function POST(
       return NextResponse.json({ error: 'content is required' }, { status: 400 })
     }
 
-    const filename = period || '2026-h1'
+    const targetPeriod = period || getActivePeriod()
     const goalsDir = path.join(memberDir, 'goals')
     fs.mkdirSync(goalsDir, { recursive: true })
 
@@ -29,7 +30,7 @@ export async function POST(
     const markdown = [
       '# 半期目標設定',
       '',
-      `- 対象期間：2026年上半期（4月〜9月）`,
+      `- 対象期間：${formatPeriodLabel(targetPeriod)}`,
       `- 作成日：${today}`,
       `- メンバー：${memberName}`,
       '',
@@ -39,7 +40,7 @@ export async function POST(
       '',
     ].join('\n')
 
-    const filePath = path.join(goalsDir, `${filename}.md`)
+    const filePath = path.join(goalsDir, `${targetPeriod}.md`)
     fs.writeFileSync(filePath, markdown, 'utf-8')
 
     return NextResponse.json({ success: true, path: filePath })

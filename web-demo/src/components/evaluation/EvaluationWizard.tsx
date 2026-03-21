@@ -1,6 +1,7 @@
 'use client'
 
 import { useReducer } from 'react'
+import { getActivePeriod } from '@/lib/utils/period'
 import { EvaluationStepper } from './EvaluationStepper'
 import { EvalStep1Materials } from './steps/EvalStep1Materials'
 import { EvalStep2AIDraft } from './steps/EvalStep2AIDraft'
@@ -34,7 +35,7 @@ function derivePeriod(goalsRawMarkdown: string | null): string {
       return `${year}-${half}`
     }
   }
-  return '2026-h1'
+  return getActivePeriod()
 }
 
 function createInitialState(period: string): EvaluationWizardState {

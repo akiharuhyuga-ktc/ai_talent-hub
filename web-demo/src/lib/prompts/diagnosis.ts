@@ -3,7 +3,7 @@ import type { ManagerInput, MemberInput, PreviousPeriod } from '@/lib/types'
 interface DiagnosisPromptParams {
   memberName: string
   memberProfile: string
-  departmentPolicy: string
+  orgPolicy: string
   evaluationCriteria: string
   managerInput: ManagerInput
   memberInput: MemberInput
@@ -40,8 +40,8 @@ export function buildDiagnosisUserMessage(params: DiagnosisPromptParams): string
     '## メンバープロフィール',
     params.memberProfile,
     '',
-    '## グループ方針',
-    params.departmentPolicy,
+    '## 組織方針',
+    params.orgPolicy,
     '',
     '## 育成基準・評価基準',
     params.evaluationCriteria,

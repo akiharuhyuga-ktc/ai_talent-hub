@@ -106,7 +106,7 @@ export interface EvaluationWizardState {
 export interface EvaluationWizardContextData {
   memberName: string
   memberProfile: string
-  departmentPolicy: string
+  orgPolicy: string
   evaluationCriteria: string
   guidelines: string
   goalsRawMarkdown: string | null
@@ -115,7 +115,9 @@ export interface EvaluationWizardContextData {
 }
 
 export interface MemberDetail extends MemberProfile {
-  goals: GoalsData | null
+  goals: GoalsData | null                      // アクティブ期間の目標（後方互換）
+  goalsByPeriod: Record<string, GoalsData>     // 全期間の目標
+  activePeriod: string                         // アクティブ期間 例: "2025-h2"
   oneOnOnes: OneOnOneRecord[]
   reviews: ReviewData[]
 }
@@ -165,9 +167,10 @@ export interface GoalWizardState {
 export interface WizardContextData {
   memberName: string
   memberProfile: string
-  departmentPolicy: string
+  orgPolicy: string
   evaluationCriteria: string
   guidelines: string
+  targetPeriod: string   // 目標設定対象期間（GoalsTabから渡される）
 }
 
 // 1on1 Wizard types
@@ -223,7 +226,7 @@ export interface OneOnOneWizardState {
 export interface OneOnOneWizardContextData {
   memberName: string
   memberProfile: string
-  departmentPolicy: string
+  orgPolicy: string
   guidelines: string
   goalsRawMarkdown: string | null
   previousOneOnOne: OneOnOneRecord | null

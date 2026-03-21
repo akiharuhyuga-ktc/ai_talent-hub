@@ -3,7 +3,8 @@ import path from 'path'
 import { getMembersDir } from './paths'
 import { parseProfile } from '../parsers/profile'
 import { parseGoals } from '../parsers/goals'
-import type { MemberSummary, MemberDetail, OneOnOneRecord, ReviewData, GoalEvaluation, EvaluationGrade } from '../types'
+import { getActivePeriod, parsePeriodFromFilename, sortPeriods } from '../utils/period'
+import type { MemberSummary, MemberDetail, OneOnOneRecord, ReviewData, GoalsData, GoalEvaluation, EvaluationGrade } from '../types'
 
 export function getMemberNames(): string[] {
   const membersDir = getMembersDir()
@@ -59,11 +60,22 @@ export function getMemberDetail(encodedName: string): MemberDetail | null {
   const rawProfile = fs.readFileSync(profilePath, 'utf-8')
   const profile = parseProfile(rawProfile)
 
-  const goalsPath = path.join(memberDir, 'goals', '2026-h1.md')
-  let goals = null
-  if (fs.existsSync(goalsPath)) {
-    goals = parseGoals(fs.readFileSync(goalsPath, 'utf-8'))
+  // Load all goal periods
+  const goalsDir = path.join(memberDir, 'goals')
+  const goalsByPeriod: Record<string, GoalsData> = {}
+  if (fs.existsSync(goalsDir)) {
+    const periods = sortPeriods(
+      fs.readdirSync(goalsDir)
+        .map(parsePeriodFromFilename)
+        .filter((p): p is string => p !== null)
+    )
+    for (const period of periods) {
+      const filePath = path.join(goalsDir, `${period}.md`)
+      goalsByPeriod[period] = parseGoals(fs.readFileSync(filePath, 'utf-8'))
+    }
   }
+  const activePeriod = getActivePeriod()
+  const goals = goalsByPeriod[activePeriod] ?? null
 
   const ooDir = path.join(memberDir, 'one-on-one')
   let oneOnOnes: OneOnOneRecord[] = []
@@ -93,7 +105,7 @@ export function getMemberDetail(encodedName: string): MemberDetail | null {
       .filter(Boolean) as ReviewData[]
   }
 
-  return { ...profile, goals, oneOnOnes, reviews }
+  return { ...profile, goals, goalsByPeriod, activePeriod, oneOnOnes, reviews }
 }
 
 function parseReview(raw: string, filename: string): ReviewData | null {

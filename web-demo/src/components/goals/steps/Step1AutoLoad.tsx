@@ -28,7 +28,7 @@ export function Step1AutoLoad({ context, onNext }: Props) {
       <p className="text-xl text-gray-500 mb-8">目標設定に必要な情報が読み込まれていることを確認してください。</p>
 
       <div className="space-y-4 mb-10">
-        <InfoCard label="グループ方針" loaded={!!context.departmentPolicy} />
+        <InfoCard label="組織方針" loaded={!!context.orgPolicy} />
         <InfoCard label="育成基準・評価基準" loaded={!!context.evaluationCriteria} />
         <InfoCard label={`メンバープロフィール（${context.memberName}）`} loaded={!!context.memberProfile} />
         <InfoCard label="運用ガイドライン" loaded={!!context.guidelines} />
