@@ -8,29 +8,26 @@ import { ProfileTab } from '@/components/member/ProfileTab'
 import { GoalsTab } from '@/components/member/GoalsTab'
 import { OneOnOneTab } from '@/components/member/OneOnOneTab'
 import { ReviewsTab } from '@/components/member/ReviewsTab'
-import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { GoalWizard } from '@/components/goals/GoalWizard'
 import { OneOnOneWizard } from '@/components/one-on-one/OneOnOneWizard'
-import type { MemberDetail, WizardContextData, OneOnOneWizardContextData } from '@/lib/types'
+import { EvaluationWizard } from '@/components/evaluation/EvaluationWizard'
+import type { MemberDetail, WizardContextData, OneOnOneWizardContextData, EvaluationWizardContextData } from '@/lib/types'
 
 interface Props {
   member: MemberDetail
   wizardContext: WizardContextData
   oneOnOneContext: OneOnOneWizardContextData
+  evaluationContext: EvaluationWizardContextData
 }
 
-export function MemberDetailClient({ member, wizardContext, oneOnOneContext }: Props) {
+export function MemberDetailClient({ member, wizardContext, oneOnOneContext, evaluationContext }: Props) {
   const [goalWizardOpen, setGoalWizardOpen] = useState(false)
   const [oneOnOneWizardOpen, setOneOnOneWizardOpen] = useState(false)
+  const [evalWizardOpen, setEvalWizardOpen] = useState(false)
   const router = useRouter()
 
-  const handleCloseGoalWizard = () => {
-    setGoalWizardOpen(false)
-    router.refresh()
-  }
-
-  const handleCloseOneOnOneWizard = () => {
-    setOneOnOneWizardOpen(false)
+  const handleCloseWizard = (setter: (v: boolean) => void) => () => {
+    setter(false)
     router.refresh()
   }
 
@@ -48,7 +45,7 @@ export function MemberDetailClient({ member, wizardContext, oneOnOneContext }: P
     {
       id: 'reviews',
       label: `評価 (${member.reviews.length})`,
-      content: <ReviewsTab reviews={member.reviews} />,
+      content: <ReviewsTab reviews={member.reviews} onStartWizard={() => setEvalWizardOpen(true)} />,
     },
     {
       id: 'one-on-one',
@@ -64,30 +61,22 @@ export function MemberDetailClient({ member, wizardContext, oneOnOneContext }: P
 
   return (
     <>
-      <div className="flex h-[calc(100vh-56px)]">
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-8 py-7">
-            <div className="flex items-center gap-2 mb-7 text-sm">
-              <Link href="/" className="text-indigo-600 hover:text-indigo-800 transition-colors font-medium">
-                ← ダッシュボード
-              </Link>
-              <span className="text-gray-400">/</span>
-              <span className="text-gray-700 font-semibold">{member.name}</span>
-            </div>
-            <Tabs tabs={tabs} defaultTab="profile" />
+      <div className="h-[calc(100vh-56px)] overflow-y-auto">
+        <div className="px-8 py-7">
+          <div className="flex items-center gap-2 mb-7 text-sm">
+            <Link href="/" className="text-indigo-600 hover:text-indigo-800 transition-colors font-medium">
+              ← ダッシュボード
+            </Link>
+            <span className="text-gray-400">/</span>
+            <span className="text-gray-700 font-semibold">{member.name}</span>
           </div>
-        </div>
-        <div className="w-[520px] border-l border-gray-200 bg-white flex flex-col">
-          <ChatSidebar memberName={member.name} memberContext={member.rawMarkdown} />
+          <Tabs tabs={tabs} defaultTab="profile" />
         </div>
       </div>
 
-      {goalWizardOpen && (
-        <GoalWizard context={wizardContext} onClose={handleCloseGoalWizard} />
-      )}
-      {oneOnOneWizardOpen && (
-        <OneOnOneWizard context={oneOnOneContext} onClose={handleCloseOneOnOneWizard} />
-      )}
+      {goalWizardOpen && <GoalWizard context={wizardContext} onClose={handleCloseWizard(setGoalWizardOpen)} />}
+      {oneOnOneWizardOpen && <OneOnOneWizard context={oneOnOneContext} onClose={handleCloseWizard(setOneOnOneWizardOpen)} />}
+      {evalWizardOpen && <EvaluationWizard context={evaluationContext} onClose={handleCloseWizard(setEvalWizardOpen)} />}
     </>
   )
 }

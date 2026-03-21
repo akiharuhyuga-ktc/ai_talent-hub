@@ -95,6 +95,40 @@ export function parseConditionScore(rawMarkdown: string): ConditionScore | null 
 }
 
 /**
+ * Parse goal progress entries from a 1on1 record markdown.
+ */
+export function parseGoalProgress(rawMarkdown: string): { goalLabel: string; status: string; progressComment: string }[] {
+  const lines = rawMarkdown.split('\n')
+  const entries: { goalLabel: string; status: string; progressComment: string }[] = []
+  let inProgress = false
+  let current: { goalLabel: string; status: string; progressComment: string } | null = null
+
+  const STATUS_MAP: Record<string, string> = { '順調': 'on-track', '要注意': 'at-risk', '遅延': 'delayed' }
+
+  for (const line of lines) {
+    if (line.startsWith('## 目標進捗')) { inProgress = true; continue }
+    if (inProgress && line.startsWith('## ')) break
+    if (!inProgress) continue
+
+    const headerMatch = line.match(/^### (.+)/)
+    if (headerMatch) {
+      if (current) entries.push(current)
+      current = { goalLabel: headerMatch[1], status: '', progressComment: '' }
+      continue
+    }
+    if (!current) continue
+    if (line.startsWith('- 進捗ステータス：') || line.startsWith('- 進捗ステータス:')) {
+      const raw = line.replace(/^- 進捗ステータス[：:]/, '').replace(/\*\*/g, '').trim()
+      current.status = STATUS_MAP[raw] || raw
+    } else if (line.startsWith('- コメント：') || line.startsWith('- コメント:')) {
+      current.progressComment = line.replace(/^- コメント[：:]/, '').trim()
+    }
+  }
+  if (current) entries.push(current)
+  return entries
+}
+
+/**
  * Parse the AI summary section from a 1on1 record.
  */
 export function parseSummary(rawMarkdown: string): string {

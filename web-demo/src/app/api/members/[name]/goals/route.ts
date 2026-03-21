@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { NextRequest, NextResponse } from 'next/server'
-import { MEMBERS_DIR } from '@/lib/fs/paths'
+import { getMembersDir } from '@/lib/fs/paths'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +11,7 @@ export async function POST(
 ) {
   try {
     const memberName = decodeURIComponent(params.name)
-    const memberDir = path.join(MEMBERS_DIR, memberName)
+    const memberDir = path.join(getMembersDir(), memberName)
     if (!fs.existsSync(memberDir)) {
       return NextResponse.json({ error: 'Member not found' }, { status: 404 })
     }

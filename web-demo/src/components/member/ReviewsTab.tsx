@@ -7,6 +7,7 @@ import type { ReviewData } from '@/lib/types'
 
 interface ReviewsTabProps {
   reviews: ReviewData[]
+  onStartWizard?: () => void
 }
 
 const evalColorMap: Record<string, { bg: string; text: string; border: string }> = {
@@ -14,6 +15,7 @@ const evalColorMap: Record<string, { bg: string; text: string; border: string }>
   A: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-300' },
   B: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-300' },
   C: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-300' },
+  D: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-400' },
 }
 
 function EvalBadge({ value, label }: { value: string; label: string }) {
@@ -184,7 +186,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
   )
 }
 
-export function ReviewsTab({ reviews }: ReviewsTabProps) {
+export function ReviewsTab({ reviews, onStartWizard }: ReviewsTabProps) {
   const [unlocked, setUnlocked] = useState(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem(SESSION_KEY) === '1'
@@ -208,8 +210,16 @@ export function ReviewsTab({ reviews }: ReviewsTabProps) {
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="flex items-center justify-between mb-6">
         <h3 className="text-3xl font-semibold text-gray-800">評価・振り返り</h3>
+        {onStartWizard && (
+          <button
+            onClick={onStartWizard}
+            className="text-lg bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            評価ウィザード
+          </button>
+        )}
       </div>
       <div className="space-y-8">
         {reviews.map((review, i) => (

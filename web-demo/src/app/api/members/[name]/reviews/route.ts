@@ -16,21 +16,21 @@ export async function POST(
       return NextResponse.json({ error: 'Member not found' }, { status: 404 })
     }
 
-    const { content, yearMonth } = await req.json()
+    const { content, period } = await req.json()
     if (!content || typeof content !== 'string') {
       return NextResponse.json({ error: 'content is required' }, { status: 400 })
     }
 
-    const filename = yearMonth || new Date().toISOString().slice(0, 7)
-    const ooDir = path.join(memberDir, 'one-on-one')
-    fs.mkdirSync(ooDir, { recursive: true })
+    const filename = period || '2026-h1'
+    const reviewsDir = path.join(memberDir, 'reviews')
+    fs.mkdirSync(reviewsDir, { recursive: true })
 
-    const filePath = path.join(ooDir, `${filename}.md`)
+    const filePath = path.join(reviewsDir, `${filename}.md`)
     fs.writeFileSync(filePath, content, 'utf-8')
 
     return NextResponse.json({ success: true, path: filePath })
   } catch (error) {
-    console.error('Failed to save 1on1 record:', error)
+    console.error('Failed to save review:', error)
     return NextResponse.json({ error: 'Failed to save' }, { status: 500 })
   }
 }

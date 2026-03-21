@@ -4,20 +4,16 @@ import { buildQuestionsSystemPrompt, buildQuestionsUserMessage } from '@/lib/pro
 
 export const dynamic = 'force-dynamic'
 
-const MOCK_QUESTIONS = [
+const FALLBACK_QUESTIONS = [
   { question: '前回から今日までの間で、一番手応えを感じた瞬間はどんな時でしたか？', intent: '成功体験の言語化を通じてモチベーションの源泉を把握する' },
   { question: '今の業務の中で「もっとこうだったらスムーズなのに」と感じることはありますか？', intent: '業務上のブロッカーを支援視点で引き出す' },
   { question: '来月の自分に向けて、今月中にこれだけはやっておきたいと思うことは何ですか？', intent: '本人の優先度認識を確認し、アクション設定につなげる' },
 ]
 
 function extractJsonArray(text: string): unknown[] | null {
-  // Try direct parse first
   try { return JSON.parse(text) } catch {}
-  // Extract JSON array from text
   const match = text.match(/\[[\s\S]*\]/)
-  if (match) {
-    try { return JSON.parse(match[0]) } catch {}
-  }
+  if (match) { try { return JSON.parse(match[0]) } catch {} }
   return null
 }
 
@@ -26,13 +22,11 @@ export async function POST(
   { params }: { params: { name: string } }
 ) {
   try {
-    const body = await req.json()
-
     if (!hasApiKey()) {
-      await new Promise(r => setTimeout(r, 1000))
-      return NextResponse.json({ questions: MOCK_QUESTIONS, mode: 'mock' })
+      return NextResponse.json({ error: 'API key not configured' }, { status: 503 })
     }
 
+    const body = await req.json()
     const systemPrompt = buildQuestionsSystemPrompt()
     const userMessage = buildQuestionsUserMessage({
       memberName: decodeURIComponent(params.name),
@@ -52,11 +46,11 @@ export async function POST(
 
     const parsed = extractJsonArray(result.content)
     if (parsed && Array.isArray(parsed)) {
-      return NextResponse.json({ questions: parsed, mode: result.mode })
+      return NextResponse.json({ questions: parsed, mode: 'live' })
     }
 
-    // Fallback to mock if parse fails
-    return NextResponse.json({ questions: MOCK_QUESTIONS, mode: 'mock' })
+    // Fallback if AI response can't be parsed
+    return NextResponse.json({ questions: FALLBACK_QUESTIONS, mode: 'live' })
   } catch (error) {
     console.error('Questions API error:', error)
     return NextResponse.json({ error: 'Failed to generate questions' }, { status: 500 })

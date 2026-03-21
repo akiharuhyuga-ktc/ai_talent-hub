@@ -22,7 +22,7 @@ export default function MemberDetailPage({ params }: PageProps) {
     guidelines: shared.guidelines,
   }
 
-  // Build 1on1 context from previous records
+  // 1on1 context
   const latestOneOnOne = member.oneOnOnes.length > 0 ? member.oneOnOnes[0] : null
   const oneOnOneContext = {
     memberName: member.name,
@@ -36,11 +36,25 @@ export default function MemberDetailPage({ params }: PageProps) {
     previousSummary: latestOneOnOne ? parseSummary(latestOneOnOne.rawMarkdown) : '',
   }
 
+  // Evaluation context
+  const latestReview = member.reviews.length > 0 ? member.reviews[0] : null
+  const evaluationContext = {
+    memberName: member.name,
+    memberProfile: member.rawMarkdown,
+    departmentPolicy: shared.policy,
+    evaluationCriteria: shared.criteria,
+    guidelines: shared.guidelines,
+    goalsRawMarkdown: member.goals?.rawMarkdown || null,
+    oneOnOneRecords: member.oneOnOnes,
+    previousReview: latestReview,
+  }
+
   return (
     <MemberDetailClient
       member={member}
       wizardContext={wizardContext}
       oneOnOneContext={oneOnOneContext}
+      evaluationContext={evaluationContext}
     />
   )
 }

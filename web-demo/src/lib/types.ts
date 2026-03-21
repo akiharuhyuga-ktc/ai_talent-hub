@@ -54,6 +54,64 @@ export interface ReviewData {
     content: string
   }[]
   rawMarkdown: string
+  // New format fields (optional for backward compatibility)
+  goalEvaluations?: GoalEvaluation[]
+  overallGrade?: EvaluationGrade
+  overallComment?: string
+  selfEvalGapAnalysis?: string
+  managerChangeLog?: string[]
+}
+
+// Evaluation Wizard types
+export type EvaluationGrade = 'S' | 'A' | 'B' | 'C' | 'D'
+
+export interface SelfEvaluation {
+  score: EvaluationGrade | ''
+  achievementComment: string
+  reflectionComment: string
+}
+
+export interface ManagerSupplementary {
+  notableEpisodes: string
+  environmentChanges: string
+}
+
+export interface GoalEvaluation {
+  goalLabel: string
+  goalText: string
+  grade: EvaluationGrade | ''
+  rationale: string
+  changeReason: string  // If manager changed from AI draft
+}
+
+export interface EvaluationDraft {
+  goalEvaluations: GoalEvaluation[]
+  overallGrade: EvaluationGrade | ''
+  overallRationale: string
+  selfEvalGap: string
+  specialNotes: string
+}
+
+export interface EvaluationWizardState {
+  currentStep: number
+  period: string
+  selfEvaluation: SelfEvaluation
+  managerSupplementary: ManagerSupplementary
+  aiDraft: EvaluationDraft | null
+  confirmedDraft: EvaluationDraft | null
+  evaluatorComment: string
+  aiCommentDraft: string | null
+}
+
+export interface EvaluationWizardContextData {
+  memberName: string
+  memberProfile: string
+  departmentPolicy: string
+  evaluationCriteria: string
+  guidelines: string
+  goalsRawMarkdown: string | null
+  oneOnOneRecords: OneOnOneRecord[]
+  previousReview: ReviewData | null
 }
 
 export interface MemberDetail extends MemberProfile {

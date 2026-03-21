@@ -1,14 +1,15 @@
 import fs from 'fs'
 import path from 'path'
-import { MEMBERS_DIR } from './paths'
+import { getMembersDir } from './paths'
 import { parseProfile } from '../parsers/profile'
 import { parseGoals } from '../parsers/goals'
-import type { MemberSummary, MemberDetail, OneOnOneRecord, ReviewData } from '../types'
+import type { MemberSummary, MemberDetail, OneOnOneRecord, ReviewData, GoalEvaluation, EvaluationGrade } from '../types'
 
 export function getMemberNames(): string[] {
-  return fs.readdirSync(MEMBERS_DIR)
+  const membersDir = getMembersDir()
+  return fs.readdirSync(membersDir)
     .filter(name => {
-      const full = path.join(MEMBERS_DIR, name)
+      const full = path.join(membersDir, name)
       try {
         return fs.statSync(full).isDirectory() && !name.startsWith('.')
       } catch {
@@ -19,8 +20,9 @@ export function getMemberNames(): string[] {
 }
 
 export function getAllMemberSummaries(): MemberSummary[] {
+  const membersDir = getMembersDir()
   return getMemberNames().map(name => {
-    const profilePath = path.join(MEMBERS_DIR, name, 'profile.md')
+    const profilePath = path.join(membersDir, name, 'profile.md')
     if (!fs.existsSync(profilePath)) return null
     try {
       const raw = fs.readFileSync(profilePath, 'utf-8')
@@ -46,8 +48,9 @@ export function getAllMemberSummaries(): MemberSummary[] {
 }
 
 export function getMemberDetail(encodedName: string): MemberDetail | null {
+  const membersDir = getMembersDir()
   const name = decodeURIComponent(encodedName)
-  const memberDir = path.join(MEMBERS_DIR, name)
+  const memberDir = path.join(membersDir, name)
   if (!fs.existsSync(memberDir)) return null
 
   const profilePath = path.join(memberDir, 'profile.md')
@@ -161,7 +164,7 @@ function parseReview(raw: string, filename: string): ReviewData | null {
     }
   }
 
-  return {
+  const result: ReviewData = {
     period,
     filename,
     grade,
@@ -174,4 +177,44 @@ function parseReview(raw: string, filename: string): ReviewData | null {
     evaluatorComments,
     rawMarkdown: raw,
   }
+
+  // Detect new format (wizard-generated) by checking for ## 目標別評価
+  const isNewFormat = lines.some(l => l.trim().startsWith('## 目標別評価'))
+  if (isNewFormat) {
+    result.overallGrade = (getField('総合評価') || '') as EvaluationGrade
+    result.overallComment = extractSection('## 総合コメント', ['## 自己評価との乖離分析', '## 評価者コメント', '## マネージャー変更履歴', '## 特記事項'])
+    result.selfEvalGapAnalysis = extractSection('## 自己評価との乖離分析', ['## 評価者コメント', '## マネージャー変更履歴', '## 特記事項'])
+
+    // Parse goal evaluations
+    const goalEvals: GoalEvaluation[] = []
+    let currentGoal: Partial<GoalEvaluation> | null = null
+    let inGoalSection = false
+    for (const line of lines) {
+      if (line.trim() === '## 目標別評価') { inGoalSection = true; continue }
+      if (inGoalSection && line.trim().startsWith('## ') && !line.trim().startsWith('### ')) { break }
+      if (!inGoalSection) continue
+
+      const goalMatch = line.match(/^### (.+)/)
+      if (goalMatch) {
+        if (currentGoal && currentGoal.goalLabel) goalEvals.push(currentGoal as GoalEvaluation)
+        currentGoal = { goalLabel: goalMatch[1], goalText: '', grade: '' as EvaluationGrade, rationale: '', changeReason: '' }
+        continue
+      }
+      if (!currentGoal) continue
+      if (line.startsWith('- 達成度：') || line.startsWith('- 達成度:')) {
+        currentGoal.grade = line.replace(/^- 達成度[：:]/, '').replace(/\*\*/g, '').trim() as EvaluationGrade
+      } else if (line.startsWith('- 判定根拠：') || line.startsWith('- 判定根拠:')) {
+        currentGoal.rationale = line.replace(/^- 判定根拠[：:]/, '').trim()
+      }
+    }
+    if (currentGoal && currentGoal.goalLabel) goalEvals.push(currentGoal as GoalEvaluation)
+    result.goalEvaluations = goalEvals
+
+    // Use overallGrade as h2Eval for unified display
+    if (result.overallGrade && !result.h2Eval) {
+      result.h2Eval = result.overallGrade
+    }
+  }
+
+  return result
 }

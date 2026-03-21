@@ -1,8 +1,8 @@
 # AIタレントハブ システム設計書
 
-> 文書バージョン：1.3
+> 文書バージョン：1.6
 > 作成日：2026-03-21
-> 最終更新：2026-03-21（1on1ウィザード設計のレビュー指摘を反映（C1-C4, I1-I8, S1-S6対応））
+> 最終更新：2026-03-21（AIチャットサイドバー廃止、デモモード機能追加、モックレスポンス削除を反映）
 > 対象システム：KTC TalentHub（モバイルアプリ開発部 AIタレントマネジメントシステム）
 
 ---
@@ -60,8 +60,12 @@ Claude を「AI秘書」として活用し、以下を実現する。
 │  │ダッシュボード│  │メンバー詳細    │  │部方針ドキュメント│  │目標設定ウィザード│   │
 │  │ (/)       │  │(/members/[name])│  │(/docs)    │  │(モーダル)     │   │
 │  └──────────┘  └──────────────┘  └──────────┘  └─────────────┘   │
-│                    │ AIチャットサイドバー │    ┌─────────────┐        │
-│                    └──────────────────┘    │1on1ウィザード  │        │
+│                                             ┌─────────────┐        │
+│                                             │1on1ウィザード  │        │
+│                                             │(モーダル)     │        │
+│                                             └─────────────┘        │
+│                                             ┌─────────────┐        │
+│                                             │評価ウィザード  │        │
 │                                             │(モーダル)     │        │
 │                                             └─────────────┘        │
 └──────────────┬──────────────────────────────────────────────────┘
@@ -80,6 +84,9 @@ Claude を「AI秘書」として活用し、以下を実現する。
 │  POST /api/members/[name]/one-on-one/questions  AI質問生成           │
 │  POST /api/members/[name]/one-on-one/summary    AI引き継ぎサマリー    │
 │  POST /api/members/[name]/one-on-one            1on1記録保存          │
+│  POST /api/members/[name]/reviews/draft         AI評価ドラフト生成    │
+│  POST /api/members/[name]/reviews/comment       AI評価者コメント生成  │
+│  POST /api/members/[name]/reviews               評価保存              │
 └──────────────┬──────────────┬──────────────────────────────────┘
                │              │
     ┌──────────▼───┐    ┌────▼──────────────────────┐
@@ -91,8 +98,8 @@ Claude を「AI秘書」として活用し、以下を実現する。
     │   ├ goals/       │    │ パス2: Anthropic API 直接     │
     │   ├ one-on-one/  │    │   (ANTHROPIC_API_KEY)        │
     │   └ reviews/     │    │                              │
-    │                  │    │ パス3: モックモード（キーなし）│
-    │ talent-management│    │                              │
+    │                  │    │ ※ キーなし→エラー返却        │
+    │ talent-management│    │   （v1.5でモック廃止）        │
     │ /shared/         │    └──────────────────────────────┘
     │   ├ department-  │
     │   │  policy.md   │
@@ -111,14 +118,17 @@ Talent_Management_AI/
 ├── data/                       ← 【.gitignore対象】個人データ集約
 │   ├── archive/                ← 元データ（xlsx, pptx, pdf）
 │   ├── resources/              ← リソース管理表
-│   └── members/                ← メンバー個別データ（24名分）
-│       └── {name}/
-│           ├── profile.md      ← プロフィール
-│           ├── goals/
-│           │   └── 2026-h1.md  ← 半期目標
-│           ├── one-on-one/     ← 1on1記録（YYYY-MM.md）
-│           └── reviews/        ← 評価（YYYY-h{1|2}.md）
-│               └── 2025-h2.md
+│   ├── .demo-mode.json         ← デモモード状態（v1.6新設）
+│   ├── members/                ← メンバー個別データ（24名分）
+│   │   └── {name}/
+│   │       ├── profile.md      ← プロフィール
+│   │       ├── goals/
+│   │       │   └── 2026-h1.md  ← 半期目標
+│   │       ├── one-on-one/     ← 1on1記録（YYYY-MM.md）
+│   │       └── reviews/        ← 評価（YYYY-h{1|2}.md）
+│   │           └── 2025-h2.md
+│   └── demo-members/           ← デモ用架空メンバーデータ（5名分、v1.6新設）
+│       └── {name}/             ← 構成は members/ と同一
 ├── talent-management/          ← 共有ドキュメント・テンプレート
 │   ├── CLAUDE.md               ← AI行動指針
 │   ├── shared/
@@ -158,13 +168,15 @@ Talent_Management_AI/
 6. MemberGrid がチームフィルター付きでカードグリッドを描画
 ```
 
-#### AI チャットフロー
+#### AI チャットフロー（廃止）
+
+> **v1.6で廃止**：AIチャットサイドバーは v1.6 で廃止された。すべてのAI支援機能は目標設定ウィザード・1on1ウィザード・評価ウィザードの3つに統合されている。以下は旧仕様の記録として残す。
 
 ```
 1. ユーザーがサイドバーにメッセージ入力
 2. useChat フックが POST /api/chat を呼び出し
 3. API Route で API キーの有無を確認
-   - キーなし → getMockResponse() でモック応答を返却
+   - キーなし → エラーレスポンスを返却（v1.5でモック廃止済み）
    - キーあり → システムプロンプトを構築し、Claude API を呼び出し
 4. レスポンスを { content, mode } で返却
 5. クライアントがメッセージ一覧に追加・描画
@@ -312,7 +324,7 @@ Talent_Management_AI/
 
 **ファイル**：`app/members/[name]/page.tsx`（Server Component）→ `MemberDetailClient`（Client Component）
 
-**レイアウト**：左側にタブコンテンツ（flex-1）、右側にAIチャットサイドバー（520px固定幅）。
+**レイアウト**：タブコンテンツがフル幅で表示される（v1.6でAIチャットサイドバーを廃止し、メインコンテンツがフル幅に変更）。
 
 パンくずリスト：`← ダッシュボード / {メンバー名}`
 
@@ -375,24 +387,29 @@ Talent_Management_AI/
 
 サイドバーはスティッキー配置（`top-28`）。選択中のタブはインディゴ背景。
 
-### 4.4 AIチャットサイドバー
+### 4.4 AIチャットサイドバー（廃止）
 
-**ファイル**：`components/chat/ChatSidebar.tsx`
+> **v1.6で廃止**：AIチャットサイドバーは v1.6 で廃止された。すべてのAI支援機能は以下の3ウィザードに移行済みである。
+> - **目標設定ウィザード**（セクション7）：目標の診断・生成・壁打ち
+> - **1on1ウィザード**（セクション10）：ヒアリング質問生成・引き継ぎサマリー
+> - **評価ウィザード**（セクション11）：評価ドラフト・評価者コメント生成
+>
+> `ChatSidebar.tsx` および `useChat.ts` はコードベースに残存するが未使用（将来削除候補）。
 
-メンバー詳細ページの右側に常時表示される520px幅のチャットパネル。
+~~**ファイル**：`components/chat/ChatSidebar.tsx`~~
 
-#### 機能一覧
+~~メンバー詳細ページの右側に常時表示される520px幅のチャットパネル。~~
+
+#### 旧機能一覧（参考）
 
 | 機能 | 説明 |
 |------|------|
 | クイックアクション | 「1on1の準備をして」「評価ドラフトを作って」「チーム全体を俯瞰して」の3ボタン |
 | メッセージ送信 | textarea + 送信ボタン。Enter で改行、Shift+Enter で送信 |
-| モード表示 | 「デモモード」（オレンジ）/ 「Claude API 接続中」（グリーン）のバッジ |
+| モード表示 | 「Claude API 接続中」（グリーン）のバッジ |
 | 目標保存 | AI応答に `目標[1-5]` パターンが含まれる場合、「この目標で確定する」ボタンを表示 |
 | クリア | メッセージ履歴をリセット |
 | 自動スクロール | 新メッセージ追加時に最下部へスクロール |
-
-**目標保存機能**：`isGoalProposal()` で応答内に `目標[1-5丸数字]` パターンを検出。`extractGoalsContent()` で目標部分のみ抽出し、`POST /api/members/[name]/goals` で保存する。
 
 ### 4.5 目標設定ウィザード（7ステップ）
 
@@ -502,7 +519,7 @@ Talent_Management_AI/
 |------|------|
 | 概要 | AI による診断サマリーを生成 |
 | リクエスト | `{ memberContext, managerInput, memberInput, previousPeriod? }` |
-| AI なしの場合 | 1秒遅延後にモック診断を返却 |
+| AI なしの場合 | ~~1秒遅延後にモック診断を返却~~ → v1.5: APIキー未設定エラーを返却（セクション12参照） |
 | AI ありの場合 | `buildDiagnosisSystemPrompt()` + `buildDiagnosisUserMessage()` で Claude に問い合わせ |
 | レスポンス | `{ diagnosis: string, mode: 'mock' | 'live' }` |
 
@@ -514,20 +531,22 @@ Talent_Management_AI/
 |------|------|
 | 概要 | AI による目標案を生成（壁打ち対応） |
 | リクエスト | `{ memberContext, managerInput, memberInput, previousPeriod?, diagnosis, refinementMessages? }` |
-| AI なしの場合 | 1.5秒遅延後にモック目標を返却 |
+| AI なしの場合 | ~~1.5秒遅延後にモック目標を返却~~ → v1.5: APIキー未設定エラーを返却（セクション12参照） |
 | AI ありの場合 | `buildGoalGenerationSystemPrompt()` + `buildGoalGenerationUserMessage()` で Claude に問い合わせ。`refinementMessages` がある場合はメッセージ履歴に追加して送信 |
 | レスポンス | `{ goals: string, mode: 'mock' | 'live' }` |
 | maxTokens | 4096 |
 
-### 5.6 POST /api/chat
+### 5.6 POST /api/chat（廃止）
+
+> **v1.6で廃止**：AIチャットサイドバーの廃止に伴い、このエンドポイントは未使用となった。ルートファイルは残存するが将来削除候補。
 
 **ファイル**：`app/api/chat/route.ts`
 
 | 項目 | 内容 |
 |------|------|
-| 概要 | AIチャット（サイドバー用） |
+| 概要 | ~~AIチャット（サイドバー用）~~ **廃止** |
 | リクエスト | `{ messages: ChatMessage[], memberName?: string, memberContext?: string }` |
-| AI なしの場合 | 700ms遅延後にモック応答を返却（キーワードマッチング） |
+| AI なしの場合 | ~~700ms遅延後にモック応答を返却（キーワードマッチング）~~ → v1.5: APIキー未設定エラーを返却（セクション12参照） |
 | AI ありの場合 | システムプロンプト（AI秘書定義 + guidelines.md + メンバーコンテキスト）でClaude に問い合わせ |
 | レスポンス | `{ content: string, mode: 'mock' | 'live' }` |
 | maxTokens | 1024 |
@@ -549,7 +568,7 @@ Talent_Management_AI/
 |------|------|
 | 概要 | AIによるパーソナライズされたヒアリング質問を3つ生成 |
 | リクエスト | `{ memberContext, goalsMarkdown, departmentPolicy, previousActionReviews, goalProgress, condition, previousCondition? }` |
-| レスポンス | `{ questions: { question: string, intent: string }[], mode: 'mock' \| 'live' }` |
+| レスポンス | `{ questions: { question: string, intent: string }[], mode: 'live' }` ※v1.5でmockモード廃止 |
 | 詳細 | セクション10.4.1を参照 |
 
 ### 5.9 POST /api/members/[name]/one-on-one/summary
@@ -560,7 +579,7 @@ Talent_Management_AI/
 |------|------|
 | 概要 | AIによる次回1on1への引き継ぎサマリーを生成 |
 | リクエスト | `{ memberContext, goalsMarkdown, previousActionReviews, goalProgress, condition, previousCondition?, hearingQuestions, nextActions }` |
-| レスポンス | `{ summary: string, mode: 'mock' \| 'live' }` |
+| レスポンス | `{ summary: string, mode: 'live' }` ※v1.5でmockモード廃止 |
 | 詳細 | セクション10.4.2を参照 |
 
 ### 5.10 POST /api/members/[name]/one-on-one
@@ -573,6 +592,39 @@ Talent_Management_AI/
 | リクエスト | `{ yearMonth: string, content: string }` |
 | レスポンス | `{ success: true, path: string }` |
 | 詳細 | セクション10.4.3を参照 |
+
+### 5.11 POST /api/members/[name]/reviews/draft
+
+**ファイル**：`app/api/members/[name]/reviews/draft/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる評価ドラフト（目標別評価 + 総合評価 + 乖離分析）を生成 |
+| リクエスト | 評価素材（目標・1on1記録・自己評価・マネージャー補足等） |
+| レスポンス | `{ draft: EvaluationDraft, mode: 'live' }` |
+| 詳細 | セクション11.4.1を参照 |
+
+### 5.12 POST /api/members/[name]/reviews/comment
+
+**ファイル**：`app/api/members/[name]/reviews/comment/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる評価者コメント（200〜300文字）を生成 |
+| リクエスト | 確定済み評価内容（目標別評価・総合評価・乖離分析・変更理由） |
+| レスポンス | `{ comment: string, mode: 'live' }` |
+| 詳細 | セクション11.4.2を参照 |
+
+### 5.13 POST /api/members/[name]/reviews
+
+**ファイル**：`app/api/members/[name]/reviews/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | 評価をMarkdownファイルとして保存 |
+| リクエスト | `{ period: string, content: string }` |
+| レスポンス | `{ success: true, path: string }` |
+| 詳細 | セクション11.4.3を参照 |
 
 ---
 
@@ -587,7 +639,7 @@ Talent_Management_AI/
 ```
 1. ANTHROPIC_FOUNDRY_API_KEY がある場合 → Azure AI Foundry パス
 2. ANTHROPIC_API_KEY がある場合 → Anthropic API 直接パス
-3. どちらもない場合 → エラー（NO_API_KEY）→ 呼び出し元でモックにフォールバック
+3. どちらもない場合 → エラー（NO_API_KEY）→ 503エラーを返却
 ```
 
 #### Azure AI Foundry パス
@@ -613,15 +665,7 @@ Talent_Management_AI/
 
 ### 6.2 モックモード
 
-API キーが設定されていない場合、すべての AI エンドポイントがモックモードで動作する。
-
-| エンドポイント | モック内容 | 遅延 |
-|---------------|-----------|------|
-| `/api/chat` | キーワードマッチングによる定型応答（目標設定/1on1準備/評価ドラフト/横断分析） | 700ms |
-| `/api/.../diagnosis` | 汎用的な診断サマリーテンプレート | 1000ms |
-| `/api/.../generate` | 3目標のサンプル（実行/挑戦/インパクト） | 1500ms |
-
-モック応答ライブラリ（`lib/mock/responses.ts`）はキーワード配列でマッチングし、該当しない場合はフォールバック応答（使い方ガイド）を返す。
+v1.5でモックモードは廃止。APIキー未設定時は503エラーを返却する。
 
 ### 6.3 システムプロンプト設計
 
@@ -881,7 +925,8 @@ data/          ← 個人情報・機密データ全体
 | `api/members/[name]/goals/route.ts` | POST | 目標保存 |
 | `api/members/[name]/goals/diagnosis/route.ts` | POST | AI診断サマリー生成 |
 | `api/members/[name]/goals/generate/route.ts` | POST | AI目標生成（壁打ち対応） |
-| `api/chat/route.ts` | POST | AIチャット |
+| `api/chat/route.ts` | POST | ~~AIチャット~~ **v1.6で廃止。残存するが未使用（将来削除候補）** |
+| `api/demo-mode/route.ts` | GET/POST | デモモード状態の取得・切替（v1.6新設） |
 | `api/docs/route.ts` | GET | 共有ドキュメント取得 |
 
 ### 9.4 コンポーネント（`web-demo/src/components/`）
@@ -893,12 +938,12 @@ data/          ← 個人情報・機密データ全体
 | `dashboard/StatsBar.tsx` | Server | 統計サマリー（6列グリッド） |
 | `dashboard/MemberGrid.tsx` | Client | チームフィルター + メンバーカードグリッド |
 | `dashboard/MemberCard.tsx` | Server | メンバーカード（バッジ + プロジェクト配分バー + 詳細リンク） |
-| `member/MemberDetailClient.tsx` | Client | メンバー詳細ページの統合レイアウト（タブ + チャットサイドバー + ウィザード制御） |
+| `member/MemberDetailClient.tsx` | Client | メンバー詳細ページの統合レイアウト（タブ + ウィザード制御）※v1.6でチャットサイドバー連携を除去 |
 | `member/ProfileTab.tsx` | Server | プロフィール表示（ヒーローヘッダー + 2列レイアウト） |
 | `member/GoalsTab.tsx` | Client | 目標表示 + ウィザード起動ボタン |
 | `member/OneOnOneTab.tsx` | Server | 1on1記録一覧表示 |
 | `member/ReviewsTab.tsx` | Client | 評価表示（パスワードゲート + 評価カード + アコーディオン） |
-| `chat/ChatSidebar.tsx` | Client | AIチャットパネル（クイックアクション + メッセージ履歴 + 目標保存） |
+| `chat/ChatSidebar.tsx` | Client | ~~AIチャットパネル（クイックアクション + メッセージ履歴 + 目標保存）~~ **v1.6で廃止。残存するが未使用（将来削除候補）** |
 | `docs/DocsTabs.tsx` | Client | 部方針ドキュメントのタブ切り替え（サイドバー + メインコンテンツ） |
 | `goals/GoalWizard.tsx` | Client | 目標設定ウィザード本体（useReducer + 7ステップ描画） |
 | `goals/WizardStepper.tsx` | Client | ステッパーUI（7ステップの進捗表示） |
@@ -920,13 +965,13 @@ data/          ← 個人情報・機密データ全体
 | ファイルパス | 役割 |
 |------------|------|
 | `lib/types.ts` | 型定義一覧（14型） |
-| `lib/fs/paths.ts` | ファイルパス定数（PROJECT_ROOT, DATA_ROOT, MEMBERS_DIR, SHARED_DIR, SHARED_DOCS） |
+| `lib/fs/paths.ts` | ファイルパス定数（PROJECT_ROOT, DATA_ROOT, MEMBERS_DIR, DEMO_MEMBERS_DIR, SHARED_DIR, SHARED_DOCS） + `getMembersDir()`（デモモード状態に応じたディレクトリ切替） |
 | `lib/fs/members.ts` | メンバーデータ読み取り（getMemberNames, getAllMemberSummaries, getMemberDetail, parseReview） |
 | `lib/fs/shared-docs.ts` | 共有ドキュメント読み取り（loadSharedDocs） |
 | `lib/parsers/profile.ts` | プロフィールパーサー（extractField, parseProjectLine, deriveTeamShort, parseProfile） |
 | `lib/parsers/goals.ts` | 目標パーサー（parseGoals） |
 | `lib/ai/call-claude.ts` | Claude API 呼び出し（Azure AI Foundry / Anthropic デュアルパス + hasApiKey） |
-| `lib/mock/responses.ts` | モックレスポンス（キーワードマッチング + フォールバック） |
+| ~~`lib/mock/responses.ts`~~ | ~~モックレスポンス（キーワードマッチング + フォールバック）~~ **v1.5で廃止予定 → v1.6で削除済み** |
 | `lib/prompts/diagnosis.ts` | 診断サマリー用プロンプト（buildDiagnosisSystemPrompt, buildDiagnosisUserMessage） |
 | `lib/prompts/goal-generation.ts` | 目標生成用プロンプト（buildGoalGenerationSystemPrompt, buildGoalGenerationUserMessage） |
 
@@ -934,7 +979,7 @@ data/          ← 個人情報・機密データ全体
 
 | ファイルパス | 役割 |
 |------------|------|
-| `hooks/useChat.ts` | チャット状態管理フック（messages, isLoading, mode, sendMessage, reset） |
+| `hooks/useChat.ts` | ~~チャット状態管理フック（messages, isLoading, mode, sendMessage, reset）~~ **v1.6で廃止。残存するが未使用（将来削除候補）** |
 
 ### 9.7 データ・ドキュメント
 
@@ -2035,6 +2080,1394 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 5. AI連携テスト（APIキーあり環境）
 6. 保存されたMarkdownファイルの内容確認
 7. 前回記録の自動ロードテスト（2回目以降の1on1）
+
+---
+
+## 11. 評価ウィザード
+
+### 11.1 概要・方針
+
+評価ウィザードは、半期ごとのメンバー評価を構造化して支援するための4ステップウィザードである。目標設定ウィザード（セクション7）および1on1ウィザード（セクション10）と同様に全画面モーダルとして動作し、`useReducer` で状態管理を行う。
+
+#### 設計方針
+
+- **エビデンスベースの評価**：目標ウィザードで設定した目標・達成基準と、1on1ウィザードで蓄積した進捗・コンディション・ヒアリングメモを自動収集し、事実に基づく評価を支援する
+- **3ウィザード連携**：目標設定 → 1on1記録 → 評価 → 次期目標設定の一連のサイクルをデータで接続し、マネジメントの継続性を担保する
+- **自己評価との対話**：カオナビの自己評価（S/A/B/C/D評価、達成コメント、振り返りコメント）をインプットとし、マネージャー評価との乖離を可視化する
+- **AI補助・人間決定**：AIは評価ドラフトとコメント案を生成するが、最終的な評価グレードの決定・修正はマネージャーが行う。変更時は理由の記録を必須とする
+- **マネージャー専用**：1on1ウィザードと同様、マネージャーのみが操作する前提とする
+
+#### モデル
+
+`claude-sonnet-4-20250514`（`call-claude.ts` のデフォルトモデルと同一）
+
+### 11.2 画面設計（4ステップ + 完了画面）
+
+> **パスワード保護について**：評価ウィザードは `ReviewsTab` 内の PasswordGate 解除後にのみ「評価ウィザードを開始」ボタンが表示されるため、ウィザード自体に追加のパスワード保護は不要。`onStartWizard` コールバックは PasswordGate コンポーネント内部でのみ呼び出される設計とする。
+
+#### 全体レイアウト
+
+目標設定ウィザード・1on1ウィザードと同一のレイアウト構造を採用する。
+
+| 要素 | Tailwind クラス | 備考 |
+|------|----------------|------|
+| コンテナ | `fixed inset-0 z-50 bg-white flex flex-col` | 全画面モーダル |
+| ヘッダー | `px-16 py-5 border-b border-gray-200 bg-gray-50` | `{メンバー名}さんの評価` + 閉じるボタン |
+| ステッパー | `px-16 py-5 border-b border-gray-100` | 4ステップ進捗バー |
+| コンテンツ領域 | `max-w-5xl mx-auto px-16 py-8` | 中央寄せ + 左右余白 |
+
+#### フォントサイズ規約
+
+目標設定ウィザード・1on1ウィザードと同一の規約を適用する（セクション4.5のフォントサイズ規約を参照）。
+
+| 要素 | サイズ |
+|------|--------|
+| ページ見出し（h2） | `text-4xl font-bold` |
+| 説明文 | `text-xl` |
+| フォームラベル | `text-xl font-medium` |
+| フォーム入力（textarea/input/select） | `text-xl` |
+| ボタン | `text-xl font-semibold` |
+| バッジ・ステータス | `text-lg` |
+| ヘルパーテキスト・注釈 | `text-lg` |
+| ステッパー数字 | `text-xl font-bold`（`w-12 h-12` 円形） |
+| ステッパーラベル | `text-lg` |
+
+#### ステッパー
+
+`ReviewStepper` コンポーネントで4ステップの進捗を視覚的に表示する。`WizardStepper` / `OneOnOneStepper` と同一のUIパターンを採用し、ステップ数のみ4に変更する。
+
+ステップラベル：
+1. 素材収集
+2. AI評価ドラフト
+3. マネージャー確認・修正
+4. 評価者コメント
+
+#### Step1: 評価素材の自動収集 + 自己評価入力
+
+**コンポーネント名**：`ReviewStep1Materials`
+
+**表示内容**：
+- 自動収集された評価素材（目標データ、1on1記録、プロフィール情報）を一覧表示
+- カオナビ自己評価の入力フォーム
+- マネージャー補足情報の入力フォーム
+
+**自動収集データ**：
+- **目標データ**（`goals/2026-h1.md`）：各目標の内容・達成基準・検証方法・中間確認を目標カードとして表示
+- **1on1記録**（`one-on-one/*.md`）：全1on1記録から進捗トレンド・コンディショントレンド・完了アクション・ヒアリングメモを集約して表示
+- **プロフィール**（`profile.md`）：等級・期待する役割を表示
+
+**入力フィールド（自己評価）**：
+- 総合自己評価（select、`text-xl`）：S / A / B / C / D の5択
+- 達成コメント（textarea、`text-xl`、placeholder: 「今期の主な達成事項を記入（カオナビの自己評価コメントを転記）」、6行）
+- 振り返りコメント（textarea、`text-xl`、placeholder: 「今期の振り返り・反省点を記入（カオナビの振り返りコメントを転記）」、6行）
+
+**入力フィールド（マネージャー補足）**：
+- 特筆すべきエピソード（textarea、`text-xl`、placeholder: 「1on1記録に含まれない特筆すべき行動・成果を記入」、4行）
+- 環境変化・特殊事情（textarea、`text-xl`、placeholder: 「組織変更・プロジェクト変更等、評価に影響する環境変化があれば記入」、4行）
+
+**1on1記録が0件の場合の処理**：
+1on1記録が0件の場合、目標進捗・コンディション・アクション・ヒアリングメモの各セクションに「1on1記録がありません。マネージャー補足情報に詳しい情報を入力してください。」と警告メッセージを表示する。AIプロンプトにも「1on1記録がない場合は自己評価とマネージャー補足を重視して評価する」旨を追記する。
+
+**バリデーション**：
+- 総合自己評価の選択が必須
+- 達成コメントの入力が必須（10文字以上）
+- 振り返りコメント・マネージャー補足は任意
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: 評価素材の収集                              │
+│ p: 目標・1on1記録・プロフィールから評価素材を     │
+│    自動収集しました。自己評価を入力してください。   │
+│                                                  │
+│ ┌─ 自動収集データ ────────────────────────────┐ │
+│ │ bg-gray-50 border-gray-200 p-6 rounded-lg   │ │
+│ │                                              │ │
+│ │ ▼ 目標データ（N件）                           │ │
+│ │   目標①（実行）：... ステータス：順調          │ │
+│ │   目標②（挑戦）：... ステータス：遅延          │ │
+│ │   目標③（インパクト）：... ステータス：順調     │ │
+│ │                                              │ │
+│ │ ▼ 1on1記録（N回分）                           │ │
+│ │   進捗トレンド：目標①順調→順調、目標②順調→遅延│ │
+│ │   コンディション推移：モチベ 4→3→4、負荷 3→4→3│ │
+│ │   完了アクション：N件 / 未完了：N件             │ │
+│ │   ヒアリングメモ：{要約}                       │ │
+│ │                                              │ │
+│ │ ▼ プロフィール                                │ │
+│ │   等級：{grade} / 期待する役割：{current}      │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ 自己評価（カオナビより転記）──────────────── ┐ │
+│ │ bg-white border-gray-200 p-6 rounded-lg       │ │
+│ │                                              │ │
+│ │ 総合自己評価: [select: S/A/B/C/D]             │ │
+│ │                                              │ │
+│ │ 達成コメント:                                  │ │
+│ │ [textarea]                                    │ │
+│ │                                              │ │
+│ │ 振り返りコメント:                              │ │
+│ │ [textarea]                                    │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ マネージャー補足情報 ─────────────────────── ┐ │
+│ │ bg-white border-gray-200 p-6 rounded-lg       │ │
+│ │                                              │ │
+│ │ 特筆すべきエピソード:                          │ │
+│ │ [textarea]                                    │ │
+│ │                                              │ │
+│ │ 環境変化・特殊事情:                            │ │
+│ │ [textarea]                                    │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│                               [AI評価を生成する]  │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「AI評価を生成する」：`bg-indigo-600 text-white hover:bg-indigo-700`。バリデーション通過時に有効化。押下で `POST /api/members/[name]/reviews/draft` を呼び出し、Step2へ遷移
+
+#### Step2: AI評価ドラフト生成
+
+**コンポーネント名**：`ReviewStep2Draft`
+
+**表示内容**：
+- AIが生成した評価ドラフトを表示
+- 目標別評価（各目標のS/A/B/C/D評価 + 根拠）
+- 総合評価（S/A/B/C/D + 総合コメント）
+- 自己評価との乖離分析
+- 特記事項
+
+**AI連携**：
+- Step1からの遷移時に自動的に `POST /api/members/[name]/reviews/draft` を呼び出す
+- AI呼び出し中はスピナーを表示（目標設定ウィザードの Step5Diagnosis と同一パターン）
+- 生成済みの場合（state にドラフトが保存済み）は再呼び出ししない
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: AI評価ドラフト                              │
+│ p: 収集した素材をもとにAIが評価ドラフトを          │
+│    生成しました。内容を確認してください。           │
+│                                                  │
+│ ┌─ 目標別評価 ───────────────────────────────┐  │
+│ │                                              │ │
+│ │ ┌─ 目標①（実行）──────────────────────────┐│ │
+│ │ │ AI評価: [A] badge                         ││ │
+│ │ │ 根拠: {AIが生成した根拠テキスト}            ││ │
+│ │ └──────────────────────────────────────────┘│ │
+│ │ ┌─ 目標②（挑戦）──────────────────────────┐│ │
+│ │ │ AI評価: [B] badge                         ││ │
+│ │ │ 根拠: {AIが生成した根拠テキスト}            ││ │
+│ │ └──────────────────────────────────────────┘│ │
+│ │ ┌─ 目標③（インパクト）─────────────────────┐│ │
+│ │ │ AI評価: [A] badge                         ││ │
+│ │ │ 根拠: {AIが生成した根拠テキスト}            ││ │
+│ │ └──────────────────────────────────────────┘│ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ 総合評価 ─────────────────────────────────┐  │
+│ │ bg-indigo-50 border-indigo-200 p-6 rounded-lg│ │
+│ │ AI総合評価: [A] badge (text-3xl)             │ │
+│ │ 総合コメント: {AIが生成した総合コメント}       │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ 自己評価との乖離分析 ────────────────────── ┐ │
+│ │ bg-amber-50 border-amber-200 p-6 rounded-lg  │ │
+│ │ 自己評価: [B] → AI評価: [A]                   │ │
+│ │ 分析: {乖離の要因分析テキスト}                 │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ 特記事項 ─────────────────────────────────┐  │
+│ │ {環境変化や特殊事情に基づく補足}              │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [戻る]                    [確認・修正へ進む]      │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`
+- 「確認・修正へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。AI生成が完了している場合に有効化
+
+#### Step3: マネージャー確認・修正
+
+**コンポーネント名**：`ReviewStep3Edit`
+
+**表示内容**：
+- AI評価ドラフトの各項目を編集可能な状態で表示
+- 変更箇所にはハイライトとマークを付与
+- 変更理由の記録欄
+
+**入力フィールド**：
+- 目標別評価グレード変更（select、`text-xl`）：S / A / B / C / D の5択。各目標に1つ
+- 目標別根拠テキスト編集（textarea、`text-xl`、各4行）
+- 総合評価グレード変更（select、`text-xl`）：S / A / B / C / D の5択
+- 総合コメント編集（textarea、`text-xl`、6行）
+- 変更理由（textarea、`text-xl`、placeholder: 「AI評価から変更した理由を記入してください」、4行）：グレードを1箇所以上変更した場合に必須
+
+**変更検知ロジック**：
+- AI生成時のグレードと現在のグレードを比較
+- 変更がある目標カードに `border-amber-400 bg-amber-50` のハイライトを適用
+- 変更があるグレードバッジの横に「変更」ラベル（`text-sm text-amber-600`）を表示
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: 評価の確認・修正                            │
+│ p: AI評価ドラフトを確認し、必要に応じて            │
+│    修正してください。変更した場合は理由を記入      │
+│    してください。                                 │
+│                                                  │
+│ ┌─ 目標①（実行）──────────────── [変更あり] ─┐ │
+│ │ 評価: [select: S/A/B/C/D]                   │ │
+│ │ 根拠:                                        │ │
+│ │ [textarea: AIが生成した根拠（編集可能）]       │ │
+│ └──────────────────────────────────────────────┘ │
+│ ┌─ 目標②（挑戦）────────────────────────────┐  │
+│ │ 評価: [select: S/A/B/C/D]                   │ │
+│ │ 根拠:                                        │ │
+│ │ [textarea: AIが生成した根拠（編集可能）]       │ │
+│ └──────────────────────────────────────────────┘ │
+│ ┌─ 目標③（インパクト）───────────────────────┐  │
+│ │ 評価: [select: S/A/B/C/D]                   │ │
+│ │ 根拠:                                        │ │
+│ │ [textarea: AIが生成した根拠（編集可能）]       │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ 総合評価 ─────────────────────────────────┐  │
+│ │ 総合評価: [select: S/A/B/C/D]               │ │
+│ │ 総合コメント:                                │ │
+│ │ [textarea: AIが生成した総合コメント（編集可能）]│ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ 変更理由（グレード変更時は必須）──────────── ┐ │
+│ │ bg-amber-50 border-amber-200 p-6 rounded-lg  │ │
+│ │ [textarea: 変更理由]                          │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [戻る]                   [評価者コメントを生成]   │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`
+- 「評価者コメントを生成」：`bg-indigo-600 text-white hover:bg-indigo-700`。グレード変更がある場合は変更理由の入力が完了している場合に有効化。押下で `POST /api/members/[name]/reviews/comment` を呼び出し、Step4へ遷移
+
+#### Step4: AI評価者コメント生成
+
+**コンポーネント名**：`ReviewStep4Comment`
+
+**表示内容**：
+- AIが生成した評価者コメント（200〜300文字）を表示
+- マネージャーが最終編集して確定
+
+**AI連携**：
+- Step3からの遷移時に自動的に `POST /api/members/[name]/reviews/comment` を呼び出す
+- AI呼び出し中はスピナーを表示
+
+**入力フィールド**：
+- 評価者コメント（textarea、`text-xl`、初期値にAI生成コメントを設定、8行）
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: 評価者コメント                              │
+│ p: AIが評価者コメント案を生成しました。            │
+│    内容を確認・編集して確定してください。           │
+│                                                  │
+│ ┌─ 評価サマリー ────────────────────────────── ┐ │
+│ │ bg-gray-50 border-gray-200 p-6 rounded-lg    │ │
+│ │ 総合評価: [A] badge                          │ │
+│ │ 目標①: [A] / 目標②: [B] / 目標③: [A]       │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ AI生成コメント ─────────────────────────── ┐  │
+│ │ bg-indigo-50 border-indigo-200 p-8 rounded-lg│ │
+│ │                                              │ │
+│ │ 評価者コメント:                               │ │
+│ │ [textarea: AI生成コメント（編集可能）]          │ │
+│ │                                              │ │
+│ │ text-lg text-gray-500: 推奨文字数: 200〜300字  │ │
+│ │ text-lg: 現在の文字数: {N}文字                 │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [戻る]                       [評価を保存する]     │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`
+- 「評価を保存する」：`bg-indigo-600 text-white hover:bg-indigo-700`。評価者コメントが空でない場合に有効化。押下で以下を順次実行：
+  1. `POST /api/members/[name]/reviews` で評価をMarkdownファイルとして保存
+  2. 完了画面を表示
+
+#### 完了画面
+
+**コンポーネント名**：`ReviewStepComplete`
+
+**表示内容**：
+- 完了メッセージ：「評価を保存しました」
+- 評価サマリー（総合評価 + 目標別評価のバッジ表示）
+- 保存先ファイルパスを表示（`text-lg text-gray-500`）
+- 次期目標設定ウィザードへの誘導リンク
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ （中央寄せ）                                    │
+│ ✓ チェックマーク（bg-green-100 text-green-600    │
+│    w-20 h-20 rounded-full）                     │
+│                                                  │
+│ h2: 評価を保存しました                           │
+│ p: {メンバー名}さんの{期間}の評価を保存しました。  │
+│                                                  │
+│ ┌─ 評価サマリー ─────────────────────────────┐  │
+│ │ bg-indigo-50 border-indigo-200 p-8 rounded-lg│ │
+│ │ 総合評価: [A] badge (text-3xl)               │ │
+│ │ 目標①: [A] / 目標②: [B] / 目標③: [A]       │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ p: 保存先: data/members/{name}/reviews/           │
+│    2026-h1.md                                    │
+│                                                  │
+│ ┌─ 次のステップ ─────────────────────────────┐  │
+│ │ bg-gray-50 border-gray-200 p-6 rounded-lg    │ │
+│ │ この評価結果は次期の目標設定ウィザードで       │ │
+│ │ 自動的に参照されます。                         │ │
+│ │ [次期の目標設定ウィザードを開く]               │ │
+│ │   text-indigo-600 hover:text-indigo-800       │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [閉じる]                                         │
+│   bg-indigo-600 text-white hover:bg-indigo-700   │
+└──────────────────────────────────────────────────┘
+```
+
+> **画面更新**：「閉じる」ボタン押下時に `router.refresh()` を実行し、評価タブの表示を更新する。
+
+### 11.3 データ設計
+
+#### 11.3.1 型定義（`lib/types.ts` に追加）
+
+> **ReviewData 型拡張（新旧フォーマット共存）**：`ReviewData` 型に以下のOptionalフィールドを追加して新旧フォーマットを共存させる：`goalEvaluations?: GoalEvaluation[]`, `overallGrade?: EvaluationGrade`, `overallComment?: string`, `selfEvalGapAnalysis?: string`, `managerChangeLog?: string[]`
+
+```typescript
+// Evaluation Wizard types
+
+export type EvaluationGrade = 'S' | 'A' | 'B' | 'C' | 'D'
+
+export interface SelfEvaluation {
+  overallGrade: EvaluationGrade | ''
+  achievementComment: string    // 達成コメント（カオナビ転記）
+  reflectionComment: string     // 振り返りコメント（カオナビ転記）
+}
+
+export interface ManagerSupplementary {
+  notableEpisodes: string       // 特筆すべきエピソード
+  environmentChanges: string    // 環境変化・特殊事情
+}
+
+export interface GoalEvaluation {
+  goalLabel: string             // 目標ラベル（例: "目標①（実行）"）
+  goalText: string              // 目標文
+  aiGrade: EvaluationGrade      // AI評価グレード
+  aiRationale: string           // AI評価根拠
+  finalGrade: EvaluationGrade   // マネージャー最終グレード
+  finalRationale: string        // マネージャー最終根拠
+}
+
+export interface EvaluationDraft {
+  goalEvaluations: GoalEvaluation[]
+  overallGrade: EvaluationGrade         // AI総合評価
+  overallComment: string                // AI総合コメント
+  selfEvalGapAnalysis: string           // 自己評価との乖離分析
+  specialNotes: string                  // 特記事項
+}
+
+export interface EvaluationWizardState {
+  currentStep: number                     // 1-4 + 5(完了)
+  period: string                          // 例: "2026-h1"。目標ファイル名（`goals/2026-h1.md` → `2026-h1`）から自動導出する。UI上は確認のみ（編集不可）。
+  selfEvaluation: SelfEvaluation
+  managerSupplementary: ManagerSupplementary
+  evaluationDraft: EvaluationDraft | null
+  goalEvaluations: GoalEvaluation[]       // Step3: マネージャー修正後
+  overallGrade: EvaluationGrade | ''      // Step3: マネージャー最終総合評価
+  overallComment: string                  // Step3: マネージャー最終総合コメント
+  changeReason: string                    // Step3: 変更理由
+  evaluatorComment: string                // Step4: 評価者コメント（最終）
+  savedPath: string | null                // 完了: 保存先パス
+}
+
+export interface EvaluationWizardContextData {
+  memberName: string
+  memberProfile: string                   // profile.md rawMarkdown
+  memberGrade: string                     // 等級（profileから抽出）
+  goalsRawMarkdown: string | null         // goals/2026-h1.md
+  oneOnOneRecords: OneOnOneRecord[]       // 全1on1記録
+  goalProgressHistory: {                  // 1on1記録から抽出した目標進捗トレンド
+    yearMonth: string
+    entries: GoalProgressEntry[]
+  }[]
+  conditionHistory: {                     // 1on1記録から抽出したコンディション推移
+    yearMonth: string
+    condition: ConditionScore
+  }[]
+  completedActions: {                     // 全1on1記録の完了アクションアイテム
+    content: string
+    completedMonth: string
+  }[]
+  hearingMemos: {                         // 全1on1記録のヒアリングメモ
+    yearMonth: string
+    question: string
+    memo: string
+  }[]
+  previousReview: ReviewData | null       // 前期の評価（存在する場合）
+  departmentPolicy: string
+  evaluationCriteria: string
+  guidelines: string
+}
+```
+
+> **コンテキスト構築**：`EvaluationWizardContextData` のうち `goalProgressHistory`、`conditionHistory`、`completedActions`、`hearingMemos` は、サーバーコンポーネント（`app/members/[name]/page.tsx`）で全1on1記録をパースして構築する。`parseActionItems()`、`parseConditionScore()`、`parseSummary()` の既存パーサーを活用する。
+
+> **前期評価の参照**：`previousReview` は `reviews/` ディレクトリから最新の評価ファイルを取得する。次期目標設定ウィザードへの連携に使用する。
+
+#### 11.3.2 Markdown ファイルフォーマット（保存形式）
+
+ファイルパス：`data/members/{name}/reviews/{period}.md`（例: `reviews/2026-h1.md`）
+
+```markdown
+# {期間表示} 評価
+
+- 対象期間：{期間表示}（例: 2026年上期（4月〜9月））
+- メンバー：{名前}
+- 等級：{grade}
+- 作成日：{YYYY-MM-DD}
+- 総合評価：**{S/A/B/C/D}**
+
+## 目標別評価
+
+### 目標①（実行）：{目標文}
+- 評価：**{S/A/B/C/D}**
+- 根拠：{根拠テキスト}
+
+### 目標②（挑戦）：{目標文}
+- 評価：**{S/A/B/C/D}**
+- 根拠：{根拠テキスト}
+
+### 目標③（インパクト）：{目標文}
+- 評価：**{S/A/B/C/D}**
+- 根拠：{根拠テキスト}
+
+## 総合コメント
+
+{マネージャーが確定した総合コメント}
+
+## 自己評価との乖離分析
+
+- 自己評価：{S/A/B/C/D}
+- マネージャー評価：{S/A/B/C/D}
+- 分析：{乖離分析テキスト}
+
+## 特記事項
+
+{環境変化・特殊事情に基づく補足}
+
+## マネージャー変更履歴
+
+{AI評価から変更した箇所と理由。変更がない場合は「変更なし」}
+
+## 評価者コメント
+
+{マネージャーが確定した200〜300文字の評価者コメント}
+
+## 自己評価（カオナビ転記）
+
+### 達成コメント
+{達成コメント}
+
+### 振り返りコメント
+{振り返りコメント}
+
+## 次期への申し送り
+
+{AI生成の次期目標設定への示唆。評価結果から自動導出}
+```
+
+### 11.4 API設計
+
+#### 11.4.1 POST /api/members/[name]/reviews/draft
+
+**ファイル**：`app/api/members/[name]/reviews/draft/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる評価ドラフト（目標別評価 + 総合評価 + 乖離分析）を生成 |
+| メソッド | POST |
+| パラメータ | `name`（URLエンコード済みメンバー名） |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  memberName: string
+  memberProfile: string
+  memberGrade: string
+  goalsRawMarkdown: string | null
+  goalProgressHistory: {
+    yearMonth: string
+    entries: { goalLabel: string; status: string; progressComment: string }[]
+  }[]
+  conditionHistory: {
+    yearMonth: string
+    condition: { motivation: number | null; workload: number | null; teamRelations: number | null; comment: string }
+  }[]
+  completedActions: { content: string; completedMonth: string }[]
+  hearingMemos: { yearMonth: string; question: string; memo: string }[]
+  selfEvaluation: {
+    overallGrade: string
+    achievementComment: string
+    reflectionComment: string
+  }
+  managerSupplementary: {
+    notableEpisodes: string
+    environmentChanges: string
+  }
+  departmentPolicy: string
+  evaluationCriteria: string
+}
+```
+
+**レスポンス**：
+```typescript
+{
+  draft: {
+    goalEvaluations: {
+      goalLabel: string
+      goalText: string
+      grade: string         // S/A/B/C/D
+      rationale: string
+    }[]
+    overallGrade: string    // S/A/B/C/D
+    overallComment: string
+    selfEvalGapAnalysis: string
+    specialNotes: string
+  }
+  mode: 'live'
+}
+```
+
+**システムプロンプト**：
+
+```
+あなたは人事評価の専門コンサルタントです。
+マネージャーがメンバーの半期評価を行うための評価ドラフトを生成してください。
+
+【評価の基本原則】
+1. すべての評価は具体的なエビデンス（目標の進捗データ、1on1記録、完了アクション）に基づくこと。推測や印象に基づく評価は絶対に行わないこと
+2. 等級（グレード）に応じた期待水準を基準とすること。同じ成果でも等級によって評価が異なる
+3. 目標の種類（実行/挑戦/インパクト）に応じた評価基準を適用すること
+   - 実行目標：確実な達成と品質が求められる。達成は当然、超過達成でA以上
+   - 挑戦目標：プロセスと学びも評価対象。完全未達でも意味ある挑戦はC止まり
+   - インパクト目標：組織への波及効果を重視。個人の努力だけでなく周囲への影響を評価
+4. 自己評価との乖離がある場合、その理由を具体的に説明すること
+
+【評価グレード基準】
+- S：期待を大きく超える成果。等級を超えた貢献が明確に認められる
+- A：期待を超える成果。目標を超えた達成や質の高い取り組みが認められる
+- B：期待通りの成果。目標を概ね達成し、等級相応の貢献をしている
+- C：期待をやや下回る。目標の一部が未達、または質に改善の余地がある
+- D：期待を大きく下回る。目標の大部分が未達、または重大な課題がある
+
+【禁止事項】
+- エビデンスのない評価理由を記述すること（「〜と思われる」「おそらく〜」は禁止）
+- 全目標を同じグレードにすること（目標ごとに個別に評価すること）
+- コンディションの低下を直接的な減点要因にすること（背景理解は必要だが評価は成果に対して行う）
+- 自己評価に引きずられること（自己評価はインプットの一つであり、独立して評価すること）
+
+【テンプレート形式目標への対応】達成基準（達成した姿）が明記されていない目標の場合は、目標文と達成指標（KPI）から達成水準を推測して評価する旨を判定根拠に明記すること。
+
+【出力フォーマット】
+以下のJSON形式で出力すること。JSON以外のテキストは一切含めないこと。
+
+{
+  "goalEvaluations": [
+    {
+      "goalLabel": "目標ラベル（例: 目標①（実行））",
+      "goalText": "目標文",
+      "grade": "S/A/B/C/D",
+      "rationale": "評価根拠（3〜5文。具体的なエビデンスを引用すること）"
+    }
+  ],
+  "overallGrade": "S/A/B/C/D",
+  "overallComment": "総合コメント（5〜8文。目標別評価を踏まえた総合的な評価と、今後の期待を含むこと）",
+  "selfEvalGapAnalysis": "自己評価との乖離がある場合はその分析（2〜3文）。乖離がない場合は「自己評価とマネージャー評価に大きな乖離はありません。」",
+  "specialNotes": "環境変化や特殊事情がある場合の補足（1〜2文）。ない場合は空文字列"
+}
+
+出力は日本語で行うこと。
+```
+
+**ユーザーメッセージ構築**（`buildReviewDraftUserMessage()`）：
+
+```
+## メンバー：{memberName}
+## 等級：{memberGrade}
+
+## メンバープロフィール
+{memberProfile}
+
+## 部方針
+{departmentPolicy}
+
+## 評価基準（キャリアラダー）
+{evaluationCriteria}
+
+## 今期の目標
+{goalsRawMarkdown}
+
+## 目標進捗トレンド（1on1記録より）
+{goalProgressHistoryをMarkdown形式で列挙}
+### {yearMonth}月の進捗
+- {goalLabel}：ステータス={status}、コメント={progressComment}
+...
+
+## コンディション推移（1on1記録より）
+{conditionHistoryをMarkdown形式で列挙}
+### {yearMonth}月
+- モチベーション：{motivation}/5
+- 業務負荷：{workload}/5
+- チーム関係：{teamRelations}/5
+- コメント：{comment}
+...
+
+## 完了アクションアイテム
+{completedActionsをMarkdown形式で列挙}
+- {content}（{completedMonth}月完了）
+...
+
+## ヒアリングメモ（1on1記録より）
+{hearingMemosをMarkdown形式で列挙}
+### {yearMonth}月
+- Q: {question}
+- A: {memo}
+...
+
+## 自己評価（カオナビより）
+- 総合自己評価：{overallGrade}
+- 達成コメント：{achievementComment}
+- 振り返りコメント：{reflectionComment}
+
+## マネージャー補足情報
+- 特筆すべきエピソード：{notableEpisodes}
+- 環境変化・特殊事情：{environmentChanges}
+
+上記の情報をもとに、このメンバーの半期評価ドラフトを生成してください。
+```
+
+**maxTokens**：4096
+
+**JSONパースフォールバック**：
+1on1ウィザードと同様、AIの出力がvalid JSONでない場合に正規表現 `/\{[\s\S]*\}/` でJSONオブジェクト部分を抽出する。抽出・パース失敗時は500エラーを返却する（モックモードは存在しない）。
+
+#### 11.4.2 POST /api/members/[name]/reviews/comment
+
+**ファイル**：`app/api/members/[name]/reviews/comment/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる評価者コメント（200〜300文字）を生成 |
+| メソッド | POST |
+| パラメータ | `name`（URLエンコード済みメンバー名） |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  memberName: string
+  memberGrade: string
+  goalEvaluations: {
+    goalLabel: string
+    goalText: string
+    grade: string
+    rationale: string
+  }[]
+  overallGrade: string
+  overallComment: string
+  selfEvalGapAnalysis: string
+  changeReason: string
+}
+```
+
+**レスポンス**：
+```typescript
+{
+  comment: string     // 200〜300文字の評価者コメント
+  mode: 'live'
+}
+```
+
+**システムプロンプト**：
+
+```
+あなたは人事評価コメントの専門ライターです。
+マネージャーが確定した評価内容をもとに、評価者コメント（一次評価コメント）を作成してください。
+
+【コメントの目的】
+このコメントはメンバー本人にフィードバックされるものです。
+メンバーの成長を促し、次の半期に向けたモチベーションを高めることが目的です。
+
+【コメント作成ルール】
+1. 200〜300文字で作成すること
+2. 以下の3要素を必ず含めること：
+   a. 今期の成果に対する具体的な評価（何が良かったか）
+   b. 改善点や課題（建設的なトーンで）
+   c. 次期への期待（具体的な方向性を示す）
+3. 成長ナラティブのトーンで書くこと。「ダメ出し」ではなく「成長の道筋」を示す
+4. 具体的なエピソードや成果を1つ以上引用すること
+5. 等級に応じた期待水準を踏まえた表現にすること
+
+【禁止事項】
+- 抽象的・汎用的な表現のみで構成すること（「頑張りました」「期待しています」のみは不可）
+- ネガティブな表現で終わること（必ずポジティブな期待で締めること）
+- 他のメンバーとの比較に言及すること
+- 評価グレードの文字（S/A/B/C/D）を直接記載すること
+
+【出力フォーマット】
+評価者コメントのテキストのみを出力すること。前後の説明や装飾は不要。
+出力は日本語で行うこと。
+```
+
+**ユーザーメッセージ構築**（`buildReviewCommentUserMessage()`）：
+
+```
+## メンバー：{memberName}
+## 等級：{memberGrade}
+
+## 目標別評価
+{goalEvaluationsをMarkdown形式で列挙}
+### {goalLabel}：{goalText}
+- 評価：{grade}
+- 根拠：{rationale}
+...
+
+## 総合評価：{overallGrade}
+## 総合コメント
+{overallComment}
+
+## 自己評価との乖離分析
+{selfEvalGapAnalysis}
+
+## マネージャーによる変更理由
+{changeReason || 'AI評価からの変更なし'}
+
+上記の評価内容をもとに、メンバー本人へのフィードバック用評価者コメント（200〜300文字）を作成してください。
+```
+
+**maxTokens**：512
+
+#### 11.4.3 POST /api/members/[name]/reviews
+
+**ファイル**：`app/api/members/[name]/reviews/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | 評価をMarkdownファイルとして保存 |
+| メソッド | POST |
+| パラメータ | `name`（URLエンコード済みメンバー名） |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  period: string                // 例: "2026-h1"
+  content: string               // 組み立て済みMarkdown全文
+}
+```
+
+**処理**：
+1. `decodeURIComponent(params.name)` でメンバー名をデコード
+2. `MEMBERS_DIR` からメンバーディレクトリの存在を確認
+3. `reviews/` ディレクトリが存在しない場合は `mkdirSync` で作成（`{ recursive: true }`）
+4. `reviews/{period}.md` にコンテンツを書き込み
+
+**レスポンス**：
+```typescript
+{
+  success: true
+  path: string    // 保存先の相対パス（例: "data/members/山田(剛)/reviews/2026-h1.md"）
+}
+```
+
+**エラー**：
+- 400: `period` または `content` が未指定
+- 404: メンバーディレクトリが見つからない
+- 500: ファイル書き込み失敗
+
+**実装パターン**：`app/api/members/[name]/goals/route.ts` および `app/api/members/[name]/one-on-one/route.ts` の POST 処理と同一パターンに従う。
+
+### 11.5 3ウィザード連携設計
+
+#### 11.5.1 目標ウィザード → 評価ウィザード
+
+目標設定ウィザードで作成した目標データが、評価ウィザードの評価素材として自動的に参照される。
+
+```
+目標ウィザードの出力:
+  goals/2026-h1.md
+    ├ 目標①（実行）：{目標文}
+    │   └ 達成した姿 → 評価基準として使用
+    │   └ 検証方法 → 達成度の客観的判定に使用
+    │   └ 中間確認 → 中間時点での進捗評価に使用
+    ├ 目標②（挑戦）：...
+    └ 目標③（インパクト）：...
+
+評価ウィザードでの参照:
+  Step1: 自動収集データとして各目標をカード表示
+  Step2: AIが各目標の達成基準に照らして個別評価
+  保存: reviews/{period}.md に目標ラベル・目標文を転記
+```
+
+**データフロー**：
+1. `app/members/[name]/page.tsx` で `goals` データを取得
+2. `EvaluationWizardContextData.goalsRawMarkdown` として渡す
+3. `parseGoalEntries()` で個別目標に分解
+4. Step1で表示、Step2でAI評価のインプットに使用
+
+#### 11.5.2 1on1ウィザード → 評価ウィザード
+
+1on1ウィザードで蓄積された月次記録が、評価のエビデンスとして集約される。
+
+```
+1on1ウィザードの出力（複数月分）:
+  one-on-one/2026-04.md
+  one-on-one/2026-05.md
+  one-on-one/2026-06.md
+  ...
+    ├ ## 目標進捗確認 → 進捗トレンド（月次推移）
+    ├ ## コンディション → コンディショントレンド（月次推移）
+    ├ ## 前回アクションアイテム振り返り → 完了アクション一覧
+    └ ## ヒアリング → ヒアリングメモ集約
+
+評価ウィザードでの参照:
+  Step1: 集約された進捗トレンド・コンディション推移・完了アクション・メモを表示
+  Step2: AIが月次推移データを時系列で分析し、成長の軌跡を評価に反映
+```
+
+**新規パーサー**：
+`lib/parsers/one-on-one.ts` に `parseGoalProgress()` 関数を新設し、1on1記録の `## 目標進捗` セクションから `{ goalLabel, status, progressComment }` を抽出する。
+
+**データフロー**：
+1. `app/members/[name]/page.tsx` で全1on1記録を取得
+2. 各記録を `parseGoalProgress()`、`parseGoalProgressEntries()`、`parseConditionScore()`、`parseActionItems()` でパース
+3. 月次データを時系列に集約して `EvaluationWizardContextData` に格納
+4. `goalProgressHistory`：目標ごとのステータス推移（例: 「4月:on-track → 5月:on-track → 6月:at-risk」）
+5. `conditionHistory`：モチベーション・業務負荷・チーム関係の月次推移
+6. `completedActions`：全期間で完了したアクションアイテムのリスト
+7. `hearingMemos`：メモが記入されたヒアリング質問と回答のリスト
+
+#### 11.5.3 評価ウィザード → 次期目標ウィザード
+
+評価ウィザードの結果が、次期の目標設定ウィザードのインプットとして参照される。
+
+```
+評価ウィザードの出力:
+  reviews/2026-h1.md
+    ├ 総合評価 → 次期の目標難易度調整の参考
+    ├ 目標別評価 → 未達目標の継続検討
+    ├ 総合コメント → 次期の重点テーマ抽出
+    ├ 自己評価との乖離分析 → 認識ギャップの解消
+    └ 次期への申し送り → 目標設定の直接インプット
+
+次期目標ウィザードでの参照:
+  Step4（前期実績データ）: 評価結果を自動ロード
+    - 前期の主な目標 → reviews/{period}.md の目標別評価から抽出
+    - 達成レベル → 総合評価グレードから自動マッピング
+      S/A → "achieved"
+      B → "mostly-achieved"
+      C/D → "not-achieved"
+    - 未達の理由 → 総合コメントから関連部分を抽出
+  Step5（AI診断）: 前期評価を含む診断サマリー生成
+```
+
+**具体的な連携メカニズム**：
+`WizardContextData` に `previousReview: ReviewData | null` を追加。`page.tsx` で最新の評価ファイルを読み込みコンテキストに含める。GoalWizard の Step4（前期実績）で `previousReview` が存在する場合、以下を自動入力する：
+- `previousGoals`: 評価の目標一覧を結合したテキスト
+- `achievementLevel`: 総合評価のマッピング（S/A → achieved, B → mostly-achieved, C/D → not-achieved）
+- `reasonIfNotAchieved`: 評価コメントから抜粋
+
+**データフロー**：
+1. 目標設定ウィザード起動時に `reviews/` ディレクトリから最新の評価ファイルを取得
+2. `parseReview()` で構造化
+3. `GoalWizardState.previousPeriod` に自動入力（マネージャーは内容を確認・修正可能）
+4. 診断サマリー生成時に前期評価データをコンテキストとして送信
+
+**3ウィザード全体のデータフロー図**：
+
+```
+┌─────────────┐     goals/2026-h1.md      ┌──────────────┐
+│ 目標設定      │ ──────────────────────── → │ 1on1          │
+│ ウィザード    │                            │ ウィザード     │
+│              │                            │              │
+│ ・目標内容    │     goals → 進捗確認       │ ・目標進捗     │
+│ ・達成基準    │     Step2で参照            │ ・コンディション│
+│ ・検証方法    │                            │ ・アクション   │
+│ ・中間確認    │                            │ ・ヒアリング   │
+└──────┬───────┘                            └──────┬───────┘
+       │                                          │
+       │ goals/2026-h1.md                          │ one-on-one/*.md
+       │ 目標・達成基準                             │ 進捗・コンディション・
+       │                                          │ アクション・メモ
+       ▼                                          ▼
+┌────────────────────────────────────────────────────┐
+│                    評価ウィザード                      │
+│                                                      │
+│ Step1: 自動収集（目標 + 1on1記録 + プロフィール）      │
+│ Step2: AI評価ドラフト生成                             │
+│ Step3: マネージャー確認・修正                          │
+│ Step4: 評価者コメント生成                             │
+└──────────────────────┬───────────────────────────────┘
+                       │
+                       │ reviews/2026-h1.md
+                       │ 評価結果・申し送り
+                       ▼
+              ┌─────────────────┐
+              │ 次期目標設定      │
+              │ ウィザード        │
+              │                  │
+              │ Step4: 前期実績   │
+              │ データ自動入力    │
+              └─────────────────┘
+```
+
+### 11.6 新規ファイル一覧
+
+#### 11.6.1 新規作成ファイル
+
+| ファイルパス | 種類 | 役割 |
+|------------|------|------|
+| `web-demo/src/components/reviews/ReviewWizard.tsx` | Client Component | 評価ウィザード本体（useReducer + 4ステップ描画） |
+| `web-demo/src/components/reviews/ReviewStepper.tsx` | Client Component | ステッパーUI（4ステップの進捗表示） |
+| `web-demo/src/components/reviews/steps/ReviewStep1Materials.tsx` | Client Component | Step1: 評価素材の自動収集 + 自己評価入力 |
+| `web-demo/src/components/reviews/steps/ReviewStep2Draft.tsx` | Client Component | Step2: AI評価ドラフト表示 |
+| `web-demo/src/components/reviews/steps/ReviewStep3Edit.tsx` | Client Component | Step3: マネージャー確認・修正 |
+| `web-demo/src/components/reviews/steps/ReviewStep4Comment.tsx` | Client Component | Step4: AI評価者コメント生成 + 編集 |
+| `web-demo/src/components/reviews/ReviewStepComplete.tsx` | Client Component | 完了画面（評価サマリー + 次期目標誘導） |
+| `web-demo/src/app/api/members/[name]/reviews/route.ts` | API Route | 評価保存 |
+| `web-demo/src/app/api/members/[name]/reviews/draft/route.ts` | API Route | AI評価ドラフト生成 |
+| `web-demo/src/app/api/members/[name]/reviews/comment/route.ts` | API Route | AI評価者コメント生成 |
+| `web-demo/src/lib/prompts/review-draft.ts` | Prompt Builder | 評価ドラフト用プロンプト（buildReviewDraftSystemPrompt, buildReviewDraftUserMessage） |
+| `web-demo/src/lib/prompts/review-comment.ts` | Prompt Builder | 評価者コメント用プロンプト（buildReviewCommentSystemPrompt, buildReviewCommentUserMessage） |
+| `web-demo/src/lib/utils/review-markdown.ts` | Utility | 評価Markdown組み立て（buildReviewMarkdown: ウィザード状態からMarkdown文字列を生成） |
+| `web-demo/src/lib/utils/evaluation-context.ts` | Utility | 評価コンテキスト構築（buildEvaluationContext: 1on1記録から進捗トレンド・コンディション推移等を集約） |
+| `web-demo/src/lib/parsers/one-on-one.ts` | Parser（関数追加） | `parseGoalProgress()` 関数を新設（1on1記録の `## 目標進捗` セクションから `{ goalLabel, status, progressComment }` を抽出） |
+
+#### 11.6.2 修正が必要な既存ファイル
+
+| ファイルパス | 修正内容 |
+|------------|---------|
+| `web-demo/src/lib/types.ts` | `EvaluationGrade`, `SelfEvaluation`, `ManagerSupplementary`, `GoalEvaluation`, `EvaluationDraft`, `EvaluationWizardState`, `EvaluationWizardContextData` の7型を追加 |
+| `web-demo/src/components/member/MemberDetailClient.tsx` | `reviewWizardOpen` state を追加。`ReviewWizard` コンポーネントのインポートと描画。`ReviewsTab` に `onStartWizard` props を渡す |
+| `web-demo/src/components/member/ReviewsTab.tsx` | 「評価ウィザードを開始」ボタンを追加。`onStartWizard` props を受け取る。パスワード解除後に表示 |
+| `web-demo/src/app/members/[name]/page.tsx` | `evaluationWizardContext` を構築して `MemberDetailClient` に渡す。全1on1記録のパースと集約。前期評価の取得 |
+| `web-demo/src/lib/fs/members.ts` | `getLatestReview(memberName)` 関数を追加（最新の評価記録を取得） |
+| `web-demo/src/lib/parsers/goals-entries.ts` | 評価ウィザードからも参照されるため、エクスポートの確認のみ（変更不要の可能性あり） |
+| `web-demo/src/lib/types.ts` | `WizardContextData` に `previousReview: ReviewData | null` を追加（評価→次期目標連携用） |
+| `web-demo/src/app/members/[name]/page.tsx` | 最新の評価ファイルを読み込み、`WizardContextData` のコンテキストに含める処理を追加 |
+| `web-demo/src/components/goals/GoalWizard.tsx` | Step4（前期実績）で `previousReview` が存在する場合に `previousGoals`・`achievementLevel`・`reasonIfNotAchieved` を自動入力 |
+| `web-demo/src/components/member/ReviewsTab.tsx` | `evalColorMap` に D評価の色定義を追加：`D: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-400' }` |
+
+### 11.7 実装フェーズ
+
+#### フェーズ1: データ基盤（見積：1日）
+
+1. `lib/types.ts` に評価ウィザード関連の7型を追加
+2. `lib/utils/evaluation-context.ts` を実装（1on1記録から進捗トレンド・コンディション推移・完了アクション・ヒアリングメモを集約）
+3. `lib/utils/review-markdown.ts` を実装（ウィザード状態からMarkdown文字列を生成）
+4. `lib/fs/members.ts` に `getLatestReview()` を追加
+5. `app/members/[name]/page.tsx` で `evaluationWizardContext` の構築ロジックを実装
+
+#### フェーズ2: API実装（見積：1.5日）
+
+1. `lib/prompts/review-draft.ts` を実装（評価ドラフト用プロンプト）
+2. `POST /api/members/[name]/reviews/draft` を実装（AI評価ドラフト生成）
+3. `lib/prompts/review-comment.ts` を実装（評価者コメント用プロンプト）
+4. `POST /api/members/[name]/reviews/comment` を実装（AI評価者コメント生成）
+5. `POST /api/members/[name]/reviews` を実装（評価保存）
+
+#### フェーズ3: ウィザードUI（見積：2.5日）
+
+1. `ReviewStepper.tsx` を実装（4ステップ進捗バー）
+2. `ReviewWizard.tsx` を実装（useReducer + 全体レイアウト）
+3. `ReviewStep1Materials.tsx` を実装（自動収集表示 + 自己評価入力 + マネージャー補足入力）
+4. `ReviewStep2Draft.tsx` を実装（AI評価ドラフト表示）
+5. `ReviewStep3Edit.tsx` を実装（評価グレード・根拠の編集 + 変更検知 + 変更理由入力）
+6. `ReviewStep4Comment.tsx` を実装（AI評価者コメント表示 + 編集）
+7. `ReviewStepComplete.tsx` を実装（完了画面 + 次期目標誘導）
+
+#### フェーズ4: 統合・連携テスト（見積：1日）
+
+1. `MemberDetailClient.tsx` に評価ウィザードの起動制御を追加
+2. `ReviewsTab.tsx` にウィザード起動ボタンを追加
+3. 全ステップの遷移テスト
+4. AI連携テスト（APIキーあり環境）
+5. 保存されたMarkdownファイルの内容確認
+6. `parseReview()` を改修し、新フォーマット（`## 目標別評価` セクション有無で判別）にも対応させる。`ReviewData` 型にOptionalフィールドを追加。
+7. 目標ウィザード → 1on1ウィザード → 評価ウィザードの一連のフローテスト
+8. 評価結果 → 次期目標ウィザードの前期実績データ自動入力テスト
+
+---
+
+## 12. デモモード廃止
+
+### 12.1 概要
+
+v1.5 において、APIキー未設定時のモックモード（デモモード）を廃止する。これまではAPIキーが設定されていない場合に定型のモック応答を返していたが、Azure AI Foundry 連携が安定稼働しているため、モックモードを維持する必要がなくなった。
+
+#### 廃止の背景
+
+- Azure AI Foundry 経由での Claude Sonnet 連携が安定的に動作しており、APIキーなしで運用するケースが存在しない
+- モック応答はデモ用途のみであり、実運用では誤解を招く可能性がある
+- 評価ウィザード（セクション11）の追加に伴い、新たなモック応答を作成・維持するコストが不要になる
+- コードの簡素化と保守性の向上
+
+#### 廃止後の動作
+
+APIキーが設定されていない場合、すべてのAIエンドポイントは以下の統一エラーレスポンスを返却する。
+
+```typescript
+{
+  error: 'AI APIキーが設定されていません。.env.local にANTHROPIC_FOUNDRY_API_KEY または ANTHROPIC_API_KEY を設定してください。',
+  code: 'NO_API_KEY'
+}
+```
+
+HTTPステータスコード：`503 Service Unavailable`
+
+### 12.2 削除対象ファイル
+
+| ファイルパス | 削除内容 | 状態 |
+|------------|---------|------|
+| `web-demo/src/lib/mock/responses.ts` | ファイル全体を削除。`getMockResponse()` 関数と `MOCK_QA_PAIRS` 定数、`FALLBACK_RESPONSE` 定数を完全に除去 | **削除済み（v1.6）** |
+
+### 12.3 修正対象ファイル
+
+> **ChatSidebar 目標保存機能の削除**：ChatSidebar から `isGoalProposal()` / `extractGoalsContent()` / `handleSaveGoals()` 関数および「この目標で確定する」ボタンを削除する。目標保存は目標設定ウィザード経由に統一する。
+
+#### 12.3.1 チャットAPI（`app/api/chat/route.ts`）
+
+**変更前**：
+```typescript
+import { getMockResponse } from '@/lib/mock/responses'
+// ...
+if (!apiKey) {
+  await new Promise(r => setTimeout(r, 700))
+  const reply = getMockResponse(lastUserMessage, memberName)
+  return NextResponse.json({ content: reply, mode: 'mock' })
+}
+```
+
+**変更後**：
+```typescript
+// getMockResponse のインポートを削除
+// ...
+if (!apiKey) {
+  return NextResponse.json({
+    error: 'AI APIキーが設定されていません。.env.local にANTHROPIC_FOUNDRY_API_KEY または ANTHROPIC_API_KEY を設定してください。',
+    code: 'NO_API_KEY'
+  }, { status: 503 })
+}
+```
+
+#### 12.3.2 診断API（`app/api/members/[name]/goals/diagnosis/route.ts`）
+
+**変更前**：
+```typescript
+const MOCK_DIAGNOSIS = `現在地と次ステージのギャップ：...`
+
+if (!hasApiKey()) {
+  await new Promise(r => setTimeout(r, 1000))
+  return NextResponse.json({ diagnosis: MOCK_DIAGNOSIS, mode: 'mock' })
+}
+```
+
+**変更後**：
+```typescript
+// MOCK_DIAGNOSIS 定数を削除
+
+if (!hasApiKey()) {
+  return NextResponse.json({
+    error: 'AI APIキーが設定されていません。.env.local にANTHROPIC_FOUNDRY_API_KEY または ANTHROPIC_API_KEY を設定してください。',
+    code: 'NO_API_KEY'
+  }, { status: 503 })
+}
+```
+
+#### 12.3.3 目標生成API（`app/api/members/[name]/goals/generate/route.ts`）
+
+**変更前**：
+```typescript
+const MOCK_GOALS = `目標①（実行）：...`
+
+if (!hasApiKey()) {
+  await new Promise(r => setTimeout(r, 1500))
+  return NextResponse.json({ goals: MOCK_GOALS, mode: 'mock' })
+}
+```
+
+**変更後**：
+```typescript
+// MOCK_GOALS 定数を削除
+
+if (!hasApiKey()) {
+  return NextResponse.json({
+    error: 'AI APIキーが設定されていません。.env.local にANTHROPIC_FOUNDRY_API_KEY または ANTHROPIC_API_KEY を設定してください。',
+    code: 'NO_API_KEY'
+  }, { status: 503 })
+}
+```
+
+#### 12.3.4 1on1質問生成API（`app/api/members/[name]/one-on-one/questions/route.ts`）
+
+**変更前**：
+```typescript
+const MOCK_QUESTIONS = [...]
+
+if (!hasApiKey()) {
+  await new Promise(r => setTimeout(r, 1000))
+  return NextResponse.json({ questions: MOCK_QUESTIONS, mode: 'mock' })
+}
+// ...
+// Fallback to mock if parse fails
+return NextResponse.json({ questions: MOCK_QUESTIONS, mode: 'mock' })
+```
+
+**変更後**：
+```typescript
+// MOCK_QUESTIONS 定数を削除
+
+if (!hasApiKey()) {
+  return NextResponse.json({
+    error: 'AI APIキーが設定されていません。.env.local にANTHROPIC_FOUNDRY_API_KEY または ANTHROPIC_API_KEY を設定してください。',
+    code: 'NO_API_KEY'
+  }, { status: 503 })
+}
+// ...
+// JSONパース失敗時はフォールバック質問を使用（FALLBACK_QUESTIONS は維持）
+return NextResponse.json({ questions: FALLBACK_QUESTIONS, mode: 'live' })
+```
+
+> **注意**：`FALLBACK_QUESTIONS` はAIの出力がvalid JSONでなかった場合のフォールバックであり、モック応答とは異なる。これは維持する。
+
+#### 12.3.5 1on1サマリー生成API（`app/api/members/[name]/one-on-one/summary/route.ts`）
+
+**変更前**：
+```typescript
+const MOCK_SUMMARY = `今月のサマリー...`
+
+if (!hasApiKey()) {
+  await new Promise(r => setTimeout(r, 1000))
+  return NextResponse.json({ summary: MOCK_SUMMARY, mode: 'mock' })
+}
+```
+
+**変更後**：
+```typescript
+// MOCK_SUMMARY 定数を削除
+
+if (!hasApiKey()) {
+  return NextResponse.json({
+    error: 'AI APIキーが設定されていません。.env.local にANTHROPIC_FOUNDRY_API_KEY または ANTHROPIC_API_KEY を設定してください。',
+    code: 'NO_API_KEY'
+  }, { status: 503 })
+}
+```
+
+#### 12.3.6 チャットサイドバー（`components/chat/ChatSidebar.tsx`）
+
+**変更前**：
+```tsx
+{mode === 'mock' && (
+  <span className="text-lg bg-orange-100 text-orange-600 px-3 py-1 rounded-full border border-orange-200">
+    デモモード
+  </span>
+)}
+{mode === 'live' && (
+  <span className="text-lg bg-green-100 text-green-600 px-3 py-1 rounded-full border border-green-200">
+    Claude API 接続中
+  </span>
+)}
+{mode === null && (
+  <span className="text-lg bg-orange-100 text-orange-600 px-3 py-1 rounded-full border border-orange-200">
+    デモモード
+  </span>
+)}
+```
+
+**変更後**：
+
+`mode` が `null`（未接続）の場合は バッジを非表示とし、最初のAPIリクエスト成功後に「Claude API 接続中」バッジを表示する。APIキー未設定の場合はリクエスト失敗時に「API未設定」エラーメッセージを表示する。
+
+```tsx
+{mode === 'live' && (
+  <span className="text-lg bg-green-100 text-green-600 px-3 py-1 rounded-full border border-green-200">
+    Claude API 接続中
+  </span>
+)}
+```
+
+また、`useChat` フックの `mode` 状態管理も簡素化する。APIからエラーレスポンス（`code: 'NO_API_KEY'`）が返却された場合は、以下のエラーメッセージをチャット内に表示する。
+
+```
+⚠ AI APIキーが設定されていません。
+
+.env.local に以下のいずれかの環境変数を設定してください：
+- ANTHROPIC_FOUNDRY_API_KEY（Azure AI Foundry経由）
+- ANTHROPIC_API_KEY（Anthropic API直接）
+
+設定方法の詳細はREADMEを参照してください。
+```
+
+表示スタイル：`bg-red-50 border-red-200 text-red-700 p-4 rounded-lg`
+
+### 12.4 レスポンス型の変更
+
+#### mode フィールドの変更
+
+すべてのAIエンドポイントのレスポンスから `mode: 'mock'` の可能性を除去する。
+
+**変更前**：
+```typescript
+{ content: string, mode: 'mock' | 'live' }
+{ diagnosis: string, mode: 'mock' | 'live' }
+{ goals: string, mode: 'mock' | 'live' }
+{ questions: {...}[], mode: 'mock' | 'live' }
+{ summary: string, mode: 'mock' | 'live' }
+```
+
+**変更後**：
+```typescript
+{ content: string, mode: 'live' }
+{ diagnosis: string, mode: 'live' }
+{ goals: string, mode: 'live' }
+{ questions: {...}[], mode: 'live' }
+{ summary: string, mode: 'live' }
+```
+
+> **後方互換性**：`mode` フィールドは文字列であり、クライアント側で `mode === 'mock'` チェックを行っている箇所をすべて削除する。`mode` フィールド自体は `'live'` 固定で残すこともできるが、将来的に不要であれば削除を検討する。
+
+### 12.5 セクション6.2の更新
+
+セクション6.2「モックモード」は以下に差し替える。
+
+> **v1.5で廃止**：モックモードは v1.5 で廃止された。APIキーが設定されていない場合、すべてのAIエンドポイントは `503 Service Unavailable` と `NO_API_KEY` エラーコードを返却する。詳細はセクション12を参照。
+
+### 12.6 影響範囲のチェックリスト
+
+| 対象 | 確認事項 | 対応 |
+|------|---------|------|
+| `lib/mock/responses.ts` | ファイル全体 | 削除 |
+| `app/api/chat/route.ts` | `getMockResponse` のインポートとモック分岐 | エラーレスポンスに置換 |
+| `app/api/members/[name]/goals/diagnosis/route.ts` | `MOCK_DIAGNOSIS` 定数とモック分岐 | エラーレスポンスに置換 |
+| `app/api/members/[name]/goals/generate/route.ts` | `MOCK_GOALS` 定数とモック分岐 | エラーレスポンスに置換 |
+| `app/api/members/[name]/one-on-one/questions/route.ts` | `MOCK_QUESTIONS` 定数とモック分岐 | エラーレスポンスに置換。`FALLBACK_QUESTIONS` は維持 |
+| `app/api/members/[name]/one-on-one/summary/route.ts` | `MOCK_SUMMARY` 定数とモック分岐 | エラーレスポンスに置換 |
+| `components/chat/ChatSidebar.tsx` | `デモモード` バッジ表示 | 削除。エラー時のメッセージ表示を追加 |
+| `hooks/useChat.ts` | `mode` の `'mock'` 判定 | `'mock'` 分岐を削除 |
+| セクション2.1 アーキテクチャ図 | `パス3: モックモード` | `※ キーなし→エラー返却` に変更済み |
+| セクション5 API設計 | 各APIの「AI なしの場合」 | エラーレスポンスに変更済み |
+| セクション6.2 モックモード | セクション全体 | 廃止注記に差し替え |
+
+---
+
+## 13. デモモード機能
+
+### 13.1 概要
+
+デモモードは、実際の個人データを公開せずに安全なデモプレゼンテーションを実施するための機能である。NavBar 上のトグルスイッチにより、実データとデモデータを即座に切り替えることができる。
+
+デモモード有効時は、すべてのページ上部にアンバー（琥珀色）のバナーが表示される。
+
+```
+デモデータを表示中です。実際のメンバー情報ではありません。
+```
+
+### 13.2 デモデータ構成
+
+デモデータは `data/demo-members/` 配下に5名分の架空メンバーとして格納される。
+
+| メンバー名 | 役割 | 等級 | データ充実度 |
+|-----------|------|------|------------|
+| 田中 | Flutter TL | 4 | フルデータ（goals + 1on1×2 + review） |
+| 佐藤 | iOS | 3 | フルデータ（goals + 1on1×1 + review） |
+| 鈴木 | Producer | 4 | フルデータ（goals + 1on1×1 + review） |
+| 高橋 | Android/KMP | 2 | テンプレート目標のみ（新人シナリオ） |
+| 渡辺 | AM | 5 | テンプレート目標のみ（シニアシナリオ） |
+
+各メンバーディレクトリは実データと同じ構成（`profile.md`, `goals/`, `one-on-one/`, `reviews/`）を持つ。
+
+### 13.3 切替メカニズム
+
+#### 状態管理
+
+デモモードの有効/無効は `data/.demo-mode.json` ファイルで管理される。
+
+```json
+{
+  "enabled": true
+}
+```
+
+#### APIエンドポイント
+
+| メソッド | パス | 役割 |
+|---------|------|------|
+| GET | `/api/demo-mode` | 現在のデモモード状態を取得 |
+| POST | `/api/demo-mode` | デモモードの有効/無効を切り替え |
+
+#### パス解決
+
+`lib/fs/paths.ts` の `getMembersDir()` 関数が、デモモードの状態に応じてデータディレクトリを切り替える。
+
+```typescript
+// デモモード OFF → data/members/（実データ）
+// デモモード ON  → data/demo-members/（デモデータ）
+getMembersDir() // → MEMBERS_DIR or DEMO_MEMBERS_DIR
+```
+
+すべてのメンバー読み書き操作は `getMembersDir()` 経由でディレクトリを取得するため、デモモード切替がシステム全体に自動的に反映される。
+
+### 13.4 影響範囲
+
+| 対象 | 変更内容 |
+|------|---------|
+| `layout/NavBar.tsx` | トグルスイッチを追加。デモモード有効時は「デモ版」バッジを表示 |
+| 全メンバーAPI | `getMembersDir()` 経由で読み書き先が `demo-members/` に切り替わる |
+| ダッシュボード | デモメンバー5名のカードグリッドを表示 |
+| メンバー詳細 | デモメンバーのプロフィール・目標・1on1・評価を表示。各ウィザードもデモデータ上で動作 |
+| 全ページ | デモモード有効時にアンバーバナー「デモデータを表示中です。実際のメンバー情報ではありません。」を表示 |
+
+### 13.5 新規ファイル一覧
+
+#### 13.5.1 新規作成ファイル
+
+| ファイルパス | 種類 | 役割 |
+|------------|------|------|
+| `data/demo-members/` | データ | デモ用メンバーデータディレクトリ（5名分。各メンバーに profile.md, goals/, one-on-one/, reviews/ を配置） |
+| `data/.demo-mode.json` | 設定 | デモモード状態ファイル（`{"enabled": true/false}`） |
+| `web-demo/src/app/api/demo-mode/route.ts` | API Route | デモモード状態の取得・切替 |
+
+#### 13.5.2 修正が必要な既存ファイル
+
+| ファイルパス | 修正内容 |
+|------------|---------|
+| `web-demo/src/lib/fs/paths.ts` | `DEMO_MEMBERS_DIR` 定数および `getMembersDir()` 関数を追加。デモモード状態に応じてデータディレクトリを切り替え |
+| `web-demo/src/lib/fs/members.ts` | メンバー一覧・詳細取得で `getMembersDir()` を使用するよう変更 |
+| `web-demo/src/components/layout/NavBar.tsx` | デモモードトグルスイッチ + 「デモ版」バッジ + アンバーバナーを追加 |
+| `web-demo/src/app/api/members/[name]/goals/route.ts` | `getMembersDir()` 経由でパスを解決するよう変更 |
+| `web-demo/src/app/api/members/[name]/one-on-one/route.ts` | 同上 |
+| `web-demo/src/app/api/members/[name]/reviews/route.ts` | 同上 |
 
 ---
 
