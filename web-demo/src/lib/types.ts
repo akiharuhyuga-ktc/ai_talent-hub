@@ -73,6 +73,45 @@ export interface MemberSummary {
   rdPct: number
 }
 
+// Goal Wizard types
+export interface ManagerInput {
+  expectations: string
+  biggestChallenge: string
+}
+
+export interface MemberInput {
+  growthArea: string
+  currentDifficulties: string
+  oneYearVision: string
+}
+
+export interface PreviousPeriod {
+  previousGoals: string
+  achievementLevel: 'achieved' | 'mostly-achieved' | 'not-achieved' | ''
+  reasonIfNotAchieved: string
+}
+
+export interface GoalWizardState {
+  currentStep: number
+  managerInput: ManagerInput
+  memberInput: MemberInput
+  previousPeriod: PreviousPeriod
+  diagnosis: string | null
+  diagnosisConfirmed: boolean
+  generatedGoals: string | null
+  refinementMessages: ChatMessage[]
+  refinementCount: number
+  finalGoals: string | null
+}
+
+export interface WizardContextData {
+  memberName: string
+  memberProfile: string
+  departmentPolicy: string
+  evaluationCriteria: string
+  guidelines: string
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
