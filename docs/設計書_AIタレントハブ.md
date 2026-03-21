@@ -1,8 +1,8 @@
 # AIタレントハブ システム設計書
 
-> 文書バージョン：2.0
+> 文書バージョン：2.1
 > 作成日：2026-03-21
-> 最終更新：2026-03-21（組織方針ウィザードのレビュー指摘を反映（C1-C2, I1-I9対応））
+> 最終更新：2026-03-21（API一覧にdirection追加、docs APIのstrict mode・レスポンス型を反映、policy保存パスを修正）
 > 対象システム：KTC TalentHub（モバイルアプリ開発部 AIタレントマネジメントシステム）
 
 ---
@@ -566,8 +566,10 @@ Talent_Management_AI/
 
 | 項目 | 内容 |
 |------|------|
-| 概要 | 共有ドキュメント3種を取得 |
-| レスポンス | `{ policy: string, criteria: string, guidelines: string }` |
+| 概要 | 共有ドキュメント（組織方針・評価基準・ガイドライン）を取得 |
+| クエリパラメータ | `year`（任意）: 組織方針の年度指定。`strict=true`（任意）: 指定年度のみ返す（フォールバックなし） |
+| レスポンス | `{ orgPolicy: string, policyYear: number \| null, availableYears: number[], criteria: string, guidelines: string }` |
+| strict モード | `?year=2024&strict=true` の場合、指定年度のファイルが存在しなければ `orgPolicy: ''`, `exists: false` を返す。組織方針ウィザードのStep1で前年度方針の有無を検出するために使用 |
 
 ### 5.8 POST /api/members/[name]/one-on-one/questions
 
@@ -635,7 +637,18 @@ Talent_Management_AI/
 | レスポンス | `{ success: true, path: string }` |
 | 詳細 | セクション11.4.3を参照 |
 
-### 5.14 POST /api/docs/policy/draft
+### 5.14 POST /api/docs/policy/direction
+
+**ファイル**：`app/api/docs/policy/direction/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる組織方針の方向性・骨格提案を生成（継続/初回フロー共通） |
+| リクエスト | `{ mode: 'continuous' \| 'initial', ...モード別パラメータ }` |
+| レスポンス | `{ direction: string, mode: 'live' }` |
+| 詳細 | セクション14.6.6を参照 |
+
+### 5.15 POST /api/docs/policy/draft
 
 **ファイル**：`app/api/docs/policy/draft/route.ts`
 
@@ -646,7 +659,7 @@ Talent_Management_AI/
 | レスポンス | `{ draft: string, mode: 'live' }` |
 | 詳細 | セクション14.6を参照 |
 
-### 5.15 POST /api/docs/policy/refine
+### 5.16 POST /api/docs/policy/refine
 
 **ファイル**：`app/api/docs/policy/refine/route.ts`
 
@@ -657,9 +670,9 @@ Talent_Management_AI/
 | レスポンス | `{ refined: string, mode: 'live' }` |
 | 詳細 | セクション14.6を参照 |
 
-### 5.16 POST /api/docs/policy/save
+### 5.17 POST /api/docs/policy
 
-**ファイル**：`app/api/docs/policy/save/route.ts`
+**ファイル**：`app/api/docs/policy/route.ts`
 
 | 項目 | 内容 |
 |------|------|
