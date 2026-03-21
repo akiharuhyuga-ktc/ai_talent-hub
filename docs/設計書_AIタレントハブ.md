@@ -1,8 +1,8 @@
 # AIタレントハブ システム設計書
 
-> 文書バージョン：1.1
+> 文書バージョン：1.3
 > 作成日：2026-03-21
-> 最終更新：2026-03-21（ウィザードUI仕様・目標生成フォーマット詳細を追記）
+> 最終更新：2026-03-21（1on1ウィザード設計のレビュー指摘を反映（C1-C4, I1-I8, S1-S6対応））
 > 対象システム：KTC TalentHub（モバイルアプリ開発部 AIタレントマネジメントシステム）
 
 ---
@@ -60,8 +60,10 @@ Claude を「AI秘書」として活用し、以下を実現する。
 │  │ダッシュボード│  │メンバー詳細    │  │部方針ドキュメント│  │目標設定ウィザード│   │
 │  │ (/)       │  │(/members/[name])│  │(/docs)    │  │(モーダル)     │   │
 │  └──────────┘  └──────────────┘  └──────────┘  └─────────────┘   │
-│                    │ AIチャットサイドバー │                              │
-│                    └──────────────────┘                              │
+│                    │ AIチャットサイドバー │    ┌─────────────┐        │
+│                    └──────────────────┘    │1on1ウィザード  │        │
+│                                             │(モーダル)     │        │
+│                                             └─────────────┘        │
 └──────────────┬──────────────────────────────────────────────────┘
                │ HTTP (fetch)
                ▼
@@ -75,6 +77,9 @@ Claude を「AI秘書」として活用し、以下を実現する。
 │  POST /api/members/[name]/goals/generate   AI目標生成                │
 │  POST /api/chat                            AIチャット                │
 │  GET /api/docs                             共有ドキュメント取得       │
+│  POST /api/members/[name]/one-on-one/questions  AI質問生成           │
+│  POST /api/members/[name]/one-on-one/summary    AI引き継ぎサマリー    │
+│  POST /api/members/[name]/one-on-one            1on1記録保存          │
 └──────────────┬──────────────┬──────────────────────────────────┘
                │              │
     ┌──────────▼───┐    ┌────▼──────────────────────┐
@@ -275,6 +280,13 @@ Talent_Management_AI/
 | `WizardContextData` | ウィザードに渡す固定コンテキスト（メンバー名、プロフィール、部方針、評価基準、ガイドライン） |
 | `ChatMessage` | チャットメッセージ（role: user/assistant、content） |
 | `ChatRequest` | チャットAPIリクエスト（messages、memberName、memberContext） |
+| `ConditionScore` | 1on1コンディションスコア（モチベーション・業務負荷・チーム関係の3軸、1〜5） |
+| `ActionItemReview` | 前回アクションアイテムの振り返り（完了チェック・コメント付き） |
+| `GoalProgressEntry` | 目標進捗エントリ（ステータス・進捗メモ付き） |
+| `HearingQuestion` | AIヒアリング質問（質問文・意図・メモ） |
+| `ActionItem` | ネクストアクション（内容・担当者・期限） |
+| `OneOnOneWizardState` | 1on1ウィザード全体の状態（5ステップ分のデータ + 引き継ぎサマリー + 保存先） |
+| `OneOnOneWizardContextData` | 1on1ウィザードに渡す固定コンテキスト（メンバー名、プロフィール、目標、前回記録、部方針、ガイドライン） |
 
 ---
 
@@ -528,6 +540,39 @@ Talent_Management_AI/
 |------|------|
 | 概要 | 共有ドキュメント3種を取得 |
 | レスポンス | `{ policy: string, criteria: string, guidelines: string }` |
+
+### 5.8 POST /api/members/[name]/one-on-one/questions
+
+**ファイル**：`app/api/members/[name]/one-on-one/questions/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによるパーソナライズされたヒアリング質問を3つ生成 |
+| リクエスト | `{ memberContext, goalsMarkdown, departmentPolicy, previousActionReviews, goalProgress, condition, previousCondition? }` |
+| レスポンス | `{ questions: { question: string, intent: string }[], mode: 'mock' \| 'live' }` |
+| 詳細 | セクション10.4.1を参照 |
+
+### 5.9 POST /api/members/[name]/one-on-one/summary
+
+**ファイル**：`app/api/members/[name]/one-on-one/summary/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる次回1on1への引き継ぎサマリーを生成 |
+| リクエスト | `{ memberContext, goalsMarkdown, previousActionReviews, goalProgress, condition, previousCondition?, hearingQuestions, nextActions }` |
+| レスポンス | `{ summary: string, mode: 'mock' \| 'live' }` |
+| 詳細 | セクション10.4.2を参照 |
+
+### 5.10 POST /api/members/[name]/one-on-one
+
+**ファイル**：`app/api/members/[name]/one-on-one/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | 1on1記録をMarkdownファイルとして保存 |
+| リクエスト | `{ yearMonth: string, content: string }` |
+| レスポンス | `{ success: true, path: string }` |
+| 詳細 | セクション10.4.3を参照 |
 
 ---
 
@@ -906,8 +951,1090 @@ data/          ← 個人情報・機密データ全体
 | `data/members/{name}/profile.md` | メンバープロフィール（24名分） |
 | `data/members/{name}/goals/2026-h1.md` | 2026年上期目標（24名分） |
 | `data/members/{name}/reviews/2025-h2.md` | 2025年下期評価（24名分） |
-| `data/members/{name}/one-on-one/` | 1on1記録（現時点では空） |
+| `data/members/{name}/one-on-one/` | 1on1ウィザードで作成された月次記録（`YYYY-MM.md`） |
 | `data/archive/` | 元データファイル群（xlsx, pptx, pdf） |
+
+---
+
+## 10. 1on1ウィザード
+
+### 10.1 概要・方針
+
+1on1ウィザードは、マネージャーとメンバーの月次1on1面談を構造化して支援するための5ステップウィザードである。目標設定ウィザード（セクション7）と同様に全画面モーダルとして動作し、`useReducer` で状態管理を行う。
+
+#### 設計方針
+
+- **継続性の重視**：前回の1on1記録（アクションアイテム・コンディション）を自動ロードし、面談の継続性を担保する
+- **目標ウィザードとの連携**：目標設定ウィザードで作成した目標・マイルストーン・達成基準を自動参照し、進捗確認を効率化する
+- **コンディション可視化**：モチベーション・業務負荷・チーム関係の3軸を5段階で定量化し、月次推移を追跡する
+- **AIによる質問生成**：ステップ1〜3の情報をもとに、パーソナライズされたヒアリング質問をAIが生成する
+- **引き継ぎサマリー**：完了時にAIが次回1on1への引き継ぎサマリーを自動生成し、ファイルに含めて保存する
+- **マネージャー専用**：フェーズ1ではマネージャーのみが操作する前提とする
+
+#### モデル
+
+`claude-sonnet-4-20250514`（`call-claude.ts` のデフォルトモデルと同一）
+
+### 10.2 画面設計（5ステップ + 完了画面）
+
+#### 全体レイアウト
+
+目標設定ウィザードと同一のレイアウト構造を採用する。
+
+| 要素 | Tailwind クラス | 備考 |
+|------|----------------|------|
+| コンテナ | `fixed inset-0 z-50 bg-white flex flex-col` | 全画面モーダル |
+| ヘッダー | `px-16 py-5 border-b border-gray-200 bg-gray-50` | `{メンバー名}さんの1on1ウィザード` + 閉じるボタン |
+| ステッパー | `px-16 py-5 border-b border-gray-100` | 5ステップ進捗バー |
+| コンテンツ領域 | `max-w-5xl mx-auto px-16 py-8` | 中央寄せ + 左右余白 |
+
+#### フォントサイズ規約
+
+目標設定ウィザードと同一の規約を適用する（セクション4.5のフォントサイズ規約を参照）。
+
+| 要素 | サイズ |
+|------|--------|
+| ページ見出し（h2） | `text-4xl font-bold` |
+| 説明文 | `text-xl` |
+| フォームラベル | `text-xl font-medium` |
+| フォーム入力（textarea/input/select） | `text-xl` |
+| スライダーラベル・値 | `text-xl` |
+| ボタン | `text-xl font-semibold` |
+| バッジ・ステータス | `text-lg` |
+| ヘルパーテキスト・注釈 | `text-lg` |
+| ステッパー数字 | `text-xl font-bold`（`w-12 h-12` 円形） |
+| ステッパーラベル | `text-lg` |
+
+#### ステッパー
+
+`OneOnOneStepper` コンポーネントで5ステップの進捗を視覚的に表示する。`WizardStepper` と同一のUIパターンを採用し、ステップ数のみ5に変更する。
+
+ステップラベル：
+1. 前回振り返り
+2. 目標進捗
+3. コンディション
+4. ヒアリング
+5. アクション設定
+
+#### Step1: 前回アクションアイテム振り返り
+
+**コンポーネント名**：`OOStep1PreviousActions`
+
+**表示内容**：
+- 前回の1on1記録（`one-on-one/YYYY-MM.md`）からアクションアイテムを自動ロード
+- 前回記録が存在しない場合は「前回の1on1記録がありません。初回面談として進めます。」と表示し、空のアクションアイテムリストを表示
+- 前回の引き継ぎサマリー（存在する場合）をカード形式で表示
+
+**入力フィールド**：
+- アクションアイテムごとの完了チェックボックス（チェックボックス、`w-6 h-6`）
+- アクションアイテムごとのコメント入力（textarea、`text-xl`、placeholder: 「進捗や補足があれば記入」、各2行）
+
+**AI連携**：なし（データロードのみ）
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: 前回アクションアイテムの振り返り              │
+│ p: 前回の1on1で設定したアクションアイテムの        │
+│    進捗を確認します。                             │
+│                                                  │
+│ ┌─ 引き継ぎサマリー（前回AIが生成）─────────────┐ │
+│ │ bg-indigo-50 border-indigo-200 p-6 rounded-lg│ │
+│ │ {前回の引き継ぎサマリー本文}                    │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ ┌─ アクションアイテム1 ─────────────────────────┐ │
+│ │ □ {アクション内容}（担当：{assignee}、期限：{date}）│
+│ │ [コメント入力欄]                                │ │
+│ └──────────────────────────────────────────────┘ │
+│ ┌─ アクションアイテム2 ─────────────────────────┐ │
+│ │ □ {アクション内容}（担当：{assignee}、期限：{date}）│
+│ │ [コメント入力欄]                                │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [戻る]                          [次へ進む]        │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「次へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。常に有効（チェック状態の変更は任意）
+- 「閉じる」：ヘッダーの閉じるボタンで対応（Step1には「戻る」ボタンなし）
+
+#### Step2: 目標進捗確認
+
+**コンポーネント名**：`OOStep2GoalProgress`
+
+**表示内容**：
+- 目標設定ウィザードで作成した目標データ（`goals/2026-h1.md`）を自動ロード
+- 各目標の内容（目標文、達成した姿、検証方法、中間確認）をカード形式で表示
+- 目標データが存在しない場合は「目標が未設定です。目標設定ウィザードで目標を作成してから1on1を実施してください。」と表示し、フリーテキスト入力欄を代わりに表示
+- AIによるタイムライン警告を表示（中間確認の期限が近い場合など）
+
+**入力フィールド**：
+- 各目標の進捗ステータス選択（select、`text-xl`）：「未着手」「進行中」「遅延あり」「完了」の4択
+- 各目標の進捗メモ（textarea、`text-xl`、placeholder: 「具体的な進捗・課題を記入」、各3行）
+
+**AI連携（タイムライン警告）**：
+- 目標の「中間確認」フィールドに含まれる期限（例：「6月末時点で〜」）を解析し、現在日付との差分を計算
+- 期限まで30日以内の場合、該当目標カードに警告バッジ（`bg-amber-100 text-amber-800 border-amber-300`）を表示：「中間確認まであと{N}日」
+- 期限を過ぎている場合、赤色バッジ（`bg-red-100 text-red-800 border-red-300`）を表示：「中間確認の期限を{N}日超過」
+- この警告はクライアントサイドで計算するため、API呼び出しは不要
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: 目標進捗確認                                │
+│ p: 各目標の進捗状況を確認します。                 │
+│                                                  │
+│ ┌─ 目標①（実行）──────────────────────────────┐ │
+│ │ 目標文: ...                                    │ │
+│ │ 達成した姿: ...                                │ │
+│ │ 中間確認: ...  [⚠ 中間確認まであと14日]         │ │
+│ │                                                │ │
+│ │ 進捗ステータス: [select: 未着手/進行中/遅延/完了]│ │
+│ │ 進捗メモ: [textarea]                           │ │
+│ └──────────────────────────────────────────────┘ │
+│ ┌─ 目標②（挑戦）──────────────────────────────┐ │
+│ │ ...                                            │ │
+│ └──────────────────────────────────────────────┘ │
+│ ┌─ 目標③（インパクト）───────────────────────── ┐ │
+│ │ ...                                            │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [戻る]                          [次へ進む]        │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`
+- 「次へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。各目標のステータスがすべて選択済みの場合に有効化
+
+> **フリーテキストモード時のバリデーション**：フリーテキストモード時は、テキストが空でない場合に「次へ進む」を有効化する。
+
+#### Step3: コンディション確認
+
+**コンポーネント名**：`OOStep3Condition`
+
+**表示内容**：
+- モチベーション・業務負荷・チーム関係の3軸を1〜5のスライダーで入力
+- 前回のコンディションスコアが存在する場合、前月比の変化を矢印アイコンと差分値で表示
+
+**入力フィールド**：
+- モチベーション（range スライダー、1〜5、`accent-indigo-600`）：1=非常に低い / 2=低い / 3=普通 / 4=高い / 5=非常に高い
+- 業務負荷（range スライダー、1〜5、`accent-indigo-600`）：1=余裕あり / 2=やや余裕 / 3=適正 / 4=やや過多 / 5=過多
+- チーム関係（range スライダー、1〜5、`accent-indigo-600`）：1=課題あり / 2=やや課題 / 3=普通 / 4=良好 / 5=非常に良好
+- フリーコメント（textarea、`text-xl`、placeholder: 「コンディションについて補足があれば記入」、4行）
+
+**前月比表示ロジック**：
+- 前回1on1記録のコンディションスコアを読み取り、差分を計算
+- 上昇：`text-green-600` + 「↑ +{N}」
+- 下降：`text-red-600` + 「↓ -{N}」
+- 変化なし：`text-gray-400` + 「→ 変化なし」
+- 前回記録がない場合は「前回データなし」とグレーで表示
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: コンディション確認                          │
+│ p: 現在のコンディションを確認します。             │
+│                                                  │
+│ ┌─ モチベーション ─────────────────────────────┐ │
+│ │ label: モチベーション          前月比: ↑ +1   │ │
+│ │ 1 ─────●───────── 5                          │ │
+│ │ 選択中: 4（高い）                              │ │
+│ └──────────────────────────────────────────────┘ │
+│ ┌─ 業務負荷 ───────────────────────────────────┐ │
+│ │ label: 業務負荷                前月比: → 変化なし│
+│ │ 1 ───────●─────── 5                          │ │
+│ │ 選択中: 3（適正）                              │ │
+│ └──────────────────────────────────────────────┘ │
+│ ┌─ チーム関係 ─────────────────────────────────┐ │
+│ │ label: チーム関係              前月比: ↓ -1   │ │
+│ │ 1 ─────────●───── 5                          │ │
+│ │ 選択中: 3（普通）                              │ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ フリーコメント:                                   │
+│ [textarea]                                       │
+│                                                  │
+│ [戻る]                          [次へ進む]        │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`
+- 「次へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。3つのスライダーすべてがユーザーによって明示的に操作済みの場合に有効化
+
+> **スライダー初期値**：初期値は未選択（`null`）とし、ユーザーが明示的に操作したかどうかをフラグ管理する。スライダーUI上は中央（3）を表示するが、操作前は未選択扱いとする。
+
+> **プリフェッチ最適化**：Step3の「次へ進む」ボタン押下時にStep4のAI質問生成APIをプリフェッチ開始し、Step4表示時にはロード済みの結果を表示する。
+
+#### Step4: AIヒアリング質問 + メモ
+
+**コンポーネント名**：`OOStep4Hearing`
+
+**表示内容**：
+- AIが生成した3つのパーソナライズされたヒアリング質問を表示
+- 各質問に対するメモ入力欄
+- AI呼び出し中はスピナーを表示（目標設定ウィザードの Step5Diagnosis と同一パターン）
+
+**入力フィールド**：
+- 各質問に対するメモ（textarea、`text-xl`、placeholder: 「面談中のメモ・メンバーの回答を記入」、各4行）
+
+**AI連携**：
+- ウィザードがStep4に遷移した時点で自動的に `POST /api/members/[name]/one-on-one/questions` を呼び出す
+- Step1〜3の情報（前回アクションアイテムの進捗、目標進捗、コンディション）を送信
+- AIが3つの質問を生成して返却
+- 生成済みの場合（state に質問が保存済み）は再呼び出ししない
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: ヒアリング                                  │
+│ p: 今回の面談でヒアリングすべきポイントをAIが       │
+│    提案しました。面談中のメモを記録してください。     │
+│                                                  │
+│ ┌─ 質問1 ──────────────────────────────────────┐ │
+│ │ bg-indigo-50 p-5 rounded-lg                  │ │
+│ │ text-xl font-medium: {質問文1}                │ │
+│ │ text-lg text-gray-500: {質問の意図}            │ │
+│ └──────────────────────────────────────────────┘ │
+│ メモ: [textarea]                                 │
+│                                                  │
+│ ┌─ 質問2 ──────────────────────────────────────┐ │
+│ │ bg-indigo-50 p-5 rounded-lg                  │ │
+│ │ text-xl font-medium: {質問文2}                │ │
+│ │ text-lg text-gray-500: {質問の意図}            │ │
+│ └──────────────────────────────────────────────┘ │
+│ メモ: [textarea]                                 │
+│                                                  │
+│ ┌─ 質問3 ──────────────────────────────────────┐ │
+│ │ bg-indigo-50 p-5 rounded-lg                  │ │
+│ │ text-xl font-medium: {質問文3}                │ │
+│ │ text-lg text-gray-500: {質問の意図}            │ │
+│ └──────────────────────────────────────────────┘ │
+│ メモ: [textarea]                                 │
+│                                                  │
+│ [戻る]                          [次へ進む]        │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`
+- 「次へ進む」：`bg-indigo-600 text-white hover:bg-indigo-700`。AIの質問生成が完了している場合に有効化（メモは任意）
+
+#### Step5: ネクストアクション設定
+
+**コンポーネント名**：`OOStep5Actions`
+
+**表示内容**：
+- 次回までのアクションアイテムを複数登録する
+- 各アクションアイテムに担当者と期限を設定
+
+**入力フィールド**：
+- アクション内容（input、`text-xl`、placeholder: 「アクション内容を入力」）
+- 担当者（select、`text-xl`）：「マネージャー」「メンバー」「両方」の3択
+- 期限（input type="date"、`text-xl`）
+- 「アクションを追加」ボタン：新しいアクションアイテム行を追加
+- 「削除」ボタン：各アクションアイテム行の右端に配置（`text-red-400 hover:text-red-600`）
+
+**初期状態**：アクションアイテム1行が空で表示される。
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ h2: ネクストアクション                          │
+│ p: 次回の1on1までに実施するアクションを設定します。│
+│                                                  │
+│ ┌─ アクション1 ────────────────────────────────┐ │
+│ │ アクション内容: [input]                        │ │
+│ │ 担当者: [select]      期限: [date]    [✕ 削除]│ │
+│ └──────────────────────────────────────────────┘ │
+│ ┌─ アクション2 ────────────────────────────────┐ │
+│ │ アクション内容: [input]                        │ │
+│ │ 担当者: [select]      期限: [date]    [✕ 削除]│ │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ [+ アクションを追加]                              │
+│   border-dashed border-2 border-gray-300         │
+│   text-gray-500 hover:border-indigo-400          │
+│                                                  │
+│ [戻る]                     [1on1を完了する]       │
+└──────────────────────────────────────────────────┘
+```
+
+**ボタン**：
+- 「戻る」：`border border-gray-300 text-gray-600 hover:bg-gray-50`
+- 「1on1を完了する」：`bg-indigo-600 text-white hover:bg-indigo-700`。アクションアイテムが1つ以上入力済み（内容が空でない）の場合に有効化。押下で以下を順次実行：
+  1. `POST /api/members/[name]/one-on-one/summary` でAI引き継ぎサマリーを生成
+  2. `POST /api/members/[name]/one-on-one` で1on1記録全体を保存
+  3. 完了画面を表示
+
+#### 完了画面
+
+**コンポーネント名**：`OOStepComplete`
+
+**表示内容**：
+- 完了メッセージ：「1on1記録を保存しました」
+- AIが生成した引き継ぎサマリーをカード形式で表示
+- 保存先ファイルパスを表示（`text-lg text-gray-500`）
+
+**UIレイアウト**：
+```
+┌──────────────────────────────────────────────┐
+│ （中央寄せ）                                    │
+│ ✓ チェックマーク（bg-green-100 text-green-600    │
+│    w-20 h-20 rounded-full）                     │
+│                                                  │
+│ h2: 1on1記録を保存しました                       │
+│ p: {メンバー名}さんの{YYYY年MM月}の1on1記録を      │
+│    保存しました。                                 │
+│                                                  │
+│ ┌─ 次回への引き継ぎサマリー ──────────────────┐  │
+│ │ bg-indigo-50 border-indigo-200 p-8 rounded-lg│  │
+│ │ {AI生成の引き継ぎサマリー}                     │  │
+│ └──────────────────────────────────────────────┘ │
+│                                                  │
+│ p: 保存先: data/members/{name}/one-on-one/       │
+│    YYYY-MM.md                                    │
+│                                                  │
+│ [閉じる]                                         │
+│   bg-indigo-600 text-white hover:bg-indigo-700   │
+└──────────────────────────────────────────────────┘
+```
+
+> **画面更新**：「閉じる」ボタン押下時に `router.refresh()` を実行し、1on1記録タブの表示を更新する。
+
+### 10.3 データ設計
+
+#### 10.3.1 型定義（`lib/types.ts` に追加）
+
+```typescript
+// 1on1 Wizard types
+
+export interface ConditionScore {
+  motivation: number    // 1-5
+  workload: number      // 1-5
+  teamRelation: number  // 1-5
+  comment: string       // フリーコメント
+}
+
+export interface ActionItemReview {
+  content: string
+  assignee: 'manager' | 'member' | 'both'
+  deadline: string           // YYYY-MM-DD
+  completed: boolean
+  reviewComment: string
+}
+
+export interface GoalProgressEntry {
+  goalTitle: string
+  goalBody: string           // 達成した姿・検証方法・中間確認を含む
+  status: 'not-started' | 'in-progress' | 'delayed' | 'completed'
+  progressNote: string
+}
+
+export interface HearingQuestion {
+  question: string
+  intent: string             // 質問の意図
+  memo: string               // 面談中のメモ
+}
+
+export interface ActionItem {
+  content: string
+  assignee: 'manager' | 'member' | 'both'
+  deadline: string           // YYYY-MM-DD
+}
+
+export interface OneOnOneWizardState {
+  currentStep: number                        // 1-5 + 6(完了)
+  yearMonth: string                          // YYYY-MM
+  previousActionItems: ActionItemReview[]    // Step1: 前回アクションアイテム
+  previousSummary: string                    // Step1: 前回の引き継ぎサマリー
+  goalProgress: GoalProgressEntry[]          // Step2: 目標進捗
+  condition: ConditionScore                  // Step3: コンディション
+  previousCondition: ConditionScore | null   // Step3: 前月比表示用
+  hearingQuestions: HearingQuestion[]        // Step4: AI質問 + メモ
+  nextActions: ActionItem[]                  // Step5: ネクストアクション
+  handoverSummary: string | null             // 完了: AI引き継ぎサマリー
+  savedPath: string | null                   // 完了: 保存先パス
+}
+
+export interface OneOnOneWizardContextData {
+  memberName: string
+  memberProfile: string
+  goalsMarkdown: string        // goals/2026-h1.md の rawMarkdown
+  previousOneOnOne: OneOnOneRecord | null  // 前回の1on1記録
+  previousActionItems: ActionItem[]        // 前回のネクストアクション（パース済み）
+  previousCondition: ConditionScore | null // 前回のコンディションスコア（パース済み）
+  previousSummary: string                  // 前回の引き継ぎサマリー（パース済み）
+  departmentPolicy: string
+  guidelines: string           // 運用ガイドライン
+  yearMonth: string            // YYYY-MM形式
+}
+```
+
+> **前回記録のパース**：`previousActionItems`、`previousCondition`、`previousSummary` のパースはサーバーコンポーネント（`page.tsx`）で実行し、パース済みデータをウィザードに渡す。
+
+> **yearMonth の自動設定**：ウィザード起動時に `new Date()` から `YYYY-MM` 形式を自動設定する。同月に2回目の1on1を実施した場合は既存ファイルを上書きする。
+
+> **evaluationCriteria の除外**：評価基準は1on1の文脈では不要なため、コンテキストから除外した。代わりに `departmentPolicy` と `guidelines` をAI質問生成のコンテキストとして活用する。
+
+#### 10.3.2 Markdown ファイルフォーマット（保存形式）
+
+> **テンプレート移行**：既存の `one-on-one-template.md` は本ウィザード導入に伴い廃止し、新フォーマットに統一する。手動作成の旧形式記録は rawMarkdown として読み込み可能だが、構造化パースの対象外とする。
+
+ファイルパス：`data/members/{name}/one-on-one/YYYY-MM.md`
+
+```markdown
+# 1on1記録
+
+- 日付：YYYY-MM-DD
+- メンバー：{名前}
+- 実施者：比良津暁
+
+## 前回アクションアイテム振り返り
+
+### アクション1
+- 内容：{アクション内容}
+- 担当：{マネージャー/メンバー/両方}
+- 期限：{YYYY-MM-DD}
+- 完了：{はい/いいえ}
+- コメント：{コメント}
+
+### アクション2
+- 内容：{アクション内容}
+- 担当：{マネージャー/メンバー/両方}
+- 期限：{YYYY-MM-DD}
+- 完了：{はい/いいえ}
+- コメント：{コメント}
+
+## 目標進捗確認
+
+### 目標①（実行）：{目標文}
+- 進捗ステータス：{未着手/進行中/遅延あり/完了}
+- 進捗メモ：{進捗メモ}
+
+### 目標②（挑戦）：{目標文}
+- 進捗ステータス：{未着手/進行中/遅延あり/完了}
+- 進捗メモ：{進捗メモ}
+
+### 目標③（インパクト）：{目標文}
+- 進捗ステータス：{未着手/進行中/遅延あり/完了}
+- 進捗メモ：{進捗メモ}
+
+## コンディション
+
+- モチベーション：{1-5}
+- 業務負荷：{1-5}
+- チーム関係：{1-5}
+- コメント：{フリーコメント}
+
+## ヒアリング
+
+### 質問1：{質問文}
+- 意図：{質問の意図}
+- メモ：{面談中のメモ}
+
+### 質問2：{質問文}
+- 意図：{質問の意図}
+- メモ：{面談中のメモ}
+
+### 質問3：{質問文}
+- 意図：{質問の意図}
+- メモ：{面談中のメモ}
+
+## ネクストアクション
+
+### アクション1
+- 内容：{アクション内容}
+- 担当：{マネージャー/メンバー/両方}
+- 期限：{YYYY-MM-DD}
+
+### アクション2
+- 内容：{アクション内容}
+- 担当：{マネージャー/メンバー/両方}
+- 期限：{YYYY-MM-DD}
+
+## 引き継ぎサマリー（AI生成）
+
+{AIが生成した次回1on1への引き継ぎサマリー}
+```
+
+**担当者マッピング表**：
+
+| TypeScript値 | Markdown表記 |
+|---|---|
+| `manager` | マネージャー |
+| `member` | メンバー |
+| `both` | 両方 |
+
+#### 10.3.3 前回記録からのデータ抽出
+
+前回の1on1記録（`one-on-one/YYYY-MM.md`）から以下を抽出するパーサー `parseOneOnOneRecord()` を `lib/parsers/one-on-one.ts` に実装する。
+
+| 抽出対象 | 抽出方法 |
+|---------|---------|
+| ネクストアクション | `## ネクストアクション` セクション内の `### アクションN` を走査。各アクションの内容・担当・期限を抽出 |
+| コンディションスコア | `## コンディション` セクション内の `- モチベーション：` `- 業務負荷：` `- チーム関係：` 行から数値を抽出 |
+| 引き継ぎサマリー | `## 引き継ぎサマリー（AI生成）` セクションの本文を抽出 |
+
+### 10.4 API設計
+
+#### 10.4.1 POST /api/members/[name]/one-on-one/questions
+
+**ファイル**：`app/api/members/[name]/one-on-one/questions/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによるパーソナライズされたヒアリング質問を3つ生成 |
+| メソッド | POST |
+| パラメータ | `name`（URLエンコード済みメンバー名） |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  memberContext: string           // メンバープロフィール rawMarkdown
+  goalsMarkdown: string          // 目標 rawMarkdown
+  departmentPolicy: string       // 部方針（組織の優先事項をAIが理解するためのコンテキスト）
+  previousActionReviews: {       // Step1の振り返り結果
+    content: string
+    completed: boolean
+    reviewComment: string
+  }[]
+  goalProgress: {                // Step2の進捗
+    goalTitle: string
+    status: string
+    progressNote: string
+  }[]
+  condition: {                   // Step3のコンディション
+    motivation: number
+    workload: number
+    teamRelation: number
+    comment: string
+  }
+  previousCondition?: {          // 前月のコンディション（存在する場合）
+    motivation: number
+    workload: number
+    teamRelation: number
+  }
+}
+```
+
+**レスポンス**：
+```typescript
+{
+  questions: {
+    question: string
+    intent: string
+  }[]
+  mode: 'mock' | 'live'
+}
+```
+
+**モックレスポンス**（APIキーなしの場合）：
+```typescript
+const MOCK_QUESTIONS = [
+  {
+    question: '前回のアクションアイテムで未完了のものがありますが、何か障害になっていることはありますか？',
+    intent: '未完了タスクの根本原因を把握し、支援が必要かどうかを確認する'
+  },
+  {
+    question: '目標の進捗について、特に手応えを感じている部分と、不安を感じている部分を教えてください。',
+    intent: '目標に対する本人の認識と感情を把握し、支援の方向性を定める'
+  },
+  {
+    question: '最近のチーム内でのコミュニケーションで、何か気になることや改善したいことはありますか？',
+    intent: 'チーム関係のコンディション変化の背景を深掘りする'
+  }
+]
+```
+
+遅延：1000ms
+
+**システムプロンプト**：
+
+```
+あなたは1on1面談の専門ファシリテーターです。
+マネージャーがメンバーとの月次1on1面談で使用するヒアリング質問を3つ生成してください。
+
+【質問設計の原則】
+1. ステップ1〜3で収集した情報（前回アクションアイテムの進捗、目標の進捗状況、コンディションスコア）をもとに、最も深掘りすべきポイントを特定すること
+2. 表面的な進捗確認ではなく、本人の内面（動機・不安・成長実感）に踏み込む質問にすること
+3. 質問は具体的で、このメンバー固有の文脈に基づいたものにすること。汎用的な質問は禁止
+4. コンディションスコアに前月比で下降が見られる場合は、その背景を探る質問を必ず1つ含めること
+5. 目標に「遅延あり」のものがある場合は、遅延の構造的原因を探る質問を必ず1つ含めること
+
+【出力フォーマット】
+以下のJSON形式で出力すること。JSON以外のテキストは一切含めないこと。
+
+[
+  {
+    "question": "質問文（メンバーに直接投げかける形で）",
+    "intent": "この質問をする意図（マネージャー向けの補足説明、1文で）"
+  },
+  {
+    "question": "質問文",
+    "intent": "意図"
+  },
+  {
+    "question": "質問文",
+    "intent": "意図"
+  }
+]
+
+出力は日本語で行うこと。
+```
+
+**ユーザーメッセージ構築**（`buildOneOnOneQuestionsUserMessage()`）：
+
+```
+## メンバー：{memberName}
+
+## メンバープロフィール
+{memberContext}
+
+## 部方針
+{departmentPolicy}
+
+## 現在の目標
+{goalsMarkdown}
+
+## 前回アクションアイテムの振り返り
+{previousActionReviewsをMarkdown形式で列挙}
+- アクション1：{内容}（完了: はい/いいえ）コメント: {comment}
+- アクション2：...
+
+## 今期の目標進捗
+{goalProgressをMarkdown形式で列挙}
+- 目標1：{goalTitle}（ステータス: {status}）メモ: {progressNote}
+- 目標2：...
+
+## 今月のコンディション
+- モチベーション：{motivation}/5
+- 業務負荷：{workload}/5
+- チーム関係：{teamRelation}/5
+- コメント：{comment}
+
+## 前月のコンディション（参考）
+- モチベーション：{previousMotivation}/5
+- 業務負荷：{previousWorkload}/5
+- チーム関係：{previousTeamRelation}/5
+
+上記の情報をもとに、今回の1on1面談で聞くべき質問を3つ生成してください。
+```
+
+**maxTokens**：1024
+
+**JSONパースフォールバック**：
+
+AIの出力がvalid JSONでない場合（Markdownコードブロック囲みや前後の説明文付き等）に備え、正規表現 `/\[[\s\S]*\]/` でJSON配列部分を抽出する。抽出・パース失敗時は以下のフォールバック質問を使用する：
+
+```typescript
+const FALLBACK_QUESTIONS = [
+  {
+    question: '最近の業務で、特にやりがいを感じていることは何ですか？',
+    intent: 'モチベーションの源泉を把握し、今後の業務アサインに活かす'
+  },
+  {
+    question: '現在の目標に対して、何か障害になっていると感じることはありますか？',
+    intent: '目標達成を阻む構造的な問題を早期に発見する'
+  },
+  {
+    question: 'チーム内で改善できそうだと思うことがあれば教えてください。',
+    intent: 'チーム関係やプロセスの改善点を本人視点で収集する'
+  }
+]
+```
+
+#### 10.4.2 POST /api/members/[name]/one-on-one/summary
+
+**ファイル**：`app/api/members/[name]/one-on-one/summary/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AIによる次回1on1への引き継ぎサマリーを生成 |
+| メソッド | POST |
+| パラメータ | `name`（URLエンコード済みメンバー名） |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  memberContext: string
+  goalsMarkdown: string
+  previousActionReviews: ActionItemReview[]
+  goalProgress: GoalProgressEntry[]
+  condition: ConditionScore
+  previousCondition?: ConditionScore
+  hearingQuestions: HearingQuestion[]
+  nextActions: ActionItem[]
+}
+```
+
+**レスポンス**：
+```typescript
+{
+  summary: string
+  mode: 'mock' | 'live'
+}
+```
+
+**モックレスポンス**（APIキーなしの場合）：
+```typescript
+const MOCK_SUMMARY = `【次回1on1への引き継ぎサマリー】
+
+■ 要注目ポイント
+- 目標②（挑戦目標）が遅延傾向。具体的な障害の特定と支援策の検討が必要
+- モチベーションが前月比で低下。背景要因の継続的なモニタリングが必要
+
+■ 継続フォロー事項
+- アクションアイテム「技術ブログの執筆」が2ヶ月連続で未完了。優先度の見直しまたはアクション自体の変更を検討
+- チーム内のコミュニケーション改善の取り組みについて進捗確認
+
+■ ポジティブな変化
+- 目標①（実行目標）は順調に進捗。中間確認の基準を前倒しで達成する見込み
+- 業務負荷が適正範囲に収まっている
+
+■ 次回の面談で確認すべきこと
+- 挑戦目標の遅延に対する具体的な打ち手の実行状況
+- モチベーション回復の兆候があるかどうか`
+```
+
+遅延：1500ms
+
+**システムプロンプト**：
+
+```
+あなたは1on1面談の専門ファシリテーターです。
+今回の1on1面談の全記録をもとに、次回の1on1面談に引き継ぐべきサマリーを作成してください。
+
+【引き継ぎサマリーの目的】
+次回の1on1面談を実施する際に、前回の内容を素早く把握し、継続的なフォローを可能にすること。
+
+【出力フォーマット】
+
+■ 要注目ポイント
+（次回必ず確認すべき事項。目標の遅延、コンディションの低下、未完了アクションの蓄積など、放置するとリスクになる項目を箇条書きで）
+
+■ 継続フォロー事項
+（今回の面談で話題に上がり、次回以降も継続的にフォローすべき事項を箇条書きで）
+
+■ ポジティブな変化
+（目標の進捗、コンディションの改善、新しい取り組みの開始など、良い兆候を箇条書きで）
+
+■ 次回の面談で確認すべきこと
+（今回設定したアクションアイテムの進捗確認、コンディション変化の追跡など、次回の面談で優先的に確認すべき事項を箇条書きで）
+
+【注意】
+- 事実ベースで記述すること。推測や主観的な評価は含めないこと
+- 具体的なアクションアイテムや目標名を明記すること
+- 箇条書きで簡潔に記述すること（各項目1〜2文）
+- 出力は日本語で行うこと
+```
+
+**ユーザーメッセージ構築**（`buildOneOnOneSummaryUserMessage()`）：
+
+```
+## メンバー：{memberName}
+
+## メンバープロフィール
+{memberContext}
+
+## 現在の目標
+{goalsMarkdown}
+
+## 前回アクションアイテムの振り返り
+{previousActionReviewsをMarkdown形式で列挙}
+### アクション1
+- 内容：{content}
+- 担当：{assignee}
+- 期限：{deadline}
+- 完了：{completed ? 'はい' : 'いいえ'}
+- コメント：{reviewComment}
+
+### アクション2
+- 内容：...
+
+## 今期の目標進捗
+### 目標①：{goalTitle}
+- 進捗ステータス：{status}
+- 進捗メモ：{progressNote}
+
+### 目標②：...
+
+## 今月のコンディション
+- モチベーション：{motivation}/5
+- 業務負荷：{workload}/5
+- チーム関係：{teamRelation}/5
+- コメント：{comment}
+
+## 前月のコンディション（参考）
+- モチベーション：{previousMotivation}/5
+- 業務負荷：{previousWorkload}/5
+- チーム関係：{previousTeamRelation}/5
+
+## ヒアリング記録
+### 質問1：{question}
+- 意図：{intent}
+- メモ：{memo}
+
+### 質問2：...
+
+### 質問3：...
+
+## 次回アクションアイテム
+- {content}（担当：{assignee}、期限：{deadline}）
+- ...
+
+上記の1on1記録をもとに、次回の1on1面談に引き継ぐべきサマリーを作成してください。
+```
+
+**maxTokens**：1024
+
+#### 10.4.3 POST /api/members/[name]/one-on-one
+
+**ファイル**：`app/api/members/[name]/one-on-one/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | 1on1記録をMarkdownファイルとして保存 |
+| メソッド | POST |
+| パラメータ | `name`（URLエンコード済みメンバー名） |
+| `dynamic` | `'force-dynamic'` |
+
+**リクエストボディ**：
+```typescript
+{
+  yearMonth: string              // YYYY-MM
+  content: string                // 組み立て済みMarkdown全文
+}
+```
+
+**処理**：
+1. `decodeURIComponent(params.name)` でメンバー名をデコード
+2. `MEMBERS_DIR` からメンバーディレクトリの存在を確認
+3. `one-on-one/` ディレクトリが存在しない場合は `mkdirSync` で作成（`{ recursive: true }`）
+4. `one-on-one/{yearMonth}.md` にコンテンツを書き込み
+
+**レスポンス**：
+```typescript
+{
+  success: true
+  path: string    // 保存先の相対パス（例: "data/members/山田(剛)/one-on-one/2026-04.md"）
+}
+```
+
+**エラー**：
+- 400: `yearMonth` または `content` が未指定
+- 404: メンバーディレクトリが見つからない
+- 500: ファイル書き込み失敗
+
+**実装パターン**：`app/api/members/[name]/goals/route.ts` の POST 処理と同一パターンに従う。
+
+### 10.5 目標設定ウィザードとの連携
+
+#### 10.5.1 目標データの自動取得
+
+1on1ウィザード起動時に、メンバー詳細ページの Server Component（`app/members/[name]/page.tsx`）から `goals` データを `OneOnOneWizardContextData.goalsMarkdown` として渡す。
+
+目標データのフォーマット（`goals/2026-h1.md`）は以下の構造を持つ。
+
+```
+目標①（実行／挑戦／インパクト）：[目標文]
+　└ 達成した姿：[1文]
+　└ 検証方法：[基準]
+　└ 中間確認：[3ヶ月時点での基準]
+　└ 根拠：[紐づけ]
+```
+
+#### 10.5.2 Step2での目標分解
+
+`OOStep2GoalProgress` コンポーネントは、`goalsMarkdown` を以下のロジックでパースし、目標ごとのカードを生成する。
+
+```typescript
+// lib/parsers/goal-progress.ts
+
+/**
+ * 目標Markdownを個別エントリに分解する。
+ * 以下の2つのフォーマットを自動検出して対応する。
+ *
+ * ウィザード形式: 「目標①（実行）：目標文」
+ * テンプレート形式: 「### 目標N」 + 「- 目標内容：目標文」
+ */
+export function parseGoalEntries(goalsMarkdown: string): GoalProgressEntry[] {
+  // フォーマット検出: テンプレート形式は「### 目標」+ 「- 目標内容：」の組み合わせで判定
+  const isTemplateFormat = /### 目標\d+/.test(goalsMarkdown) && /- 目標内容：/.test(goalsMarkdown)
+
+  if (isTemplateFormat) {
+    return parseTemplateFormat(goalsMarkdown)
+  }
+  return parseWizardFormat(goalsMarkdown)
+}
+
+/** ウィザード形式: 「目標①（実行）：...」パターン */
+function parseWizardFormat(goalsMarkdown: string): GoalProgressEntry[] {
+  const goalPattern = /目標[①-⑩\d]+（[^）]+）：(.+)/g
+  const matches = [...goalsMarkdown.matchAll(goalPattern)]
+
+  return matches.map((match, i) => {
+    const startIdx = match.index!
+    const endIdx = i + 1 < matches.length ? matches[i + 1].index! : goalsMarkdown.length
+    const goalBody = goalsMarkdown.slice(startIdx, endIdx).trim()
+
+    return {
+      goalTitle: match[0],
+      goalBody,
+      status: 'not-started' as const,
+      progressNote: '',
+    }
+  })
+}
+
+/** テンプレート形式: 「### 目標N」 + 「- 目標内容：...」パターン */
+function parseTemplateFormat(goalsMarkdown: string): GoalProgressEntry[] {
+  const sectionPattern = /### 目標\d+/g
+  const matches = [...goalsMarkdown.matchAll(sectionPattern)]
+
+  return matches.map((match, i) => {
+    const startIdx = match.index!
+    const endIdx = i + 1 < matches.length ? matches[i + 1].index! : goalsMarkdown.length
+    const section = goalsMarkdown.slice(startIdx, endIdx).trim()
+
+    // 「- 目標内容：」行から目標文を抽出
+    const contentMatch = section.match(/- 目標内容：(.+)/)
+    const goalTitle = contentMatch ? `${match[0]}：${contentMatch[1]}` : match[0]
+
+    return {
+      goalTitle,
+      goalBody: section,
+      status: 'not-started' as const,
+      progressNote: '',
+    }
+  })
+}
+```
+
+#### 10.5.3 タイムライン警告の計算
+
+Step2のタイムライン警告は、各目標の「中間確認」フィールドから期限を推定してクライアントサイドで計算する。
+
+```typescript
+// lib/utils/timeline-warning.ts
+
+export function getTimelineWarning(goalBody: string, currentDate: Date): {
+  type: 'warning' | 'overdue' | null
+  message: string
+  daysRemaining: number
+} | null {
+  // 「中間確認：」行を抽出
+  const midCheckMatch = goalBody.match(/中間確認：(.+)/)
+  if (!midCheckMatch) return null
+
+  const midCheckText = midCheckMatch[1]
+
+  // 「X月末」パターンを検出
+  const monthMatch = midCheckText.match(/(\d{1,2})月末/)
+  if (!monthMatch) return null
+
+  const targetMonth = parseInt(monthMatch[1])
+  const targetYear = currentDate.getFullYear()
+  // 月末日を計算（翌月の0日 = 当月末日）
+  const targetDate = new Date(targetYear, targetMonth, 0)
+  const diffDays = Math.ceil((targetDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) {
+    return { type: 'overdue', message: `中間確認の期限を${Math.abs(diffDays)}日超過`, daysRemaining: diffDays }
+  } else if (diffDays <= 30) {
+    return { type: 'warning', message: `中間確認まであと${diffDays}日`, daysRemaining: diffDays }
+  }
+
+  return null
+}
+```
+
+#### 10.5.4 目標データ不在時の動作
+
+目標データが存在しない場合（`goals` が `null`）、Step2は以下の代替表示を行う。
+
+- 警告メッセージ：「目標が未設定です。目標設定ウィザードで目標を作成してから1on1を実施してください。」（`bg-amber-50 border-amber-200 text-amber-800`）
+- フリーテキスト入力欄：「目標が未設定のため、ここに進捗メモを自由記入してください。」（textarea、8行）
+- この場合、Step4のAI質問生成では目標関連の情報が空として扱われる
+
+### 10.6 新規ファイル一覧
+
+#### 10.6.1 新規作成ファイル
+
+| ファイルパス | 種類 | 役割 |
+|------------|------|------|
+| `web-demo/src/components/one-on-one/OneOnOneWizard.tsx` | Client Component | 1on1ウィザード本体（useReducer + 5ステップ描画） |
+| `web-demo/src/components/one-on-one/OneOnOneStepper.tsx` | Client Component | ステッパーUI（5ステップの進捗表示） |
+| `web-demo/src/components/one-on-one/steps/OOStep1PreviousActions.tsx` | Client Component | Step1: 前回アクションアイテム振り返り |
+| `web-demo/src/components/one-on-one/steps/OOStep2GoalProgress.tsx` | Client Component | Step2: 目標進捗確認 |
+| `web-demo/src/components/one-on-one/steps/OOStep3Condition.tsx` | Client Component | Step3: コンディション確認 |
+| `web-demo/src/components/one-on-one/steps/OOStep4Hearing.tsx` | Client Component | Step4: AIヒアリング質問 + メモ |
+| `web-demo/src/components/one-on-one/steps/OOStep5Actions.tsx` | Client Component | Step5: ネクストアクション設定 |
+| `web-demo/src/components/one-on-one/steps/OOStepComplete.tsx` | Client Component | 完了画面 |
+| `web-demo/src/app/api/members/[name]/one-on-one/route.ts` | API Route | 1on1記録保存 |
+| `web-demo/src/app/api/members/[name]/one-on-one/questions/route.ts` | API Route | AIヒアリング質問生成 |
+| `web-demo/src/app/api/members/[name]/one-on-one/summary/route.ts` | API Route | AI引き継ぎサマリー生成 |
+| `web-demo/src/lib/prompts/one-on-one-questions.ts` | Prompt Builder | ヒアリング質問用プロンプト（buildOneOnOneQuestionsSystemPrompt, buildOneOnOneQuestionsUserMessage） |
+| `web-demo/src/lib/prompts/one-on-one-summary.ts` | Prompt Builder | 引き継ぎサマリー用プロンプト（buildOneOnOneSummarySystemPrompt, buildOneOnOneSummaryUserMessage） |
+| `web-demo/src/lib/parsers/one-on-one.ts` | Parser | 1on1記録パーサー（parseOneOnOneRecord: アクションアイテム・コンディション・引き継ぎサマリー抽出） |
+| `web-demo/src/lib/parsers/goal-progress.ts` | Parser | 目標分解パーサー（parseGoalEntries: 目標Markdownを個別エントリに分解） |
+| `web-demo/src/lib/utils/timeline-warning.ts` | Utility | タイムライン警告計算（getTimelineWarning: 中間確認期限の残日数計算） |
+| `web-demo/src/lib/utils/one-on-one-markdown.ts` | Utility | 1on1記録Markdown組み立て（buildOneOnOneMarkdown: ウィザード状態からMarkdown文字列を生成） |
+
+#### 10.6.2 修正が必要な既存ファイル
+
+| ファイルパス | 修正内容 |
+|------------|---------|
+| `web-demo/src/lib/types.ts` | `ConditionScore`, `ActionItemReview`, `GoalProgressEntry`, `HearingQuestion`, `ActionItem`, `OneOnOneWizardState`, `OneOnOneWizardContextData` の7型を追加 |
+| `web-demo/src/components/member/MemberDetailClient.tsx` | `oneOnOneWizardOpen` state を追加。`OneOnOneWizard` コンポーネントのインポートと描画。`OneOnOneTab` に `onStartWizard` props を渡す |
+| `web-demo/src/components/member/OneOnOneTab.tsx` | 「1on1ウィザードを開始」ボタンを追加。`onStartWizard` props を受け取る |
+| `web-demo/src/app/members/[name]/page.tsx` | `oneOnOneWizardContext` を構築して `MemberDetailClient` に渡す。前回の1on1記録を取得してコンテキストに含める |
+| `web-demo/src/lib/fs/members.ts` | `getLatestOneOnOne(memberName)` 関数を追加（最新の1on1記録を取得） |
+
+### 10.7 実装フェーズ
+
+#### フェーズ1: データ基盤（見積：0.5日）
+
+1. `lib/types.ts` に1on1ウィザード関連の7型を追加
+2. `lib/parsers/one-on-one.ts` を実装（前回記録のパース）
+3. `lib/parsers/goal-progress.ts` を実装（目標分解）
+4. `lib/utils/timeline-warning.ts` を実装（タイムライン警告）
+5. `lib/utils/one-on-one-markdown.ts` を実装（Markdown組み立て）
+6. `lib/fs/members.ts` に `getLatestOneOnOne()` を追加
+
+#### フェーズ2: API実装（見積：1日）
+
+1. `POST /api/members/[name]/one-on-one` を実装（記録保存）
+2. `lib/prompts/one-on-one-questions.ts` を実装（質問生成プロンプト）
+3. `POST /api/members/[name]/one-on-one/questions` を実装（AI質問生成、モック込み）
+4. `lib/prompts/one-on-one-summary.ts` を実装（サマリー生成プロンプト）
+5. `POST /api/members/[name]/one-on-one/summary` を実装（AIサマリー生成、モック込み）
+
+#### フェーズ3: ウィザードUI（見積：2日）
+
+1. `OneOnOneStepper.tsx` を実装（5ステップ進捗バー）
+2. `OneOnOneWizard.tsx` を実装（useReducer + 全体レイアウト）
+3. `OOStep1PreviousActions.tsx` を実装（前回振り返り）
+4. `OOStep2GoalProgress.tsx` を実装（目標進捗 + タイムライン警告）
+5. `OOStep3Condition.tsx` を実装（コンディション + 前月比）
+6. `OOStep4Hearing.tsx` を実装（AI質問 + メモ）
+7. `OOStep5Actions.tsx` を実装（ネクストアクション）
+8. `OOStepComplete.tsx` を実装（完了画面 + サマリー表示）
+
+#### フェーズ4: 統合・テスト（見積：0.5日）
+
+1. `MemberDetailClient.tsx` に1on1ウィザードの起動制御を追加
+2. `OneOnOneTab.tsx` にウィザード起動ボタンを追加
+3. `app/members/[name]/page.tsx` で `oneOnOneWizardContext` を構築
+4. 全ステップの遷移テスト（モックモード）
+5. AI連携テスト（APIキーあり環境）
+6. 保存されたMarkdownファイルの内容確認
+7. 前回記録の自動ロードテスト（2回目以降の1on1）
 
 ---
 

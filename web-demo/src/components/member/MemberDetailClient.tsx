@@ -10,19 +10,27 @@ import { OneOnOneTab } from '@/components/member/OneOnOneTab'
 import { ReviewsTab } from '@/components/member/ReviewsTab'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { GoalWizard } from '@/components/goals/GoalWizard'
-import type { MemberDetail, WizardContextData } from '@/lib/types'
+import { OneOnOneWizard } from '@/components/one-on-one/OneOnOneWizard'
+import type { MemberDetail, WizardContextData, OneOnOneWizardContextData } from '@/lib/types'
 
 interface Props {
   member: MemberDetail
   wizardContext: WizardContextData
+  oneOnOneContext: OneOnOneWizardContextData
 }
 
-export function MemberDetailClient({ member, wizardContext }: Props) {
-  const [wizardOpen, setWizardOpen] = useState(false)
+export function MemberDetailClient({ member, wizardContext, oneOnOneContext }: Props) {
+  const [goalWizardOpen, setGoalWizardOpen] = useState(false)
+  const [oneOnOneWizardOpen, setOneOnOneWizardOpen] = useState(false)
   const router = useRouter()
 
-  const handleCloseWizard = () => {
-    setWizardOpen(false)
+  const handleCloseGoalWizard = () => {
+    setGoalWizardOpen(false)
+    router.refresh()
+  }
+
+  const handleCloseOneOnOneWizard = () => {
+    setOneOnOneWizardOpen(false)
     router.refresh()
   }
 
@@ -35,7 +43,7 @@ export function MemberDetailClient({ member, wizardContext }: Props) {
     {
       id: 'goals',
       label: '目標（2026上期）',
-      content: <GoalsTab goals={member.goals} onStartWizard={() => setWizardOpen(true)} />,
+      content: <GoalsTab goals={member.goals} onStartWizard={() => setGoalWizardOpen(true)} />,
     },
     {
       id: 'reviews',
@@ -45,7 +53,12 @@ export function MemberDetailClient({ member, wizardContext }: Props) {
     {
       id: 'one-on-one',
       label: `1on1記録 (${member.oneOnOnes.length})`,
-      content: <OneOnOneTab oneOnOnes={member.oneOnOnes} />,
+      content: (
+        <OneOnOneTab
+          oneOnOnes={member.oneOnOnes}
+          onStartWizard={() => setOneOnOneWizardOpen(true)}
+        />
+      ),
     },
   ]
 
@@ -69,8 +82,11 @@ export function MemberDetailClient({ member, wizardContext }: Props) {
         </div>
       </div>
 
-      {wizardOpen && (
-        <GoalWizard context={wizardContext} onClose={handleCloseWizard} />
+      {goalWizardOpen && (
+        <GoalWizard context={wizardContext} onClose={handleCloseGoalWizard} />
+      )}
+      {oneOnOneWizardOpen && (
+        <OneOnOneWizard context={oneOnOneContext} onClose={handleCloseOneOnOneWizard} />
       )}
     </>
   )
