@@ -235,6 +235,20 @@ export interface OneOnOneWizardContextData {
   previousSummary: string
 }
 
+// Team Matrix types
+export interface MemberPeriodStatus {
+  memberName: string
+  team: string
+  hasGoal: boolean
+  oneOnOneMonths: string[]  // 実施済み月キー例: ['04','05','06']
+  hasReview: boolean
+}
+
+export interface TeamPeriodMatrix {
+  period: string
+  members: MemberPeriodStatus[]
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string

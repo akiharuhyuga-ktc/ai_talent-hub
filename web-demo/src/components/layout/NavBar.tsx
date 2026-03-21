@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from 'react'
 
 const navItems = [
   { href: '/', label: 'ダッシュボード' },
+  { href: '/team', label: 'チームマトリクス' },
   { href: '/docs', label: '組織方針・評価基準' },
 ]
 

@@ -3,8 +3,8 @@ import path from 'path'
 import { getMembersDir } from './paths'
 import { parseProfile } from '../parsers/profile'
 import { parseGoals } from '../parsers/goals'
-import { getActivePeriod, parsePeriodFromFilename, sortPeriods } from '../utils/period'
-import type { MemberSummary, MemberDetail, OneOnOneRecord, ReviewData, GoalsData, GoalEvaluation, EvaluationGrade } from '../types'
+import { getActivePeriod, parsePeriodFromFilename, sortPeriods, getOneOnOnePeriod, PERIOD_CONFIG } from '../utils/period'
+import type { MemberSummary, MemberDetail, OneOnOneRecord, ReviewData, GoalsData, GoalEvaluation, EvaluationGrade, MemberPeriodStatus, TeamPeriodMatrix } from '../types'
 
 export function getMemberNames(): string[] {
   const membersDir = getMembersDir()
@@ -12,7 +12,9 @@ export function getMemberNames(): string[] {
     .filter(name => {
       const full = path.join(membersDir, name)
       try {
-        return fs.statSync(full).isDirectory() && !name.startsWith('.')
+        // profile.md が存在するディレクトリのみメンバーとして認識
+        return fs.statSync(full).isDirectory() && !name.startsWith('.') &&
+          fs.existsSync(path.join(full, 'profile.md'))
       } catch {
         return false
       }
@@ -229,4 +231,86 @@ function parseReview(raw: string, filename: string): ReviewData | null {
   }
 
   return result
+}
+
+// Team Matrix functions
+
+export function getTeamPeriodMatrix(period: string): TeamPeriodMatrix {
+  const names = getMemberNames()
+  const members = names.map(name => getMemberPeriodStatus(name, period))
+  return { period, members }
+}
+
+export function getMemberPeriodStatus(memberName: string, period: string): MemberPeriodStatus {
+  const membersDir = getMembersDir()
+  const memberDir = path.join(membersDir, memberName)
+
+  // Goal: ファイル存在 + 内容が空テンプレートでないことを確認
+  const goalPath = path.join(memberDir, 'goals', `${period}.md`)
+  let hasGoal = false
+  if (fs.existsSync(goalPath)) {
+    const content = fs.readFileSync(goalPath, 'utf-8')
+    // ウィザード生成: 「目標①」等を含む / テンプレート: 「- 目標内容：」が空のまま
+    hasGoal = /目標[①②③④⑤]/.test(content) ||
+      (content.includes('- 目標内容：') && /- 目標内容：\S/.test(content))
+  }
+
+  // Review
+  const hasReview = fs.existsSync(path.join(memberDir, 'reviews', `${period}.md`))
+
+  // 1on1 months for this period
+  const oneOnOneMonths = getOneOnOneMonthsForPeriod(memberDir, period)
+
+  // Team from profile
+  let team = 'other'
+  const profilePath = path.join(memberDir, 'profile.md')
+  if (fs.existsSync(profilePath)) {
+    const profile = parseProfile(fs.readFileSync(profilePath, 'utf-8'))
+    team = profile.teamShort || 'other'
+  }
+
+  return { memberName, team, hasGoal, oneOnOneMonths, hasReview }
+}
+
+function getOneOnOneMonthsForPeriod(memberDir: string, period: string): string[] {
+  const ooDir = path.join(memberDir, 'one-on-one')
+  if (!fs.existsSync(ooDir)) return []
+
+  const files = fs.readdirSync(ooDir).filter(f => /^\d{4}-\d{2}\.md$/.test(f))
+
+  return files
+    .filter(f => {
+      const dateStr = f.replace('.md', '')
+      return getOneOnOnePeriod(dateStr) === period
+    })
+    .map(f => f.replace('.md', '').split('-')[1])
+}
+
+export function getAvailablePeriods(): string[] {
+  const membersDir = getMembersDir()
+  const names = getMemberNames()
+  const periodSet = new Set<string>()
+
+  for (const name of names) {
+    const memberDir = path.join(membersDir, name)
+    // goals
+    const goalsDir = path.join(memberDir, 'goals')
+    if (fs.existsSync(goalsDir)) {
+      for (const f of fs.readdirSync(goalsDir)) {
+        const p = parsePeriodFromFilename(f)
+        if (p) periodSet.add(p)
+      }
+    }
+    // reviews
+    const reviewsDir = path.join(memberDir, 'reviews')
+    if (fs.existsSync(reviewsDir)) {
+      for (const f of fs.readdirSync(reviewsDir)) {
+        const p = parsePeriodFromFilename(f)
+        if (p) periodSet.add(p)
+      }
+    }
+  }
+
+  periodSet.add(getActivePeriod())
+  return sortPeriods(Array.from(periodSet))
 }
