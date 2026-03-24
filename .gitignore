@@ -41,3 +41,6 @@ data/
 *.xlsx
 *.pptx
 *.csv
+
+# video capture（デモ動画用・一時的）
+video-capture/
