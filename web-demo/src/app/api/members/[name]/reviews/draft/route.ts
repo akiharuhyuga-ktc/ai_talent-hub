@@ -9,7 +9,10 @@ export const maxDuration = 120
 function extractJson(text: string): unknown | null {
   try { return JSON.parse(text) } catch {}
   // Match the last complete JSON object (most likely the intended output)
-  const matches = [...text.matchAll(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g)]
+  const matches: RegExpExecArray[] = []
+  const re = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) matches.push(m)
   if (matches.length > 0) {
     for (let i = matches.length - 1; i >= 0; i--) {
       try { return JSON.parse(matches[i][0]) } catch {}

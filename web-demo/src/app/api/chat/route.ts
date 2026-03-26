@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callClaude, hasApiKey } from '@/lib/ai/call-claude'
+import { callClaudeStream, createSSEResponse, hasApiKey } from '@/lib/ai/call-claude'
 import { loadSharedDocs } from '@/lib/fs/shared-docs'
 import type { ChatRequest } from '@/lib/types'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,17 +20,19 @@ export async function POST(req: NextRequest) {
       'マネージャーの意思決定を支援することが役割で、評価の最終判断は行いません。',
       '事実ベースで提案し、主観的・推測的な表現は避けます。',
       '出力は日本語で行ってください。',
+      shared.orgPolicy ? `\n## 組織方針\n${shared.orgPolicy.slice(0, 2000)}` : '',
       shared.guidelines ? `\n## 運用ガイドライン（必ず遵守）\n${shared.guidelines}` : '',
       memberContext ? `\n## 対象メンバーの情報\n${memberContext}` : '',
     ].filter(Boolean).join('\n')
 
-    const result = await callClaude({
+    const stream = callClaudeStream({
       systemPrompt,
       messages,
       maxTokens: 1024,
+      signal: req.signal,
     })
 
-    return NextResponse.json({ content: result.content, mode: 'live' })
+    return createSSEResponse(stream)
   } catch (error) {
     console.error('Chat API error:', error)
     return NextResponse.json({ error: 'Failed to get AI response' }, { status: 500 })
