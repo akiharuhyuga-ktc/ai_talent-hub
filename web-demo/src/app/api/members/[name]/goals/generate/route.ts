@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callClaude, hasApiKey } from '@/lib/ai/call-claude'
+import { callClaudeStream, createSSEResponse, hasApiKey } from '@/lib/ai/call-claude'
 import { loadSharedDocs } from '@/lib/fs/shared-docs'
 import { buildGoalGenerationSystemPrompt, buildGoalGenerationUserMessage } from '@/lib/prompts/goal-generation'
 import type { ChatMessage } from '@/lib/types'
@@ -11,6 +11,9 @@ export async function POST(
   { params }: { params: { name: string } }
 ) {
   try {
+    const t0 = Date.now()
+    console.log(`[PERF] goals/generate 開始`)
+
     if (!hasApiKey()) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 503 })
     }
@@ -34,17 +37,22 @@ export async function POST(
 
     if (body.refinementMessages && body.refinementMessages.length > 0) {
       for (const msg of body.refinementMessages) {
-        messages.push({ role: msg.role, content: msg.content })
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          messages.push({ role: msg.role, content: String(msg.content) })
+        }
       }
     }
+    console.log(`[PERF] goals/generate プロンプト構築完了: ${Date.now() - t0}ms`)
 
-    const result = await callClaude({
+    const stream = callClaudeStream({
       systemPrompt,
       messages,
       maxTokens: 4096,
+      signal: req.signal,
     })
 
-    return NextResponse.json({ goals: result.content, mode: 'live' })
+    console.log(`[PERF] goals/generate ストリーミング開始: ${Date.now() - t0}ms`)
+    return createSSEResponse(stream)
   } catch (error) {
     console.error('Goal generation API error:', error)
     return NextResponse.json({ error: 'Failed to generate goals' }, { status: 500 })
