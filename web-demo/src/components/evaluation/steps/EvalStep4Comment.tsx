@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { EvaluationWizardState, EvaluationWizardContextData } from '@/lib/types'
 
 interface Props {
@@ -11,64 +11,92 @@ interface Props {
 }
 
 export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) {
-  const [loading, setLoading] = useState(true)
+  const [isStreaming, setIsStreaming] = useState(true)
   const [error, setError] = useState('')
   const [comment, setComment] = useState(state.evaluatorComment || '')
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (state.aiCommentDraft) {
       setComment(state.aiCommentDraft)
-      setLoading(false)
+      setIsStreaming(false)
       return
     }
 
-    const fetchComment = async () => {
-      setLoading(true)
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    ;(async () => {
+      setIsStreaming(true)
       setError('')
       try {
         const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/reviews/comment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            memberProfile: context.memberProfile,
-            orgPolicy: context.orgPolicy,
-            evaluationCriteria: context.evaluationCriteria,
-            guidelines: context.guidelines,
-            goalsRawMarkdown: context.goalsRawMarkdown,
-            confirmedDraft: state.confirmedDraft,
+            goalEvaluations: state.confirmedDraft?.goalEvaluations ?? [],
+            overallGrade: state.confirmedDraft?.overallGrade ?? '',
+            overallRationale: state.confirmedDraft?.overallRationale ?? '',
+            selfEvalGap: state.confirmedDraft?.selfEvalGap ?? '',
             selfEvaluation: state.selfEvaluation,
           }),
+          signal: controller.signal,
         })
 
         if (res.status === 503) {
           setError('API未設定のためコメント生成ができません。手動で入力してください。')
           setComment('')
-          setLoading(false)
+          setIsStreaming(false)
           return
         }
 
-        if (!res.ok) {
+        if (!res.ok || !res.headers.get('content-type')?.includes('text/event-stream')) {
           setError('コメントの生成に失敗しました。手動で入力してください。')
           setComment('')
-          setLoading(false)
+          setIsStreaming(false)
           return
         }
 
-        const data = await res.json()
-        if (data.comment) {
-          setComment(data.comment)
-        } else {
+        const reader = res.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let fullText = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.text) {
+                fullText += parsed.text
+                setComment(fullText)
+              }
+            } catch {}
+          }
+        }
+
+        if (!fullText) {
           setError('コメントの生成に失敗しました。手動で入力してください。')
           setComment('')
         }
-      } catch {
-        setError('コメントの生成に失敗しました。ネットワーク接続を確認してください。')
-        setComment('')
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setError('コメントの生成に失敗しました。ネットワーク接続を確認してください。')
+          setComment('')
+        }
       } finally {
-        setLoading(false)
+        setIsStreaming(false)
       }
-    }
-    fetchComment()
+    })()
+
+    return () => { controller.abort() }
   }, [state.aiCommentDraft, state.confirmedDraft, state.selfEvaluation, context])
 
   const charCount = comment.length
@@ -83,7 +111,7 @@ export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) 
       <h2 className="text-4xl font-bold text-gray-800 mb-3">評価者コメント作成</h2>
       <p className="text-xl text-gray-500 mb-8">メンバーに伝える評価コメントを作成してください。</p>
 
-      {loading && (
+      {!comment && isStreaming && (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-5" />
           <p className="text-xl text-gray-500">AIがコメントを生成しています...</p>
@@ -96,7 +124,7 @@ export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) 
         </div>
       )}
 
-      {!loading && (
+      {(comment || !isStreaming) && (
         <div className="mb-10">
           <div className="mb-4">
             <label className="block text-xl font-medium text-gray-700 mb-2">評価者コメント</label>
@@ -106,6 +134,7 @@ export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) 
               rows={8}
               placeholder="メンバーへの評価コメントを入力してください"
               className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              disabled={isStreaming}
             />
           </div>
           <div className="flex justify-between items-center">
@@ -123,7 +152,7 @@ export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) 
         >
           戻る
         </button>
-        {!loading && (
+        {!isStreaming && (
           <button
             onClick={() => onComplete(comment)}
             disabled={comment.trim() === ''}
