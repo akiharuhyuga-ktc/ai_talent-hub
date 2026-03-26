@@ -1,7 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 
-const PROJECT_ROOT = '/Users/akiharu.hyuga/Documents/Talent_Management_AI'
+const PROJECT_ROOT = process.env.TALENT_DATA_ROOT
+  ?? path.resolve(process.cwd(), '..')
 
 export const DATA_ROOT = path.join(PROJECT_ROOT, 'talent-management')
 export const MEMBERS_DIR = path.join(PROJECT_ROOT, 'data', 'members')
