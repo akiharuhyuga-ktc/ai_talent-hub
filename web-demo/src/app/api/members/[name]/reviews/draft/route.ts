@@ -8,16 +8,12 @@ export const maxDuration = 120
 
 function extractJson(text: string): unknown | null {
   try { return JSON.parse(text) } catch {}
-  // Match the last complete JSON object (most likely the intended output)
-  const matches: RegExpExecArray[] = []
-  const re = /\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) matches.push(m)
-  if (matches.length > 0) {
-    for (let i = matches.length - 1; i >= 0; i--) {
-      try { return JSON.parse(matches[i][0]) } catch {}
-    }
-  }
+  // Strip markdown code fences if present
+  const stripped = text.replace(/^```(?:json)?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
+  try { return JSON.parse(stripped) } catch {}
+  // Fallback: extract outermost { ... } using greedy match
+  const match = stripped.match(/\{[\s\S]*\}/)
+  if (match) { try { return JSON.parse(match[0]) } catch {} }
   return null
 }
 
