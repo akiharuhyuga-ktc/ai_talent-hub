@@ -6,6 +6,22 @@ import { parseGoals } from '../parsers/goals'
 import { getActivePeriod, parsePeriodFromFilename, sortPeriods, getOneOnOnePeriod, PERIOD_CONFIG } from '../utils/period'
 import type { MemberSummary, MemberDetail, OneOnOneRecord, ReviewData, GoalsData, GoalEvaluation, EvaluationGrade, MemberPeriodStatus, TeamPeriodMatrix } from '../types'
 
+/**
+ * Decode + resolve member name to a safe directory path.
+ * Throws if the resolved path escapes the members base directory.
+ */
+export function safeMemberDir(encodedName: string): string {
+  const membersDir = getMembersDir()
+  const name = decodeURIComponent(encodedName)
+  const resolved = path.resolve(membersDir, name)
+  const base = path.resolve(membersDir)
+
+  if (!resolved.startsWith(base + path.sep) && resolved !== base) {
+    throw new Error('Invalid member name')
+  }
+  return resolved
+}
+
 export function getMemberNames(): string[] {
   const membersDir = getMembersDir()
   return fs.readdirSync(membersDir)
@@ -51,9 +67,12 @@ export function getAllMemberSummaries(): MemberSummary[] {
 }
 
 export function getMemberDetail(encodedName: string): MemberDetail | null {
-  const membersDir = getMembersDir()
-  const name = decodeURIComponent(encodedName)
-  const memberDir = path.join(membersDir, name)
+  let memberDir: string
+  try {
+    memberDir = safeMemberDir(encodedName)
+  } catch {
+    return null
+  }
   if (!fs.existsSync(memberDir)) return null
 
   const profilePath = path.join(memberDir, 'profile.md')

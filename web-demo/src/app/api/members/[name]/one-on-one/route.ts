@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { NextRequest, NextResponse } from 'next/server'
-import { getMembersDir } from '@/lib/fs/paths'
+import { safeMemberDir } from '@/lib/fs/members'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,11 +10,16 @@ export async function POST(
   { params }: { params: { name: string } }
 ) {
   try {
-    const memberName = decodeURIComponent(params.name)
-    const memberDir = path.join(getMembersDir(), memberName)
+    let memberDir: string
+    try {
+      memberDir = safeMemberDir(params.name)
+    } catch {
+      return NextResponse.json({ error: 'Invalid name' }, { status: 400 })
+    }
     if (!fs.existsSync(memberDir)) {
       return NextResponse.json({ error: 'Member not found' }, { status: 404 })
     }
+    const memberName = decodeURIComponent(params.name)
 
     const { content, yearMonth } = await req.json()
     if (!content || typeof content !== 'string') {
@@ -22,6 +27,9 @@ export async function POST(
     }
 
     const filename = yearMonth || new Date().toISOString().slice(0, 7)
+    if (!/^\d{4}-\d{2}$/.test(filename)) {
+      return NextResponse.json({ error: 'Invalid yearMonth format' }, { status: 400 })
+    }
     const ooDir = path.join(memberDir, 'one-on-one')
     fs.mkdirSync(ooDir, { recursive: true })
 
