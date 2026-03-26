@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callClaude, hasApiKey } from '@/lib/ai/call-claude'
+import { callClaudeStream, hasApiKey } from '@/lib/ai/call-claude'
 import { loadSharedDocs } from '@/lib/fs/shared-docs'
 import { buildEvaluationDraftSystemPrompt, buildEvaluationDraftUserMessage } from '@/lib/prompts/evaluation-draft'
 
@@ -8,10 +8,8 @@ export const maxDuration = 120
 
 function extractJson(text: string): unknown | null {
   try { return JSON.parse(text) } catch {}
-  // Strip markdown code fences if present
   const stripped = text.replace(/^```(?:json)?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
   try { return JSON.parse(stripped) } catch {}
-  // Fallback: extract outermost { ... } using greedy match
   const match = stripped.match(/\{[\s\S]*\}/)
   if (match) { try { return JSON.parse(match[0]) } catch {} }
   return null
@@ -43,21 +41,43 @@ export async function POST(
     })
     console.log(`[PERF] reviews/draft プロンプト構築完了: ${Date.now() - t0}ms`)
 
-    const result = await callClaude({
+    const stream = callClaudeStream({
       systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
       maxTokens: 4096,
+      signal: req.signal,
     })
-    console.log(`[PERF] reviews/draft Claude応答完了: ${Date.now() - t0}ms`)
 
-    const parsed = extractJson(result.content)
-    if (parsed) {
-      console.log(`[PERF] reviews/draft 処理完了: ${Date.now() - t0}ms`)
-      return NextResponse.json({ draft: parsed, mode: 'live' })
-    }
+    // ストリーム全文を蓄積し、テキストチャンクはSSEで逐次送信。
+    // 完了後にJSONをパースして final イベントで送信する。
+    const encoder = new TextEncoder()
+    let fullText = ''
 
-    console.log(`[PERF] reviews/draft パース失敗: ${Date.now() - t0}ms`)
-    return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 })
+    const sseStream = stream.pipeThrough(
+      new TransformStream<string, Uint8Array>({
+        transform(chunk, controller) {
+          fullText += chunk
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`))
+        },
+        flush(controller) {
+          const parsed = extractJson(fullText)
+          if (parsed) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ draft: parsed })}\n\n`))
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+          console.log(`[PERF] reviews/draft ストリーミング完了: ${Date.now() - t0}ms`)
+        },
+      })
+    )
+
+    console.log(`[PERF] reviews/draft ストリーミング開始: ${Date.now() - t0}ms`)
+    return new Response(sseStream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   } catch (error) {
     console.error('Evaluation draft API error:', error)
     return NextResponse.json({ error: 'Failed to generate evaluation draft' }, { status: 500 })

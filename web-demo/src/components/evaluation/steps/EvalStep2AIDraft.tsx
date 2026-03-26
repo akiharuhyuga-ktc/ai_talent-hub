@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type {
   EvaluationWizardState,
   EvaluationWizardContextData,
@@ -37,20 +37,25 @@ interface Props {
 }
 
 export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: Props) {
-  const [loading, setLoading] = useState(true)
+  const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState('')
   const [draft, setDraft] = useState<EvaluationDraft | null>(state.aiDraft)
+  const [streamingText, setStreamingText] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (state.aiDraft) {
       setDraft(state.aiDraft)
-      setLoading(false)
       return
     }
 
-    const fetchDraft = async () => {
-      setLoading(true)
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    ;(async () => {
+      setStreaming(true)
       setError('')
+      setStreamingText('')
       try {
         const oneOnOneSummaries = context.oneOnOneRecords
           .map(r => r.rawMarkdown)
@@ -70,44 +75,88 @@ export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: P
             selfEvaluation: state.selfEvaluation,
             managerSupplementary: state.managerSupplementary,
           }),
+          signal: controller.signal,
         })
 
         if (res.status === 503) {
           setError('API未設定のためAI評価を生成できません。手動で評価を入力してください。')
-          setLoading(false)
+          setStreaming(false)
           return
         }
 
         if (!res.ok) {
           setError('AI評価の生成に失敗しました。もう一度お試しください。')
-          setLoading(false)
+          setStreaming(false)
           return
         }
 
-        const data = await res.json()
-        if (data.draft) {
-          setDraft(data.draft)
-        } else {
+        const reader = res.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let fullText = ''
+        let receivedDraft = false
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.draft) {
+                // final イベント: パース済みドラフトを受信
+                receivedDraft = true
+                setDraft(parsed.draft as EvaluationDraft)
+              } else if (parsed.text) {
+                fullText += parsed.text
+                setStreamingText(fullText)
+              }
+            } catch {}
+          }
+        }
+
+        if (!receivedDraft) {
           setError('AI評価の生成に失敗しました。')
         }
-      } catch {
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return
         setError('AI評価の生成に失敗しました。ネットワーク接続を確認してください。')
       } finally {
-        setLoading(false)
+        setStreaming(false)
+        abortRef.current = null
       }
-    }
-    fetchDraft()
-  }, [state.aiDraft, context, state.selfEvaluation, state.managerSupplementary])
+    })()
+
+    return () => { controller.abort() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.aiDraft])
+
+  const showDraft = draft && !streaming
 
   return (
     <div>
       <h2 className="text-4xl font-bold text-gray-800 mb-3">AI評価ドラフト</h2>
       <p className="text-xl text-gray-500 mb-8">収集した情報をもとにAIが評価ドラフトを生成しました。</p>
 
-      {loading && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-5" />
-          <p className="text-xl text-gray-500">AIが評価ドラフトを生成しています...</p>
+      {streaming && (
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+            <p className="text-lg text-gray-500">AIが評価ドラフトを生成しています...</p>
+          </div>
+          {streamingText && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-h-[400px] overflow-y-auto">
+              <pre className="whitespace-pre-wrap text-sm text-gray-600 font-mono leading-relaxed">{streamingText}</pre>
+              <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+            </div>
+          )}
         </div>
       )}
 
@@ -117,7 +166,7 @@ export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: P
         </div>
       )}
 
-      {draft && !loading && (
+      {showDraft && (
         <div className="space-y-8 mb-10">
           {/* Goal evaluations */}
           <div>
@@ -170,7 +219,7 @@ export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: P
         >
           戻る
         </button>
-        {draft && !loading && (
+        {showDraft && (
           <button
             onClick={() => onDraftGenerated(draft)}
             className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
