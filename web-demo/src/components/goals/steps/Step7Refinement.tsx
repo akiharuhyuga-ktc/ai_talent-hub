@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 import type { GoalWizardState, WizardContextData, ChatMessage } from '@/lib/types'
 
@@ -15,15 +15,22 @@ interface Props {
 export function Step7Refinement({ state, context, onAddRefinement, onConfirm, onBack }: Props) {
   const [feedback, setFeedback] = useState('')
   const [currentGoals, setCurrentGoals] = useState(state.generatedGoals || '')
-  const [loading, setLoading] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
   const [count, setCount] = useState(state.refinementCount)
   const [messages, setMessages] = useState<ChatMessage[]>(state.refinementMessages)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
 
   const handleSendFeedback = async () => {
-    if (!feedback.trim() || loading) return
-    setLoading(true)
+    if (!feedback.trim() || isStreaming) return
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    setIsStreaming(true)
 
     const newMessages: ChatMessage[] = [
       ...messages,
@@ -43,37 +50,68 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
           diagnosis: state.diagnosis,
           refinementMessages: newMessages,
         }),
+        signal: controller.signal,
       })
-      const data = await res.json()
-      if (data.goals) {
+
+      if (!res.ok || !res.headers.get('content-type')?.includes('text/event-stream')) {
+        setIsStreaming(false)
+        return
+      }
+
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let fullText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.text) {
+              fullText += parsed.text
+              setCurrentGoals(fullText)
+            }
+          } catch {}
+        }
+      }
+
+      if (fullText) {
         const newCount = count + 1
-        setCurrentGoals(data.goals)
         setMessages(newMessages)
         setCount(newCount)
         setFeedback('')
-        onAddRefinement(newMessages, data.goals, newCount)
+        onAddRefinement(newMessages, fullText, newCount)
       }
-    } catch {
-      // keep current state on error
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
     } finally {
-      setLoading(false)
+      setIsStreaming(false)
+      abortRef.current = null
     }
   }
 
   const handleConfirm = async () => {
     setSaving(true)
+    setSaveError('')
     try {
       const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/goals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: currentGoals, period: context.targetPeriod }),
       })
-      if (res.ok) {
-        setSaved(true)
-        onConfirm(currentGoals)
-      }
+      if (!res.ok) throw new Error('保存に失敗しました')
+      setSaved(true)
+      onConfirm(currentGoals)
     } catch {
-      // keep current state on error
+      setSaveError('目標の保存に失敗しました。再度お試しください。')
     } finally {
       setSaving(false)
     }
@@ -91,7 +129,16 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
 
       <div className="bg-white border border-gray-200 rounded-lg p-8 mb-8 max-h-[400px] overflow-y-auto">
         <MarkdownRenderer content={currentGoals} />
+        {isStreaming && (
+          <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+        )}
       </div>
+
+      {saveError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+          {saveError}
+        </div>
+      )}
 
       {saved ? (
         <div className="text-center py-8">
@@ -116,10 +163,10 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
                 />
                 <button
                   onClick={handleSendFeedback}
-                  disabled={!feedback.trim() || loading}
+                  disabled={!feedback.trim() || isStreaming}
                   className="self-end px-6 py-4 text-xl bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {loading ? '再生成中...' : '再生成'}
+                  {isStreaming ? '再生成中...' : '再生成'}
                 </button>
               </div>
             </div>
@@ -136,7 +183,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
             </button>
             <button
               onClick={handleConfirm}
-              disabled={saving}
+              disabled={saving || isStreaming}
               className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
             >
               {saving ? '保存中...' : 'この目標で確定する'}
