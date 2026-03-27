@@ -52,6 +52,7 @@ export function getAllMemberSummaries(): MemberSummary[] {
       const mainProject = [...profile.projects].sort((a, b) => b.avgPct - a.avgPct)[0]
       return {
         name: profile.name || name,
+        folderName: name,
         role: profile.role,
         team: profile.team,
         teamShort: profile.teamShort,

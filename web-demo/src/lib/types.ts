@@ -124,6 +124,7 @@ export interface MemberDetail extends MemberProfile {
 
 export interface MemberSummary {
   name: string
+  folderName: string
   role: string
   team: string
   teamShort: string
