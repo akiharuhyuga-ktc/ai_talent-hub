@@ -50,9 +50,7 @@ export function parseGoalsToSections(markdown: string): ParsedGoals {
     }
   })
 
-  const lastGoalEnd = goalStarts.length > 1
-    ? findFooterStart(lines, goalStarts[goalStarts.length - 1].lineIndex + 1)
-    : findFooterStart(lines, goalStarts[0].lineIndex + 1)
+  const lastGoalEnd = findFooterStart(lines, goalStarts[goalStarts.length - 1].lineIndex + 1)
   const footer = lines.slice(lastGoalEnd).join('\n').trimStart()
 
   return { header, goals, footer }
