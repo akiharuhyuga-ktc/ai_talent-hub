@@ -51,7 +51,11 @@ export function MemberDetailClient({ member, wizardContext, oneOnOneContext, eva
         <GoalsTab
           goalsByPeriod={member.goalsByPeriod}
           activePeriod={member.activePeriod}
+          memberName={member.name}
+          memberProfile={member.rawMarkdown}
           onStartWizard={handleStartGoalWizard}
+          isWizardOpen={goalWizardOpen}
+          onGoalsUpdated={() => router.refresh()}
         />
       ),
     },
