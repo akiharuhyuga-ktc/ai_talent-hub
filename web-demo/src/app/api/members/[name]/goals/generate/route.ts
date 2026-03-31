@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { callClaudeStream, createSSEResponse, hasApiKey } from '@/lib/ai/call-claude'
 import { loadSharedDocs } from '@/lib/fs/shared-docs'
-import { buildGoalGenerationSystemPrompt, buildGoalGenerationUserMessage } from '@/lib/prompts/goal-generation'
+import { buildGoalGenerationSystemPrompt, buildGoalGenerationUserMessage, buildRefinementTargetInstruction } from '@/lib/prompts/goal-generation'
 import type { ChatMessage } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -41,6 +41,15 @@ export async function POST(
           messages.push({ role: msg.role, content: String(msg.content) })
         }
       }
+    }
+
+    // 部分的ブラッシュアップ指示の追加
+    if (body.targetGoalLabels && body.targetGoalLabels.length > 0 && body.allGoalsMarkdown) {
+      const targetInstruction = buildRefinementTargetInstruction(
+        body.targetGoalLabels,
+        body.allGoalsMarkdown,
+      )
+      messages.push({ role: 'user', content: targetInstruction })
     }
     console.log(`[PERF] goals/generate プロンプト構築完了: ${Date.now() - t0}ms`)
 

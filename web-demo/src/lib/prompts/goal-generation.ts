@@ -120,3 +120,24 @@ export function buildGoalGenerationUserMessage(params: GoalGenerationPromptParam
 
   return parts.join('\n')
 }
+
+/**
+ * ブラッシュアップ時に特定の目標のみ再設計する指示をプロンプトに追加する。
+ */
+export function buildRefinementTargetInstruction(targetLabels: string[], allGoalsMarkdown: string): string {
+  const labels = targetLabels.join('、')
+  return `
+━━━━━━━━━━━━━━━━━━━━━━
+【重要：部分的ブラッシュアップ指示】
+
+今回は以下の目標のみを再設計してください: ${labels}
+
+■ 出力ルール
+・対象目標（${labels}）のみを出力してください
+・対象外の目標は一切出力しないでください
+・ただし、末尾の整合確認テーブルは全目標分を含めて出力してください（対象外の目標は現状の内容をそのまま反映）
+
+■ 参考：現在の全目標
+${allGoalsMarkdown}
+━━━━━━━━━━━━━━━━━━━━━━`
+}
