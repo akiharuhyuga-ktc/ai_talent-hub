@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
+import { parseGoalsToSections, mergeGoalSections } from '@/lib/parsers/goals'
 import type { GoalWizardState, WizardContextData, ChatMessage } from '@/lib/types'
 
 interface Props {
@@ -16,6 +17,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
   const [feedback, setFeedback] = useState('')
   const [currentGoals, setCurrentGoals] = useState(state.generatedGoals || '')
   const [isStreaming, setIsStreaming] = useState(false)
+  const [streamingLabels, setStreamingLabels] = useState<Set<string>>(new Set())
   const [count, setCount] = useState(state.refinementCount)
   const [messages, setMessages] = useState<ChatMessage[]>(state.refinementMessages)
   const [saving, setSaving] = useState(false)
@@ -23,20 +25,39 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
   const [saveError, setSaveError] = useState('')
   const abortRef = useRef<AbortController | null>(null)
 
+  const parsed = useMemo(() => parseGoalsToSections(currentGoals), [currentGoals])
+
+  const [selectedLabels, setSelectedLabels] = useState<Set<string>>(() =>
+    new Set(parsed.goals.map(g => g.label))
+  )
+
+  const toggleLabel = (label: string) => {
+    setSelectedLabels(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
+      return next
+    })
+  }
+
   const handleSendFeedback = async () => {
-    if (!feedback.trim() || isStreaming) return
+    if (!feedback.trim() || isStreaming || selectedLabels.size === 0) return
 
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
 
     setIsStreaming(true)
+    setStreamingLabels(new Set(selectedLabels))
 
     const newMessages: ChatMessage[] = [
       ...messages,
       { role: 'assistant' as const, content: currentGoals },
       { role: 'user' as const, content: feedback },
     ]
+
+    const selectedArray = Array.from(selectedLabels)
+    const isPartial = selectedArray.length < parsed.goals.length
 
     try {
       const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/goals/generate`, {
@@ -49,12 +70,17 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
           previousPeriod: state.previousPeriod.previousGoals ? state.previousPeriod : undefined,
           diagnosis: state.diagnosis,
           refinementMessages: newMessages,
+          ...(isPartial ? {
+            targetGoalLabels: selectedArray,
+            allGoalsMarkdown: currentGoals,
+          } : {}),
         }),
         signal: controller.signal,
       })
 
       if (!res.ok || !res.headers.get('content-type')?.includes('text/event-stream')) {
         setIsStreaming(false)
+        setStreamingLabels(new Set())
         return
       }
 
@@ -74,26 +100,38 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
           const data = line.slice(6).trim()
           if (data === '[DONE]') continue
           try {
-            const parsed = JSON.parse(data)
-            if (parsed.text) {
-              fullText += parsed.text
-              setCurrentGoals(fullText)
-            }
+            const j = JSON.parse(data)
+            if (j.text) fullText += j.text
           } catch {}
         }
       }
 
       if (fullText) {
+        let mergedGoals: string
+        if (isPartial) {
+          const aiParsed = parseGoalsToSections(fullText)
+          const aiGoalMap = new Map(aiParsed.goals.map(g => [g.label, g]))
+          const mergedGoalsList = parsed.goals.map(g =>
+            aiGoalMap.has(g.label) ? aiGoalMap.get(g.label)! : g
+          )
+          const newFooter = aiParsed.footer || parsed.footer
+          mergedGoals = mergeGoalSections(mergedGoalsList, newFooter)
+        } else {
+          mergedGoals = fullText
+        }
+
+        setCurrentGoals(mergedGoals)
         const newCount = count + 1
         setMessages(newMessages)
         setCount(newCount)
         setFeedback('')
-        onAddRefinement(newMessages, fullText, newCount)
+        onAddRefinement(newMessages, mergedGoals, newCount)
       }
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
     } finally {
       setIsStreaming(false)
+      setStreamingLabels(new Set())
       abortRef.current = null
     }
   }
@@ -102,10 +140,11 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
     setSaving(true)
     setSaveError('')
     try {
+      const bodyContent = mergeGoalSections(parsed.goals, parsed.footer)
       const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/goals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: currentGoals, period: context.targetPeriod }),
+        body: JSON.stringify({ content: bodyContent, period: context.targetPeriod }),
       })
       if (!res.ok) throw new Error('保存に失敗しました')
       setSaved(true)
@@ -121,16 +160,56 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
     <div>
       <h2 className="text-4xl font-bold text-gray-800 mb-3">壁打ち・精緻化</h2>
       <p className="text-xl text-gray-500 mb-5">
-        目標案に対してフィードバックを入力すると、AIが再生成します。
+        ブラッシュアップしたい目標にチェックを入れ、フィードバックを入力してください。
         <span className="ml-2 text-lg bg-gray-100 text-gray-500 px-3 py-1 rounded-full">
           フィードバック: {count}/2回目
         </span>
       </p>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-8 mb-8 max-h-[400px] overflow-y-auto">
-        <MarkdownRenderer content={currentGoals} />
-        {isStreaming && (
-          <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+      <div className="space-y-4 mb-8">
+        {parsed.goals.length > 0 ? (
+          parsed.goals.map(goal => {
+            const isTarget = streamingLabels.has(goal.label)
+            return (
+              <div key={goal.label} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="flex items-center gap-3 px-6 py-3 bg-gray-50 border-b border-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={selectedLabels.has(goal.label)}
+                    onChange={() => toggleLabel(goal.label)}
+                    disabled={isStreaming}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-lg font-semibold text-gray-700">
+                    目標{goal.label}（{goal.type}）：{goal.title}
+                  </span>
+                </div>
+                <div className="px-8 py-4 max-h-[250px] overflow-y-auto">
+                  {isTarget && isStreaming ? (
+                    <div className="flex items-center gap-3 text-indigo-500 py-8 justify-center">
+                      <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-lg">再生成中...</span>
+                    </div>
+                  ) : (
+                    <MarkdownRenderer content={goal.content} />
+                  )}
+                </div>
+              </div>
+            )
+          })
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-lg p-8 max-h-[400px] overflow-y-auto">
+            <MarkdownRenderer content={currentGoals} />
+            {isStreaming && (
+              <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+            )}
+          </div>
+        )}
+
+        {parsed.footer.trim() && (
+          <div className="bg-white border border-gray-200 rounded-lg p-8">
+            <MarkdownRenderer content={parsed.footer} />
+          </div>
         )}
       </div>
 
@@ -163,12 +242,15 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
                 />
                 <button
                   onClick={handleSendFeedback}
-                  disabled={!feedback.trim() || isStreaming}
+                  disabled={!feedback.trim() || isStreaming || selectedLabels.size === 0}
                   className="self-end px-6 py-4 text-xl bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {isStreaming ? '再生成中...' : '再生成'}
                 </button>
               </div>
+              {selectedLabels.size === 0 && (
+                <p className="text-sm text-amber-600 mt-2">ブラッシュアップする目標を1つ以上選択してください</p>
+              )}
             </div>
           )}
           {count >= 2 && (
