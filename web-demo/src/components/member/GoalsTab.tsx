@@ -44,7 +44,33 @@ export function GoalsTab({
   const [editMode, setEditMode] = useState<EditMode>(null)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [copyMsg, setCopyMsg] = useState('')
   const abortRef = useRef<AbortController | null>(null)
+
+  // Markdown記法を除去してプレーンテキストにする
+  const stripMarkdown = (text: string): string =>
+    text
+      .replace(/^#{1,6}\s+/gm, '')      // 見出し記号
+      .replace(/\*\*(.+?)\*\*/g, '$1')  // **太字**
+      .replace(/\*(.+?)\*/g, '$1')      // *斜体*
+      .replace(/^---+$/gm, '')           // 区切り線
+      .replace(/^\s*[-*]\s+/gm, '・')   // リスト記号
+      .replace(/\n{3,}/g, '\n\n')        // 連続空行を詰める
+      .trim()
+
+  const handleCopyGoal = async (goal: SingleGoal) => {
+    await navigator.clipboard.writeText(stripMarkdown(goal.content))
+    setCopyMsg(`目標${goal.label}をコピーしました`)
+    setTimeout(() => setCopyMsg(''), 2000)
+  }
+
+  const handleCopyAll = async () => {
+    if (!parsed || parsed.goals.length === 0) return
+    const allText = parsed.goals.map(g => stripMarkdown(g.content)).join('\n\n')
+    await navigator.clipboard.writeText(allText)
+    setCopyMsg('全目標をコピーしました')
+    setTimeout(() => setCopyMsg(''), 2000)
+  }
 
   const goals = goalsByPeriod[selectedPeriod] ?? null
   const isEmpty = !goals || (!goals.rawMarkdown.includes('目標内容') && !goals.rawMarkdown.includes('目標①'))
@@ -170,22 +196,30 @@ export function GoalsTab({
           <h4 className="text-xl font-semibold text-gray-700">
             目標{goal.label}（{goal.type}）：{goal.title}
           </h4>
-          {!isWizardOpen && !isEditing && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => setEditMode({ type: 'manual', label: goal.label, draft: goal.content })}
-                className="text-sm px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                編集
-              </button>
-              <button
-                onClick={() => setEditMode({ type: 'ai', label: goal.label, instruction: '', preview: null, streaming: false })}
-                className="text-sm px-3 py-1.5 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-              >
-                AIで修正
-              </button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleCopyGoal(goal)}
+              className="text-sm px-3 py-1.5 border border-gray-300 text-gray-500 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              コピー
+            </button>
+            {!isWizardOpen && !isEditing && (
+              <>
+                <button
+                  onClick={() => setEditMode({ type: 'manual', label: goal.label, draft: goal.content })}
+                  className="text-sm px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  編集
+                </button>
+                <button
+                  onClick={() => setEditMode({ type: 'ai', label: goal.label, instruction: '', preview: null, streaming: false })}
+                  className="text-sm px-3 py-1.5 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                >
+                  AIで修正
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="px-8 py-6">
@@ -341,6 +375,14 @@ export function GoalsTab({
               未記入
             </span>
           )}
+          {hasGoalSections && (
+            <button
+              onClick={handleCopyAll}
+              className="text-lg border border-gray-300 text-gray-600 px-5 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+            >
+              全体コピー
+            </button>
+          )}
           {onStartWizard && (
             <button
               onClick={() => onStartWizard(selectedPeriod)}
@@ -352,9 +394,9 @@ export function GoalsTab({
         </div>
       </div>
 
-      {saveMsg && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${saveMsg.includes('失敗') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
-          {saveMsg}
+      {(saveMsg || copyMsg) && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${saveMsg?.includes('失敗') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
+          {saveMsg || copyMsg}
         </div>
       )}
 
