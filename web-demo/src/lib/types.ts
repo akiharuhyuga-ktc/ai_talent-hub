@@ -32,6 +32,20 @@ export interface GoalsData {
   rawMarkdown: string
 }
 
+export interface SingleGoal {
+  index: number        // 1, 2, 3...
+  label: string        // "①", "②", "③"
+  type: string         // "実行", "挑戦", "インパクト", "挑戦／インパクト統合" 等
+  title: string        // "クロスプラットフォーム実装の品質安定化"
+  content: string      // セクション全体のMarkdown（## 見出し行含む）
+}
+
+export interface ParsedGoals {
+  header: string
+  goals: SingleGoal[]
+  footer: string
+}
+
 export interface OneOnOneRecord {
   filename: string
   date: string
