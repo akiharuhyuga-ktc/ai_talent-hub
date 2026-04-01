@@ -1,14 +1,17 @@
 import { Page } from '@playwright/test'
 
 /**
- * ストリーミング開始を検出（ブリンクカーソル animate-pulse の出現）
- * テキストが実際に流れ始めるまで500ms追加待機（TTFT吸収）
+ * ストリーミング開始を検出
  *
- * Step7壁打ち再生成は animate-spin を使うため、この関数ではなく
- * waitForSelector('text=再生成中...') で別途検出すること
+ * UIの表示パターン:
+ * - テキスト未到達時: animate-spin（ローディングスピナー）が表示
+ * - テキスト到達後: animate-pulse（ブリンクカーソル）が表示
+ *
+ * どちらかが出た時点でAI生成が開始されたと判定する。
+ * Step7壁打ち再生成は別途 text=再生成中... で検出すること。
  */
 export async function waitForStreamingStart(page: Page, timeout = 60000): Promise<void> {
-  await page.waitForSelector('.animate-pulse', { timeout })
+  await page.waitForSelector('.animate-spin, .animate-pulse', { timeout })
   await page.waitForTimeout(500)
 }
 
