@@ -90,6 +90,19 @@ function main() {
     { path: path.join(DEMO_MEMBERS, '田中', 'one-on-one', '2026-06.md'), label: '田中/one-on-one/2026-06.md' },
   ]
 
+  // 組織方針: 2025年度のみ残し、それ以降を削除（デモは2026年度作成のため）
+  const policyDir = SHARED_DIR
+  if (fs.existsSync(policyDir)) {
+    for (const f of fs.readdirSync(policyDir)) {
+      const match = f.match(/^org-policy-(\d{4})\.md$/)
+      if (match && parseInt(match[1]) >= 2026) {
+        const fp = path.join(policyDir, f)
+        fs.unlinkSync(fp)
+        console.log(`🗑 削除: shared/${f}`)
+      }
+    }
+  }
+
   for (const item of CLEAN_FILES) {
     if (fs.existsSync(item.path)) {
       fs.unlinkSync(item.path)
