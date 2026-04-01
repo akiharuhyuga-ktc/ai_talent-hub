@@ -33,7 +33,7 @@ export function Step3MemberInput({ initial, memberName, onNext, onBack }: Props)
             onChange={e => setForm({ ...form, growthArea: e.target.value })}
             rows={3}
             placeholder="例：チームマネジメント力、クロスプラットフォーム技術の深化など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
           />
         </div>
         <div>
@@ -45,7 +45,7 @@ export function Step3MemberInput({ initial, memberName, onNext, onBack }: Props)
             onChange={e => setForm({ ...form, currentDifficulties: e.target.value })}
             rows={3}
             placeholder="例：レビューの待ち時間が長い、仕様の認識齟齬が頻発するなど"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
           />
         </div>
         <div>
@@ -57,7 +57,7 @@ export function Step3MemberInput({ initial, memberName, onNext, onBack }: Props)
             onChange={e => setForm({ ...form, oneYearVision: e.target.value })}
             rows={3}
             placeholder="例：テックリードとしてチームの技術方針を決められる存在になりたい"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
           />
         </div>
       </div>
@@ -69,7 +69,7 @@ export function Step3MemberInput({ initial, memberName, onNext, onBack }: Props)
         <button
           onClick={() => onNext(form)}
           disabled={!isValid}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           次へ進む
         </button>

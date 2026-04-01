@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 html {
-  font-size: 60%;
+  font-size: 62.5%;
 }
 
 body {
-  background: #f9fafb;
+  background: #F7F8FA;
 }

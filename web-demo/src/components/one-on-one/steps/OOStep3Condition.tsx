@@ -83,7 +83,7 @@ export function OOStep3Condition({ initial, previousCondition, onNext, onBack }:
                 <label className="text-xl font-medium text-gray-700">{label}</label>
                 <div className="flex items-center gap-3">
                   {touched[key] ? (
-                    <span className="text-xl font-bold text-indigo-600">{value}</span>
+                    <span className="text-xl font-bold text-brand-600">{value}</span>
                   ) : (
                     <span className="text-lg text-gray-400">未選択</span>
                   )}
@@ -100,7 +100,7 @@ export function OOStep3Condition({ initial, previousCondition, onNext, onBack }:
                   onChange={e => handleSliderChange(key, parseInt(e.target.value))}
                   onMouseDown={() => { if (!touched[key]) handleSliderChange(key, displayValue) }}
                   onTouchStart={() => { if (!touched[key]) handleSliderChange(key, displayValue) }}
-                  className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
                 />
                 <div className="flex justify-between mt-1">
                   {descriptions.map((desc, i) => (
@@ -127,7 +127,7 @@ export function OOStep3Condition({ initial, previousCondition, onNext, onBack }:
           onChange={e => setCondition({ ...condition, comment: e.target.value })}
           rows={3}
           placeholder="コンディションについて補足があれば入力してください"
-          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
         />
       </div>
 
@@ -138,7 +138,7 @@ export function OOStep3Condition({ initial, previousCondition, onNext, onBack }:
         <button
           onClick={() => onNext(condition)}
           disabled={!allTouched}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           次へ進む
         </button>

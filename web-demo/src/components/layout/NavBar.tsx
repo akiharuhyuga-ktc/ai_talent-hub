@@ -57,7 +57,7 @@ export function NavBar() {
         {/* Brand */}
         <Link href="/" className="flex items-center gap-3 whitespace-nowrap group">
           <TalentHubLogo size={26} />
-          <span className="font-bold text-gray-900 text-4xl tracking-tight group-hover:text-indigo-700 transition-colors">
+          <span className="font-bold text-gray-900 text-4xl tracking-tight group-hover:text-brand-700 transition-colors">
             KTC TalentHub
           </span>
         </Link>
@@ -75,7 +75,7 @@ export function NavBar() {
                 className={clsx(
                   'text-2xl font-medium transition-colors',
                   isActive
-                    ? 'text-indigo-600 border-b-2 border-indigo-600 pb-0.5'
+                    ? 'text-brand-600 border-b-2 border-brand-600 pb-0.5'
                     : 'text-gray-500 hover:text-gray-900'
                 )}
               >

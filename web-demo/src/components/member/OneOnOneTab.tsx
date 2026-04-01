@@ -17,7 +17,7 @@ export function OneOnOneTab({ oneOnOnes, onStartWizard }: OneOnOneTabProps) {
         {onStartWizard && (
           <button
             onClick={onStartWizard}
-            className="text-lg bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="text-lg bg-brand-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             1on1ウィザード
           </button>

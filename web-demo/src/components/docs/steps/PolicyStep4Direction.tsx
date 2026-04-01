@@ -143,7 +143,7 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
 
       {!direction && isStreaming && (
         <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-6" />
+          <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-6" />
           <p className="text-xl text-gray-500">AIが方向性を生成中...</p>
         </div>
       )}
@@ -163,7 +163,7 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
             <button
               onClick={handleRegenerate}
               disabled={regenCount >= MAX_REGENERATIONS}
-              className="px-8 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40"
+              className="px-8 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40"
             >
               再試行
             </button>
@@ -178,7 +178,7 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
             <div className="flex items-center gap-3 mb-4">
               <button
                 onClick={handleToggleEdit}
-                className="text-xl text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+                className="text-xl text-brand-600 hover:text-brand-800 font-medium transition-colors"
               >
                 {editing ? '編集を確定' : '修正する'}
               </button>
@@ -198,14 +198,14 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
             <textarea
               value={editText}
               onChange={e => setEditText(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 h-[400px]"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono resize-none focus:outline-none focus:ring-2 focus:ring-brand-400 h-[400px]"
               spellCheck={false}
             />
           ) : (
             <div className="bg-white border border-gray-200 rounded-lg p-8 mb-4 max-h-[500px] overflow-y-auto">
               <MarkdownRenderer content={direction} />
               {isStreaming && (
-                <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+                <span className="inline-block w-2 h-5 bg-brand-500 animate-pulse ml-1" />
               )}
             </div>
           )}
@@ -227,13 +227,13 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
               <button
                 onClick={handleRegenerate}
                 disabled={regenCount >= MAX_REGENERATIONS}
-                className="py-4 px-8 text-xl border border-indigo-300 text-indigo-600 rounded-lg font-medium hover:bg-indigo-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="py-4 px-8 text-xl border border-brand-300 text-brand-600 rounded-lg font-medium hover:bg-brand-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 再生成
               </button>
               <button
                 onClick={handleConfirm}
-                className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+                className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
               >
                 この方向性で草案を生成する
               </button>

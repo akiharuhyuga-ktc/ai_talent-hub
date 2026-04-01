@@ -71,7 +71,7 @@ export function OOStep4Hearing({ state, context, onNext, onBack, prefetchedQuest
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-5" />
+        <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-5" />
         <p className="text-xl text-gray-500">AIがヒアリング質問を生成しています...</p>
       </div>
     )
@@ -96,7 +96,7 @@ export function OOStep4Hearing({ state, context, onNext, onBack, prefetchedQuest
           <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-6">
             <div className="mb-4">
               <p className="text-xl font-medium text-gray-800 mb-2">Q{i + 1}. {q.question}</p>
-              <p className="text-lg text-indigo-600 bg-indigo-50 rounded px-3 py-1 inline-block">
+              <p className="text-lg text-brand-600 bg-brand-50 rounded px-3 py-1 inline-block">
                 意図：{q.intent}
               </p>
             </div>
@@ -107,7 +107,7 @@ export function OOStep4Hearing({ state, context, onNext, onBack, prefetchedQuest
                 onChange={e => updateMemo(i, e.target.value)}
                 rows={3}
                 placeholder="メンバーの回答や気づきをメモしてください"
-                className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
               />
             </div>
           </div>
@@ -121,7 +121,7 @@ export function OOStep4Hearing({ state, context, onNext, onBack, prefetchedQuest
           onChange={e => setAdditionalMemo(e.target.value)}
           rows={4}
           placeholder="ヒアリングで気づいたことや追加の記録があれば入力してください"
-          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
         />
       </div>
 
@@ -131,7 +131,7 @@ export function OOStep4Hearing({ state, context, onNext, onBack, prefetchedQuest
         </button>
         <button
           onClick={() => onNext(questions, additionalMemo)}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
         >
           次へ進む
         </button>

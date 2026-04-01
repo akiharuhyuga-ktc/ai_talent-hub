@@ -49,7 +49,7 @@ export function PolicyStep2AReview({ onNext, onBack }: PolicyStep2AReviewProps) 
             onChange={e => { setWhatWorked(e.target.value); setError('') }}
             rows={4}
             placeholder="チームで成功した取り組み、達成できた目標など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -62,7 +62,7 @@ export function PolicyStep2AReview({ onNext, onBack }: PolicyStep2AReviewProps) 
             onChange={e => { setWhatDidntWork(e.target.value); setError('') }}
             rows={4}
             placeholder="課題が残った点、改善が必要な領域など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -75,7 +75,7 @@ export function PolicyStep2AReview({ onNext, onBack }: PolicyStep2AReviewProps) 
             onChange={e => setLeftBehind(e.target.value)}
             rows={3}
             placeholder="着手できなかったこと、来期に持ち越す課題など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -94,7 +94,7 @@ export function PolicyStep2AReview({ onNext, onBack }: PolicyStep2AReviewProps) 
           </button>
           <button
             onClick={handleNext}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             次へ進む
           </button>

@@ -1,3 +1,4 @@
+import { Users, Briefcase, FlaskConical } from 'lucide-react'
 import type { MemberSummary } from '@/lib/types'
 
 interface StatsBarProps {
@@ -13,31 +14,59 @@ export function StatsBar({ members }: StatsBarProps) {
   const rdRate = totalAll > 0 ? Math.round((totalRd / totalAll) * 100) : 0
   const actualRate = totalAll > 0 ? Math.round(((totalAll - totalRd) / totalAll) * 100) : 0
 
-  const stats = [
-    { label: 'メンバー数', value: `${members.length}名`, accent: false },
-    { label: '実案件稼働率', value: `${actualRate}%`, accent: false },
-    { label: 'R&D稼働率', value: `${rdRate}%`, accent: true },
-    { label: 'Flutter', value: `${flutter}名`, accent: false },
-    { label: 'KMP', value: `${kmp}名`, accent: false },
-    { label: 'Producer', value: `${producer}名`, accent: false },
-  ]
-
   return (
-    <div className="grid grid-cols-6 gap-5 mb-8">
-      {stats.map(stat => (
-        <div key={stat.label} className={`rounded-2xl border p-7 text-center shadow-sm ${
-          stat.accent
-            ? 'bg-indigo-600 border-indigo-600 text-white'
-            : 'bg-white border-gray-200 text-gray-900'
-        }`}>
-          <div className={`text-7xl font-bold leading-none ${stat.accent ? 'text-white' : 'text-gray-900'}`}>
-            {stat.value}
+    <div className="space-y-4">
+      {/* Large metric cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Members */}
+        <div className="rounded-radius-xl p-6 bg-white shadow-card">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl font-medium text-gray-400">メンバー数</span>
+            <Users size={20} className="text-brand-200" />
           </div>
-          <div className={`text-2xl mt-3 ${stat.accent ? 'text-indigo-200' : 'text-gray-500'}`}>
-            {stat.label}
-          </div>
+          <div className="text-[44px] font-bold text-gray-900 leading-none tracking-tight">{members.length}</div>
+          <div className="text-xl text-gray-400 mt-1">名</div>
         </div>
-      ))}
+
+        {/* Actual rate */}
+        <div className="rounded-radius-xl p-6 bg-white shadow-card">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl font-medium text-gray-400">実案件稼働率</span>
+            <Briefcase size={20} className="text-brand-200" />
+          </div>
+          <div className="text-[44px] font-bold text-gray-900 leading-none tracking-tight">{actualRate}</div>
+          <div className="text-xl text-gray-400 mt-1">%</div>
+        </div>
+
+        {/* R&D rate (accent) */}
+        <div className="rounded-radius-xl p-6 bg-gradient-to-br from-brand-600 to-brand-800 shadow-glow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl font-medium text-brand-200">R&D稼働率</span>
+            <FlaskConical size={20} className="text-brand-300" />
+          </div>
+          <div className="text-[44px] font-bold text-white leading-none tracking-tight">{rdRate}</div>
+          <div className="text-xl text-brand-200 mt-1">%</div>
+        </div>
+      </div>
+
+      {/* Team mini cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-radius-xl px-5 py-4 bg-white shadow-card flex items-center gap-3">
+          <span className="w-2.5 h-2.5 rounded-full bg-brand-600" />
+          <span className="text-2xl font-medium text-gray-600">Flutter</span>
+          <span className="text-3xl font-bold text-gray-900 ml-auto">{flutter}</span>
+        </div>
+        <div className="rounded-radius-xl px-5 py-4 bg-white shadow-card flex items-center gap-3">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          <span className="text-2xl font-medium text-gray-600">KMP</span>
+          <span className="text-3xl font-bold text-gray-900 ml-auto">{kmp}</span>
+        </div>
+        <div className="rounded-radius-xl px-5 py-4 bg-white shadow-card flex items-center gap-3">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <span className="text-2xl font-medium text-gray-600">Producer</span>
+          <span className="text-3xl font-bold text-gray-900 ml-auto">{producer}</span>
+        </div>
+      </div>
     </div>
   )
 }

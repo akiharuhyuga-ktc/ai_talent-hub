@@ -100,7 +100,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
                         onClick={() => updateGoalEval(i, { grade: g })}
                         className={`w-14 h-14 rounded-xl text-xl font-bold border-2 transition-colors ${
                           isSelected
-                            ? `${gc.bg} ${gc.text} ${gc.border} ring-2 ring-offset-1 ring-indigo-400`
+                            ? `${gc.bg} ${gc.text} ${gc.border} ring-2 ring-offset-1 ring-brand-400`
                             : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
                         }`}
                       >
@@ -117,7 +117,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
                   value={ge.rationale}
                   onChange={e => updateGoalEval(i, { rationale: e.target.value })}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
                 />
               </div>
 
@@ -156,7 +156,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
                     onClick={() => setOverallGrade(g)}
                     className={`w-14 h-14 rounded-xl text-xl font-bold border-2 transition-colors ${
                       isSelected
-                        ? `${gc.bg} ${gc.text} ${gc.border} ring-2 ring-offset-1 ring-indigo-400`
+                        ? `${gc.bg} ${gc.text} ${gc.border} ring-2 ring-offset-1 ring-brand-400`
                         : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
                     }`}
                   >
@@ -173,7 +173,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
               value={overallRationale}
               onChange={e => setOverallRationale(e.target.value)}
               rows={4}
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
         </div>
@@ -187,7 +187,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
           onChange={e => setSelfEvalGap(e.target.value)}
           rows={3}
           placeholder="自己評価との乖離についての分析"
-          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
         />
       </div>
 
@@ -202,7 +202,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
         <button
           onClick={handleConfirm}
           disabled={!isValid}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           評価を確定する
         </button>

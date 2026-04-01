@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { NavBar } from '@/components/layout/NavBar'
-import { MainContent } from '@/components/layout/MainContent'
+import { Sidebar } from '@/components/layout/Sidebar'
 
 export const metadata: Metadata = {
   title: 'KTC TalentHub — モバイルアプリ開発部',
@@ -11,11 +10,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body className="min-h-screen bg-gray-50 antialiased" style={{
+      <body className="min-h-screen antialiased" style={{
         fontFamily: '"Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif'
       }}>
-        <NavBar />
-        <MainContent>{children}</MainContent>
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto bg-surface">
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   )

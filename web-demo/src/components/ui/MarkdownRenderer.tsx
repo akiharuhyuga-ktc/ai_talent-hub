@@ -15,7 +15,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     .replace(/^[　\s]*└\s*/gm, '- ')
 
   return (
-    <div className={`prose prose-xl max-w-none prose-headings:text-gray-900 prose-a:text-indigo-600 prose-td:text-xl prose-th:text-xl ${className ?? ''}`}>
+    <div className={`prose prose-xl max-w-none prose-headings:text-gray-900 prose-a:text-brand-600 prose-td:text-xl prose-th:text-xl ${className ?? ''}`}>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>
         {normalized}
       </ReactMarkdown>

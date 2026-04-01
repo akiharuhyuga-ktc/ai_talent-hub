@@ -70,7 +70,7 @@ export function OOStep5NextActions({ onComplete, onBack }: Props) {
                   value={action.content}
                   onChange={e => updateAction(i, 'content', e.target.value)}
                   placeholder="具体的なアクションを入力してください"
-                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400"
                 />
               </div>
 
@@ -82,7 +82,7 @@ export function OOStep5NextActions({ onComplete, onBack }: Props) {
                   <select
                     value={action.assignee}
                     onChange={e => updateAction(i, 'assignee', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                    className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
                   >
                     {ASSIGNEE_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -98,7 +98,7 @@ export function OOStep5NextActions({ onComplete, onBack }: Props) {
                     type="date"
                     value={action.deadline}
                     onChange={e => updateAction(i, 'deadline', e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400"
                   />
                 </div>
               </div>
@@ -110,7 +110,7 @@ export function OOStep5NextActions({ onComplete, onBack }: Props) {
       <div className="mb-10">
         <button
           onClick={addAction}
-          className="w-full py-3 text-xl border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+          className="w-full py-3 text-xl border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-brand-400 hover:text-brand-600 transition-colors"
         >
           + アクションを追加
         </button>
@@ -123,7 +123,7 @@ export function OOStep5NextActions({ onComplete, onBack }: Props) {
         <button
           onClick={() => onComplete(actions.filter(a => a.content.trim() !== ''))}
           disabled={!isValid}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           完了する
         </button>

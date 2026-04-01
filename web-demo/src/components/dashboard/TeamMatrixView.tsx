@@ -103,7 +103,7 @@ export function TeamMatrixView({ activePeriod, today }: TeamMatrixViewProps) {
         <select
           value={selectedPeriod}
           onChange={e => setSelectedPeriod(e.target.value)}
-          className="text-xl bg-white border border-gray-300 rounded-lg px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="text-xl bg-white border border-gray-300 rounded-lg px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
         >
           {availablePeriods.map(p => (
             <option key={p} value={p}>
@@ -128,8 +128,8 @@ export function TeamMatrixView({ activePeriod, today }: TeamMatrixViewProps) {
                 className={clsx(
                   'px-5 py-2 rounded-full text-base font-medium transition-colors',
                   teamFilter === f
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                    ? 'bg-brand-600 text-white shadow-sm'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-brand-300 hover:text-brand-600'
                 )}
               >
                 {f} ({count})
@@ -164,7 +164,7 @@ export function TeamMatrixView({ activePeriod, today }: TeamMatrixViewProps) {
       {/* Matrix table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600" />
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-200 border-t-brand-600" />
           <span className="ml-3 text-lg text-gray-500">読み込み中...</span>
         </div>
       ) : (

@@ -178,7 +178,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
                     checked={selectedLabels.has(goal.label)}
                     onChange={() => toggleLabel(goal.label)}
                     disabled={isStreaming}
-                    className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                   />
                   <span className="text-lg font-semibold text-gray-700">
                     目標{goal.label}（{goal.type}）：{goal.title}
@@ -186,8 +186,8 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
                 </div>
                 <div className="px-8 py-4 max-h-[250px] overflow-y-auto">
                   {isTarget && isStreaming ? (
-                    <div className="flex items-center gap-3 text-indigo-500 py-8 justify-center">
-                      <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                    <div className="flex items-center gap-3 text-brand-500 py-8 justify-center">
+                      <div className="w-5 h-5 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
                       <span className="text-lg">再生成中...</span>
                     </div>
                   ) : (
@@ -201,7 +201,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
           <div className="bg-white border border-gray-200 rounded-lg p-8 max-h-[400px] overflow-y-auto">
             <MarkdownRenderer content={currentGoals} />
             {isStreaming && (
-              <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+              <span className="inline-block w-2 h-5 bg-brand-500 animate-pulse ml-1" />
             )}
           </div>
         )}
@@ -238,7 +238,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
                   onChange={e => setFeedback(e.target.value)}
                   rows={3}
                   placeholder="修正してほしい点やもっと具体的にしたい部分を入力してください"
-                  className="flex-1 border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                  className="flex-1 border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
                 />
                 <button
                   onClick={handleSendFeedback}
@@ -266,7 +266,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
             <button
               onClick={handleConfirm}
               disabled={saving || isStreaming}
-              className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50"
             >
               {saving ? '保存中...' : 'この目標で確定する'}
             </button>

@@ -213,7 +213,7 @@ export function GoalsTab({
                 </button>
                 <button
                   onClick={() => setEditMode({ type: 'ai', label: goal.label, instruction: '', preview: null, streaming: false })}
-                  className="text-sm px-3 py-1.5 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                  className="text-sm px-3 py-1.5 border border-brand-300 text-brand-600 rounded-lg hover:bg-brand-50 transition-colors"
                 >
                   AIで修正
                 </button>
@@ -229,7 +229,7 @@ export function GoalsTab({
                 value={editMode.draft}
                 onChange={e => setEditMode({ ...editMode, draft: e.target.value })}
                 rows={15}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-vertical"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base font-mono focus:outline-none focus:ring-2 focus:ring-brand-400 resize-vertical"
               />
               <div className="flex gap-2 mt-3 justify-end">
                 <button
@@ -241,7 +241,7 @@ export function GoalsTab({
                 <button
                   onClick={() => handleManualSave(goal.label, editMode.draft)}
                   disabled={saving}
-                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50"
                 >
                   {saving ? '保存中...' : '保存'}
                 </button>
@@ -261,7 +261,7 @@ export function GoalsTab({
                       onChange={e => setEditMode({ ...editMode, instruction: e.target.value })}
                       rows={3}
                       placeholder="例: 進捗を踏まえて達成基準を引き上げたい"
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
                     />
                     <div className="flex gap-2 mt-3 justify-end">
                       <button
@@ -273,7 +273,7 @@ export function GoalsTab({
                       <button
                         onClick={() => handleAiSubmit(goal.label, editMode.instruction)}
                         disabled={!editMode.instruction.trim()}
-                        className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
+                        className="px-4 py-2 text-sm bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50"
                       >
                         AIに依頼
                       </button>
@@ -289,18 +289,18 @@ export function GoalsTab({
                     </div>
                   </div>
                   <div className="mb-4">
-                    <p className="text-sm font-medium text-indigo-600 mb-2">修正後{editMode.streaming ? '（生成中...）' : ''}</p>
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 max-h-[300px] overflow-y-auto">
+                    <p className="text-sm font-medium text-brand-600 mb-2">修正後{editMode.streaming ? '（生成中...）' : ''}</p>
+                    <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 max-h-[300px] overflow-y-auto">
                       {editMode.preview ? (
                         <MarkdownRenderer content={editMode.preview} />
                       ) : (
-                        <div className="flex items-center gap-3 text-indigo-500 py-4 justify-center">
-                          <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                        <div className="flex items-center gap-3 text-brand-500 py-4 justify-center">
+                          <div className="w-5 h-5 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
                           <span>生成中...</span>
                         </div>
                       )}
                       {editMode.streaming && editMode.preview && (
-                        <span className="inline-block w-2 h-4 bg-indigo-500 animate-pulse ml-1" />
+                        <span className="inline-block w-2 h-4 bg-brand-500 animate-pulse ml-1" />
                       )}
                     </div>
                   </div>
@@ -321,7 +321,7 @@ export function GoalsTab({
                       <button
                         onClick={() => handleAiAccept(goal.label, editMode.preview!)}
                         disabled={saving}
-                        className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
+                        className="px-4 py-2 text-sm bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50"
                       >
                         {saving ? '保存中...' : '採用して保存'}
                       </button>
@@ -347,7 +347,7 @@ export function GoalsTab({
             <select
               value={selectedPeriod}
               onChange={e => setSelectedPeriod(e.target.value)}
-              className="text-xl border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="text-xl border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
               {allPeriods.map(p => {
                 const hasGoal = !!goalsByPeriod[p]
@@ -386,7 +386,7 @@ export function GoalsTab({
           {onStartWizard && (
             <button
               onClick={() => onStartWizard(selectedPeriod)}
-              className="text-lg bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              className="text-lg bg-brand-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-colors"
             >
               目標設定ウィザード
             </button>

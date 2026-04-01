@@ -36,7 +36,7 @@ export function Step1AutoLoad({ context, onNext }: Props) {
 
       <button
         onClick={onNext}
-        className="w-full py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+        className="w-full py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
       >
         次へ進む
       </button>

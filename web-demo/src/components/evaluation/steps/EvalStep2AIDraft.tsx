@@ -148,13 +148,13 @@ export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: P
       {streaming && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
             <p className="text-lg text-gray-500">AIが評価ドラフトを生成しています...</p>
           </div>
           {streamingText && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-h-[400px] overflow-y-auto">
               <pre className="whitespace-pre-wrap text-sm text-gray-600 font-mono leading-relaxed">{streamingText}</pre>
-              <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+              <span className="inline-block w-2 h-5 bg-brand-500 animate-pulse ml-1" />
             </div>
           )}
         </div>
@@ -185,7 +185,7 @@ export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: P
           </div>
 
           {/* Overall grade */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+          <div className="bg-brand-50 border border-brand-200 rounded-lg p-6">
             <div className="flex items-center gap-4 mb-3">
               <h3 className="text-xl font-medium text-gray-700">総合評価</h3>
               <GradeBadge grade={draft.overallGrade as EvaluationGrade} size="large" />
@@ -222,7 +222,7 @@ export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: P
         {showDraft && (
           <button
             onClick={() => onDraftGenerated(draft)}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             確認・修正へ進む
           </button>

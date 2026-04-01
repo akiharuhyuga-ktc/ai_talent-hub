@@ -80,11 +80,11 @@ export function TeamMatrixTable({ members, period, today }: TeamMatrixTableProps
             const { completed, total } = getCompletionRate(member, arrivedMonths)
             const pct = total > 0 ? Math.round((completed / total) * 100) : 0
             return (
-              <tr key={member.memberName} className="hover:bg-indigo-50/40 transition-colors">
-                <td className="sticky left-0 z-10 bg-white hover:bg-indigo-50/40 px-5 py-3 border-r border-gray-200">
+              <tr key={member.memberName} className="hover:bg-brand-50/40 transition-colors">
+                <td className="sticky left-0 z-10 bg-white hover:bg-brand-50/40 px-5 py-3 border-r border-gray-200">
                   <Link
                     href={`/members/${encodeURIComponent(member.memberName)}`}
-                    className="text-lg text-indigo-600 hover:text-indigo-800 font-medium hover:underline whitespace-nowrap"
+                    className="text-lg text-brand-600 hover:text-brand-800 font-medium hover:underline whitespace-nowrap"
                   >
                     {member.memberName}
                   </Link>

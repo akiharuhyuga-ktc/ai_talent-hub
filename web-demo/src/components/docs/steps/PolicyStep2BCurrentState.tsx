@@ -59,7 +59,7 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
             onChange={e => { setTeamInfo(e.target.value); setError('') }}
             rows={3}
             placeholder="例: 3チーム編成（Flutter/KMP/Producer）、計24名"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -72,7 +72,7 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
             onChange={e => { setTechDomains(e.target.value); setError('') }}
             rows={3}
             placeholder="例: モバイルアプリ開発（Flutter/KMP）、AI機能PoC、販売店DXアプリ"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -85,7 +85,7 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
             onChange={e => { setChallenges(e.target.value); setError('') }}
             rows={3}
             placeholder="例: 属人化の解消、テスト自動化の不足、ナレッジ共有の仕組み"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -98,7 +98,7 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
             onChange={e => { setStrengths(e.target.value); setError('') }}
             rows={3}
             placeholder="例: 多国籍チームの多様性、新技術への積極的な取り組み"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -111,7 +111,7 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
             onChange={e => { setMission(e.target.value); setError('') }}
             rows={3}
             placeholder="例: 全社のモバイル戦略を推進し、ユーザー体験の向上を担う"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -124,7 +124,7 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
             onChange={e => setThemes(e.target.value)}
             rows={3}
             placeholder="例: AI活用の推進、開発プロセスの改善、人材育成"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -143,7 +143,7 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
           </button>
           <button
             onClick={handleNext}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             次へ進む
           </button>

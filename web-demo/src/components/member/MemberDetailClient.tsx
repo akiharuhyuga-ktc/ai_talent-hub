@@ -81,14 +81,14 @@ export function MemberDetailClient({ member, wizardContext, oneOnOneContext, eva
 
   return (
     <>
-      <div className="h-[calc(100vh-56px)] overflow-y-auto">
-        <div className="px-8 py-7">
-          <div className="flex items-center gap-2 mb-7 text-sm">
-            <Link href="/" className="text-indigo-600 hover:text-indigo-800 transition-colors font-medium">
-              ← ダッシュボード
+      <div className="h-screen overflow-y-auto">
+        <div className="px-10 py-8">
+          <div className="flex items-center gap-2 mb-6 text-xl">
+            <Link href="/" className="text-brand-600 hover:text-brand-800 transition-colors font-medium">
+              ダッシュボード
             </Link>
-            <span className="text-gray-400">/</span>
-            <span className="text-gray-700 font-semibold">{member.name}</span>
+            <span className="text-gray-300">/</span>
+            <span className="text-gray-600 font-medium">{member.name}</span>
           </div>
           <Tabs tabs={tabs} defaultTab="profile" />
         </div>

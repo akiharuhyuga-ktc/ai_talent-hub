@@ -32,7 +32,7 @@ export function Step4PreviousPeriod({ initial, onNext, onSkip, onBack }: Props) 
             onChange={e => setForm({ ...form, previousGoals: e.target.value })}
             rows={3}
             placeholder="前期に設定していた主要な目標を記入してください"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
           />
         </div>
         <div>
@@ -42,7 +42,7 @@ export function Step4PreviousPeriod({ initial, onNext, onSkip, onBack }: Props) 
           <select
             value={form.achievementLevel}
             onChange={e => setForm({ ...form, achievementLevel: e.target.value as PreviousPeriod['achievementLevel'] })}
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
           >
             <option value="">選択してください</option>
             <option value="achieved">達成</option>
@@ -60,7 +60,7 @@ export function Step4PreviousPeriod({ initial, onNext, onSkip, onBack }: Props) 
               onChange={e => setForm({ ...form, reasonIfNotAchieved: e.target.value })}
               rows={2}
               placeholder="未達となった主な理由を記入してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
         )}
@@ -76,7 +76,7 @@ export function Step4PreviousPeriod({ initial, onNext, onSkip, onBack }: Props) 
         <button
           onClick={() => onNext(form)}
           disabled={!isValid}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           次へ進む
         </button>

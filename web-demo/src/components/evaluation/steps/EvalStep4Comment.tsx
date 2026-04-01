@@ -113,7 +113,7 @@ export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) 
 
       {!comment && isStreaming && (
         <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-5" />
+          <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-5" />
           <p className="text-xl text-gray-500">AIがコメントを生成しています...</p>
         </div>
       )}
@@ -133,7 +133,7 @@ export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) 
               onChange={e => setComment(e.target.value)}
               rows={8}
               placeholder="メンバーへの評価コメントを入力してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
               disabled={isStreaming}
             />
           </div>
@@ -156,7 +156,7 @@ export function EvalStep4Comment({ state, context, onComplete, onBack }: Props) 
           <button
             onClick={() => onComplete(comment)}
             disabled={comment.trim() === ''}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             この内容で完了する
           </button>

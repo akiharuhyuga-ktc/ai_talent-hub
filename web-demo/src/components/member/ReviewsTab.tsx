@@ -37,7 +37,7 @@ function CommentSection({ comment }: { comment: { label: string; evaluator: stri
     '本人コメント': 'bg-green-100 text-green-700',
     'プレ一次評価': 'bg-purple-100 text-purple-700',
     '一次評価': 'bg-blue-100 text-blue-700',
-    '二次評価': 'bg-indigo-100 text-indigo-700',
+    '二次評価': 'bg-brand-100 text-brand-700',
     '三次評価': 'bg-gray-100 text-gray-700',
   }
 
@@ -168,7 +168,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
             value={password}
             onChange={(e) => { setPassword(e.target.value); setError(false) }}
             placeholder="パスワード"
-            className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 ${error ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+            className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${error ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
             autoFocus
           />
           {error && (
@@ -176,7 +176,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
           )}
           <button
             type="submit"
-            className="w-full mt-4 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            className="w-full mt-4 px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
           >
             解除する
           </button>
@@ -215,7 +215,7 @@ export function ReviewsTab({ reviews, onStartWizard }: ReviewsTabProps) {
         {onStartWizard && (
           <button
             onClick={onStartWizard}
-            className="text-lg bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="text-lg bg-brand-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             評価ウィザード
           </button>

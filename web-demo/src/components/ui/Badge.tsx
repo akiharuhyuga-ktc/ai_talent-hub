@@ -1,9 +1,9 @@
 import { clsx } from 'clsx'
 
-type Variant = 'indigo' | 'emerald' | 'amber' | 'purple' | 'gray' | 'orange' | 'green'
+type Variant = 'brand' | 'emerald' | 'amber' | 'purple' | 'gray' | 'orange' | 'green'
 
 const variantStyles: Record<Variant, string> = {
-  indigo: 'bg-indigo-100 text-indigo-700',
+  brand: 'bg-brand-100 text-brand-700',
   emerald: 'bg-emerald-100 text-emerald-700',
   amber: 'bg-amber-100 text-amber-700',
   purple: 'bg-purple-100 text-purple-700',
@@ -31,7 +31,7 @@ export function Badge({ label, variant = 'gray', className }: BadgeProps) {
 }
 
 export function teamBadgeVariant(teamShort: string): Variant {
-  if (teamShort === 'Flutter') return 'indigo'
+  if (teamShort === 'Flutter') return 'brand'
   if (teamShort === 'KMP') return 'emerald'
   if (teamShort === 'Producer') return 'amber'
   return 'gray'

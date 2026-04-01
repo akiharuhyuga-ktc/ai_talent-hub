@@ -78,7 +78,7 @@ export function OOStep2GoalProgress({ goalProgress, onNext, onBack }: Props) {
                 <select
                   value={entry.status}
                   onChange={e => updateProgress(i, 'status', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
                 >
                   {STATUS_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -95,7 +95,7 @@ export function OOStep2GoalProgress({ goalProgress, onNext, onBack }: Props) {
                   onChange={e => updateProgress(i, 'progressComment', e.target.value)}
                   rows={3}
                   placeholder="具体的な進捗状況や課題を入力してください"
-                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
                 />
               </div>
             </div>
@@ -115,7 +115,7 @@ export function OOStep2GoalProgress({ goalProgress, onNext, onBack }: Props) {
               onChange={e => setFreeText(e.target.value)}
               rows={6}
               placeholder="現在の業務状況や進捗について自由に記入してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
         </div>
@@ -128,7 +128,7 @@ export function OOStep2GoalProgress({ goalProgress, onNext, onBack }: Props) {
         <button
           onClick={handleNext}
           disabled={!isValid}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           次へ進む
         </button>

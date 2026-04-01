@@ -6,13 +6,18 @@ export default function DashboardPage() {
   const members = getAllMemberSummaries()
 
   return (
-    <main className="px-8 py-7">
-      <div className="mb-7">
-        <h1 className="text-7xl font-bold text-gray-900">チームダッシュボード</h1>
-        <p className="text-3xl text-gray-500 mt-2">モバイルアプリ開発部 — 2026年上期</p>
+    <main className="px-10 py-8">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-gray-900 tracking-tight">ダッシュボード</h1>
+        <p className="text-xl text-gray-400 mt-1">モバイルアプリ開発部 — チーム全体の状況を把握</p>
       </div>
-      <StatsBar members={members} />
-      <MemberGrid members={members} />
+      <div className="space-y-8">
+        <StatsBar members={members} />
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">メンバー</h2>
+          <MemberGrid members={members} />
+        </div>
+      </div>
     </main>
   )
 }

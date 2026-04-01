@@ -11,7 +11,7 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        indigo: {
+        brand: {
           50:  '#EBF7FB',
           100: '#C7E7F0',
           200: '#87CDE0',
@@ -24,6 +24,21 @@ const config: Config = {
           900: '#082530',
           950: '#041318',
         },
+        surface: '#F7F8FA',
+        'surface-alt': '#FAFBFC',
+      },
+      boxShadow: {
+        'card': '0 1px 4px rgba(0, 0, 0, 0.04)',
+        'card-hover': '0 4px 12px rgba(0, 0, 0, 0.06)',
+        'glow': '0 2px 8px rgba(25, 112, 140, 0.2)',
+        'glow-lg': '0 8px 24px rgba(25, 112, 140, 0.2)',
+      },
+      borderRadius: {
+        'radius-sm': '5px',
+        'radius-md': '10px',
+        'radius-lg': '12px',
+        'radius-xl': '14px',
+        'radius-2xl': '16px',
       },
     },
   },

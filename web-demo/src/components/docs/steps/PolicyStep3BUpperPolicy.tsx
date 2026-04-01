@@ -30,7 +30,7 @@ export function PolicyStep3BUpperPolicy({ onNext, onBack }: PolicyStep3BUpperPol
             onChange={e => setUpperPolicy(e.target.value)}
             rows={8}
             placeholder="例: 本部方針のキーワード、重点施策、中期経営計画の抜粋など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -43,7 +43,7 @@ export function PolicyStep3BUpperPolicy({ onNext, onBack }: PolicyStep3BUpperPol
           </button>
           <button
             onClick={() => onNext(upperPolicy.trim())}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             次へ進む
           </button>

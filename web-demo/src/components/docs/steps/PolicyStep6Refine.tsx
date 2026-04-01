@@ -143,7 +143,7 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
           <textarea
             value={editorContent}
             onChange={e => handleEditorChange(e.target.value)}
-            className="flex-1 border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="flex-1 border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
             spellCheck={false}
           />
         </div>
@@ -174,7 +174,7 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
                 <div className={clsx(
                   'max-w-[90%] rounded-xl px-4 py-3 text-lg',
                   msg.role === 'user'
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-brand-600 text-white'
                     : 'bg-white border border-gray-200 text-gray-900'
                 )}>
                   {msg.role === 'user' ? (
@@ -183,7 +183,7 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
                     <>
                       <MarkdownRenderer content={msg.content} className="prose-lg" />
                       {isStreaming && i === messages.length - 1 && (
-                        <span className="inline-block w-2 h-4 bg-indigo-500 animate-pulse ml-1" />
+                        <span className="inline-block w-2 h-4 bg-brand-500 animate-pulse ml-1" />
                       )}
                     </>
                   )}
@@ -214,13 +214,13 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
                     onKeyDown={handleKeyDown}
                     placeholder="AIへのフィードバックを入力..."
                     rows={2}
-                    className="flex-1 resize-none rounded-lg border border-gray-200 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="flex-1 resize-none rounded-lg border border-gray-200 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                     disabled={isStreaming}
                   />
                   <button
                     onClick={handleSend}
                     disabled={!input.trim() || isStreaming}
-                    className="px-4 py-3 bg-indigo-600 text-white rounded-lg text-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed self-end"
+                    className="px-4 py-3 bg-brand-600 text-white rounded-lg text-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed self-end"
                   >
                     送信
                   </button>
@@ -243,7 +243,7 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
         <button
           onClick={() => onNext(editorContent)}
           disabled={isStreaming}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40"
         >
           この内容で確定する
         </button>

@@ -30,7 +30,7 @@ export function MemberGrid({ members }: MemberGridProps) {
   return (
     <div>
       {/* Filter pills */}
-      <div className="flex gap-3 flex-wrap mb-8">
+      <div className="flex gap-2 flex-wrap mb-6">
         {FILTERS.map(f => {
           if (counts[f] === 0 && f !== '全員') return null
           return (
@@ -38,20 +38,20 @@ export function MemberGrid({ members }: MemberGridProps) {
               key={f}
               onClick={() => setFilter(f)}
               className={clsx(
-                'px-7 py-3 rounded-full text-2xl font-medium transition-colors',
+                'px-5 py-2 rounded-lg text-xl font-medium transition-colors',
                 filter === f
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                  ? 'bg-brand-800 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-brand-300 hover:text-brand-600'
               )}
             >
-              {f} ({counts[f]})
+              {f} {counts[f]}
             </button>
           )
         })}
       </div>
 
-      {/* Card grid — 2 columns max to fit larger text */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Card grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {filtered.map(member => (
           <MemberCard key={member.name} member={member} />
         ))}

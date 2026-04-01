@@ -114,7 +114,7 @@ export function PolicyStep5Draft({ state, onDraftGenerated, onBack }: PolicyStep
 
       {!draft && isStreaming && (
         <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-6" />
+          <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-6" />
           <p className="text-xl text-gray-500">AIが{state.targetYear}年度の草案を生成中...</p>
           <p className="text-lg text-gray-400 mt-2">確定した方向性をもとに作成しています</p>
         </div>
@@ -139,7 +139,7 @@ export function PolicyStep5Draft({ state, onDraftGenerated, onBack }: PolicyStep
           <div className="bg-white border border-gray-200 rounded-lg p-8 mb-8 max-h-[500px] overflow-y-auto">
             <MarkdownRenderer content={draft} />
             {isStreaming && (
-              <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+              <span className="inline-block w-2 h-5 bg-brand-500 animate-pulse ml-1" />
             )}
           </div>
 
@@ -153,7 +153,7 @@ export function PolicyStep5Draft({ state, onDraftGenerated, onBack }: PolicyStep
               </button>
               <button
                 onClick={() => onDraftGenerated(draft)}
-                className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+                className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
               >
                 壁打ちへ進む
               </button>

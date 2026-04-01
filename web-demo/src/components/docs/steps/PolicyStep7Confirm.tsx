@@ -100,7 +100,7 @@ export function PolicyStep7Confirm({ state, onSave, onBack }: PolicyStep7Confirm
           <button
             onClick={() => doSave(false)}
             disabled={saving}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50"
           >
             {saving ? '保存中...' : '保存する'}
           </button>

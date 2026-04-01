@@ -155,7 +155,7 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
 
       {!summary && isStreaming && (
         <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-5" />
+          <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-5" />
           <p className="text-xl text-gray-500">AIが引き継ぎサマリーを生成しています...</p>
         </div>
       )}
@@ -172,7 +172,7 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-8">
             <MarkdownRenderer content={summary} />
             {isStreaming && (
-              <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+              <span className="inline-block w-2 h-5 bg-brand-500 animate-pulse ml-1" />
             )}
           </div>
         </div>
@@ -180,7 +180,7 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
 
       {saving && (
         <div className="flex items-center gap-3 text-xl text-gray-500 mb-6">
-          <div className="w-6 h-6 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <div className="w-6 h-6 border-3 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
           保存中...
         </div>
       )}
@@ -207,7 +207,7 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             閉じる
           </button>

@@ -197,13 +197,13 @@ export function OneOnOneWizard({ context, onClose }: OneOnOneWizardProps) {
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-16 py-5 border-b border-gray-200 bg-gray-50">
-        <h1 className="text-4xl font-bold text-gray-800">
+      <div className="flex items-center justify-between px-16 py-5 border-b border-brand-700 bg-brand-800">
+        <h1 className="text-4xl font-bold text-white">
           {context.memberName}さんとの1on1
         </h1>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors text-2xl"
+          className="text-brand-200 hover:text-white transition-colors text-2xl"
         >
           ✕ 閉じる
         </button>

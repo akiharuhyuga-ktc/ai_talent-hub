@@ -98,7 +98,7 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
                   <div className="flex flex-wrap gap-3">
                     {latestCondition.map((s, i) => (
                       <span key={i} className="text-lg bg-white border border-gray-200 rounded-lg px-4 py-2">
-                        {s.label}：<span className="font-semibold text-indigo-600">{s.value}</span>
+                        {s.label}：<span className="font-semibold text-brand-600">{s.value}</span>
                       </span>
                     ))}
                   </div>
@@ -134,7 +134,7 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
             <select
               value={selfEval.score}
               onChange={e => setSelfEval({ ...selfEval, score: e.target.value as EvaluationGrade | '' })}
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
               <option value="">選択してください</option>
               {GRADE_OPTIONS.map(opt => (
@@ -152,7 +152,7 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
               onChange={e => setSelfEval({ ...selfEval, achievementComment: e.target.value })}
               rows={4}
               placeholder="目標に対する達成状況を記入してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
 
@@ -165,7 +165,7 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
               onChange={e => setSelfEval({ ...selfEval, reflectionComment: e.target.value })}
               rows={4}
               placeholder="期間を振り返っての所感を記入してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
         </div>
@@ -183,7 +183,7 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
               onChange={e => setSupplement({ ...supplement, notableEpisodes: e.target.value })}
               rows={3}
               placeholder="評価に影響する具体的なエピソードがあれば入力してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
 
@@ -195,7 +195,7 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
               onChange={e => setSupplement({ ...supplement, environmentChanges: e.target.value })}
               rows={3}
               placeholder="組織変更、プロジェクト変動、本人の事情など"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
         </div>
@@ -206,7 +206,7 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
         <button
           onClick={() => onNext(selfEval as SelfEvaluation, supplement)}
           disabled={!isValid}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           次へ進む
         </button>

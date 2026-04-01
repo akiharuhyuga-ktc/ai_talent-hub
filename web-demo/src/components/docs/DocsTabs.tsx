@@ -63,8 +63,8 @@ export function DocsTabs({ orgPolicy, policyYear, availableYears, criteria, guid
               className={clsx(
                 'flex items-center gap-4 px-6 py-5 rounded-xl text-left text-2xl font-medium transition-colors',
                 active === tab.id
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                  ? 'bg-brand-600 text-white shadow-sm'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-brand-300 hover:text-brand-600'
               )}
             >
               <span className="text-3xl">{tab.icon}</span>
@@ -83,7 +83,7 @@ export function DocsTabs({ orgPolicy, policyYear, availableYears, criteria, guid
               <select
                 value={selectedYear ?? ''}
                 onChange={e => handleYearChange(Number(e.target.value))}
-                className="text-xl border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="text-xl border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400"
               >
                 {currentAvailableYears.map(y => (
                   <option key={y} value={y}>{y}年度</option>
@@ -93,7 +93,7 @@ export function DocsTabs({ orgPolicy, policyYear, availableYears, criteria, guid
             {loadingYear && <span className="text-lg text-gray-400">読み込み中...</span>}
             <button
               onClick={() => setWizardOpen(true)}
-              className="text-lg bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              className="text-lg bg-brand-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-colors"
             >
               新年度方針を作成
             </button>

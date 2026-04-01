@@ -22,7 +22,7 @@ export function PolicyStepComplete({ targetYear, onClose }: PolicyStepCompletePr
       <div className="flex flex-col items-center gap-4">
         <button
           onClick={onClose}
-          className="px-10 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          className="px-10 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
         >
           組織方針を確認する
         </button>

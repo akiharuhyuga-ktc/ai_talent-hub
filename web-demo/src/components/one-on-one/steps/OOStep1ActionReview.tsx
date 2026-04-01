@@ -38,7 +38,7 @@ export function OOStep1ActionReview({ actionReviews, isFirstTime, priorityMessag
         <div className="flex gap-3">
           <button
             onClick={() => onNext([])}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             次へ進む
           </button>
@@ -81,7 +81,7 @@ export function OOStep1ActionReview({ actionReviews, isFirstTime, priorityMessag
               <select
                 value={review.status}
                 onChange={e => updateReview(i, 'status', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
               >
                 {STATUS_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -96,7 +96,7 @@ export function OOStep1ActionReview({ actionReviews, isFirstTime, priorityMessag
                 onChange={e => updateReview(i, 'comment', e.target.value)}
                 rows={2}
                 placeholder="補足があれば入力してください"
-                className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
               />
             </div>
           </div>
@@ -113,7 +113,7 @@ export function OOStep1ActionReview({ actionReviews, isFirstTime, priorityMessag
         <button
           onClick={() => onNext(reviews)}
           disabled={!allStatusSelected}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           次へ進む
         </button>

@@ -73,7 +73,7 @@ export function ChatSidebar({ memberName, memberContext }: ChatSidebarProps) {
                   key={action}
                   onClick={() => sendMessage(action)}
                   disabled={isLoading}
-                  className="w-full text-left text-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl px-5 py-4 transition-colors border border-indigo-100 font-medium"
+                  className="w-full text-left text-xl text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-xl px-5 py-4 transition-colors border border-brand-100 font-medium"
                 >
                   {action}
                 </button>
@@ -93,7 +93,7 @@ export function ChatSidebar({ memberName, memberContext }: ChatSidebarProps) {
             <div className={clsx(
               'max-w-[90%] rounded-xl px-5 py-4 text-xl',
               msg.role === 'user'
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-brand-600 text-white'
                 : 'bg-white border border-gray-200 text-gray-900'
             )}>
               {msg.role === 'user' ? (
@@ -128,12 +128,12 @@ export function ChatSidebar({ memberName, memberContext }: ChatSidebarProps) {
             onKeyDown={handleKeyDown}
             placeholder="AIに依頼する内容を入力..."
             rows={3}
-            className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-3 text-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-3 text-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-xl font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed self-end"
+            className="px-6 py-3 bg-brand-600 text-white rounded-xl text-xl font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed self-end"
           >
             送信
           </button>

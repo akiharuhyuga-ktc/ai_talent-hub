@@ -48,7 +48,7 @@ export function PolicyStep3AThemes({ onNext, onBack }: PolicyStep3AThemesProps) 
             onChange={e => { setEnvChanges(e.target.value); setError('') }}
             rows={4}
             placeholder="例: 新規プロダクトのローンチ計画、競合動向の変化、組織再編など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -61,7 +61,7 @@ export function PolicyStep3AThemes({ onNext, onBack }: PolicyStep3AThemesProps) 
             onChange={e => { setTechChanges(e.target.value); setError('') }}
             rows={4}
             placeholder="例: AI/LLMの進化、新フレームワークの登場、セキュリティ要件の強化など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -74,7 +74,7 @@ export function PolicyStep3AThemes({ onNext, onBack }: PolicyStep3AThemesProps) 
             onChange={e => { setFocusThemes(e.target.value); setError('') }}
             rows={4}
             placeholder="例: 開発生産性の向上、AI機能の本番投入、チーム間コラボレーション強化など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -93,7 +93,7 @@ export function PolicyStep3AThemes({ onNext, onBack }: PolicyStep3AThemesProps) 
           </button>
           <button
             onClick={handleNext}
-            className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
           >
             次へ進む
           </button>

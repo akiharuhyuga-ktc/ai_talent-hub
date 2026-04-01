@@ -85,7 +85,7 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
   if (!diagnosis && isStreaming) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-5" />
+        <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-5" />
         <p className="text-xl text-gray-500">AIが診断サマリーを生成しています...</p>
       </div>
     )
@@ -112,13 +112,13 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
           value={diagnosis}
           onChange={e => setDiagnosis(e.target.value)}
           rows={12}
-          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none mb-8"
+          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none mb-8"
         />
       ) : (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 mb-8">
           <MarkdownRenderer content={diagnosis} />
           {isStreaming && (
-            <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+            <span className="inline-block w-2 h-5 bg-brand-500 animate-pulse ml-1" />
           )}
         </div>
       )}
@@ -137,7 +137,7 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
         <button
           onClick={() => onConfirm(diagnosis)}
           disabled={isStreaming}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40"
+          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40"
         >
           この診断で進む
         </button>
