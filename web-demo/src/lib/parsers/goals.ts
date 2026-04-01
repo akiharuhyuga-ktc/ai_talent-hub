@@ -16,6 +16,11 @@ const CIRCLE_NUM_MAP: Record<string, number> = {
   '①': 1, '②': 2, '③': 3, '④': 4, '⑤': 5,
 }
 
+// 数値 → 丸数字のマッピング
+const NUM_CIRCLE_MAP: Record<number, string> = {
+  1: '①', 2: '②', 3: '③', 4: '④', 5: '⑤',
+}
+
 // 目標セクション見出しの正規表現
 const GOAL_HEADING_RE = /^#{0,3}\s*目標([①②③④⑤])[（(](.+?)[）)][：:](.+)$/
 
@@ -66,9 +71,27 @@ function findFooterStart(lines: string[], fromLine: number): number {
 }
 
 export function mergeGoalSections(goals: SingleGoal[], footer: string): string {
-  const parts = goals.map(g => g.content)
+  const parts = goals.map((g, idx) => {
+    const newNum = idx + 1
+    const newLabel = NUM_CIRCLE_MAP[newNum] || g.label
+    if (newLabel === g.label) return g.content
+    // リナンバリング: コンテンツ内の旧番号を新番号に置換
+    return g.content.replace(
+      new RegExp(`目標${escapeRegex(g.label)}`, 'g'),
+      `目標${newLabel}`
+    )
+  })
   if (footer.trim()) {
     parts.push(footer.trim())
   }
   return parts.join('\n\n')
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** 目標コンテンツから見出し行を除去（カードヘッダーで別途表示するため） */
+export function stripGoalHeading(content: string): string {
+  return content.replace(/^#{0,3}\s*目標[①②③④⑤][（(].+?[）)][：:].+\n*/m, '').trimStart()
 }

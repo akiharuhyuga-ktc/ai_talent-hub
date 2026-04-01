@@ -2,7 +2,8 @@
 
 import { useState, useRef, useMemo } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
-import { parseGoalsToSections, mergeGoalSections } from '@/lib/parsers/goals'
+import { parseGoalsToSections, mergeGoalSections, stripGoalHeading } from '@/lib/parsers/goals'
+import { Trash2 } from 'lucide-react'
 import type { GoalWizardState, WizardContextData, ChatMessage } from '@/lib/types'
 
 interface Props {
@@ -36,6 +37,19 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
       const next = new Set(prev)
       if (next.has(label)) next.delete(label)
       else next.add(label)
+      return next
+    })
+  }
+
+  const handleDeleteGoal = (label: string) => {
+    const goalTitle = parsed.goals.find(g => g.label === label)?.title || ''
+    if (!confirm(`目標${label}「${goalTitle}」を削除しますか？`)) return
+    const remaining = parsed.goals.filter(g => g.label !== label)
+    const newContent = mergeGoalSections(remaining, parsed.footer)
+    setCurrentGoals(newContent)
+    setSelectedLabels(prev => {
+      const next = new Set(prev)
+      next.delete(label)
       return next
     })
   }
@@ -180,9 +194,18 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
                     disabled={isStreaming}
                     className="w-5 h-5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                   />
-                  <span className="text-lg font-semibold text-gray-700">
+                  <span className="text-lg font-semibold text-gray-700 flex-1">
                     目標{goal.label}（{goal.type}）：{goal.title}
                   </span>
+                  {parsed.goals.length > 1 && !isStreaming && (
+                    <button
+                      onClick={() => handleDeleteGoal(goal.label)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="この目標を削除"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
                 <div className="px-8 py-4 max-h-[350px] overflow-y-auto">
                   {isTarget && isStreaming ? (
@@ -191,7 +214,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
                       <span className="text-lg">再生成中...</span>
                     </div>
                   ) : (
-                    <MarkdownRenderer content={goal.content} />
+                    <MarkdownRenderer content={stripGoalHeading(goal.content)} />
                   )}
                 </div>
               </div>

@@ -4,7 +4,8 @@ import { useState, useRef, useMemo } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatPeriodLabel, sortPeriods } from '@/lib/utils/period'
-import { parseGoalsToSections, mergeGoalSections } from '@/lib/parsers/goals'
+import { parseGoalsToSections, mergeGoalSections, stripGoalHeading } from '@/lib/parsers/goals'
+import { Trash2 } from 'lucide-react'
 import type { GoalsData, SingleGoal } from '@/lib/types'
 
 interface GoalsTabProps {
@@ -178,6 +179,15 @@ export function GoalsTab({
     }
   }
 
+  const handleDeleteGoal = (label: string) => {
+    if (!parsed) return
+    const goal = parsed.goals.find(g => g.label === label)
+    if (!goal) return
+    if (!confirm(`目標${label}「${goal.title}」を削除しますか？この操作は元に戻せません。`)) return
+    const remaining = parsed.goals.filter(g => g.label !== label)
+    saveGoals(remaining, parsed.footer)
+  }
+
   const handleAiAccept = (label: string, newContent: string) => {
     if (!parsed) return
     const aiParsed = parseGoalsToSections(newContent)
@@ -217,6 +227,16 @@ export function GoalsTab({
                 >
                   AIで修正
                 </button>
+                {parsed && parsed.goals.length > 1 && (
+                  <button
+                    onClick={() => handleDeleteGoal(goal.label)}
+                    disabled={saving}
+                    className="text-sm px-3 py-1.5 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 size={14} className="inline mr-1" />
+                    削除
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -331,7 +351,7 @@ export function GoalsTab({
               )}
             </div>
           ) : (
-            <MarkdownRenderer content={goal.content} />
+            <MarkdownRenderer content={stripGoalHeading(goal.content)} />
           )}
         </div>
       </div>
