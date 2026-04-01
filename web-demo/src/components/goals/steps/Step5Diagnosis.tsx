@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 import type { GoalWizardState, WizardContextData } from '@/lib/types'
 
@@ -13,14 +13,19 @@ interface Props {
 
 export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
   const [diagnosis, setDiagnosis] = useState(state.diagnosis || '')
-  const [loading, setLoading] = useState(!state.diagnosis)
+  const [isStreaming, setIsStreaming] = useState(!state.diagnosis)
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (state.diagnosis) return
-    const fetchDiagnosis = async () => {
-      setLoading(true)
+
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    ;(async () => {
+      setIsStreaming(true)
       setError('')
       try {
         const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/goals/diagnosis`, {
@@ -32,23 +37,52 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
             memberInput: state.memberInput,
             previousPeriod: state.previousPeriod.previousGoals ? state.previousPeriod : undefined,
           }),
+          signal: controller.signal,
         })
-        const data = await res.json()
-        if (data.diagnosis) {
-          setDiagnosis(data.diagnosis)
-        } else {
+
+        if (!res.ok || !res.headers.get('content-type')?.includes('text/event-stream')) {
+          setError('診断の生成に失敗しました')
+          setIsStreaming(false)
+          return
+        }
+
+        const reader = res.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let fullText = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.text) {
+                fullText += parsed.text
+                setDiagnosis(fullText)
+              }
+            } catch {}
+          }
+        }
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
           setError('診断の生成に失敗しました')
         }
-      } catch {
-        setError('診断の生成に失敗しました')
       } finally {
-        setLoading(false)
+        setIsStreaming(false)
       }
-    }
-    fetchDiagnosis()
+    })()
+
+    return () => { controller.abort() }
   }, [state.diagnosis, state.managerInput, state.memberInput, state.previousPeriod, context.memberName, context.memberProfile])
 
-  if (loading) {
+  if (!diagnosis && isStreaming) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-5" />
@@ -70,7 +104,7 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
     <div>
       <h2 className="text-4xl font-bold text-gray-800 mb-3">診断サマリー</h2>
       <p className="text-xl text-gray-500 mb-8">
-        インプット情報をもとにAIが診断を行いました。内容を確認してください。
+        {isStreaming ? 'AIが診断を生成中...' : 'インプット情報をもとにAIが診断を行いました。内容を確認してください。'}
       </p>
 
       {editing ? (
@@ -83,6 +117,9 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
       ) : (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 mb-8">
           <MarkdownRenderer content={diagnosis} />
+          {isStreaming && (
+            <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+          )}
         </div>
       )}
 
@@ -92,13 +129,15 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
         </button>
         <button
           onClick={() => setEditing(!editing)}
-          className="flex-1 py-4 text-xl border border-amber-300 text-amber-700 bg-amber-50 rounded-lg font-medium hover:bg-amber-100 transition-colors"
+          disabled={isStreaming}
+          className="flex-1 py-4 text-xl border border-amber-300 text-amber-700 bg-amber-50 rounded-lg font-medium hover:bg-amber-100 transition-colors disabled:opacity-40"
         >
           {editing ? 'プレビュー' : '修正する'}
         </button>
         <button
           onClick={() => onConfirm(diagnosis)}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          disabled={isStreaming}
+          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40"
         >
           この診断で進む
         </button>

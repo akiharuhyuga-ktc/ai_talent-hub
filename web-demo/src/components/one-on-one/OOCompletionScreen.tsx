@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 import { buildOneOnOneMarkdown } from '@/lib/parsers/one-on-one'
 import type { OneOnOneWizardState, OneOnOneWizardContextData } from '@/lib/types'
@@ -13,16 +13,20 @@ interface Props {
 
 export function OOCompletionScreen({ state, context, onClose }: Props) {
   const [summary, setSummary] = useState<string | null>(null)
-  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [isStreaming, setIsStreaming] = useState(true)
   const [summaryError, setSummaryError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
 
-  // Fetch AI summary on mount
+  // Fetch AI summary on mount via streaming
   useEffect(() => {
-    const fetchSummary = async () => {
-      setSummaryLoading(true)
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    ;(async () => {
+      setIsStreaming(true)
       setSummaryError('')
       try {
         const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/one-on-one/summary`, {
@@ -47,25 +51,58 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
               .map(q => ({ question: q.question, memo: q.memo })),
             nextActions: state.nextActions,
           }),
+          signal: controller.signal,
         })
-        const data = await res.json()
-        if (data.summary) {
-          setSummary(data.summary)
-        } else {
+
+        if (!res.ok || !res.headers.get('content-type')?.includes('text/event-stream')) {
+          setSummaryError('サマリーの生成に失敗しました')
+          setIsStreaming(false)
+          return
+        }
+
+        const reader = res.body!.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let fullText = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.text) {
+                fullText += parsed.text
+                setSummary(fullText)
+              }
+            } catch {}
+          }
+        }
+
+        if (!fullText) {
           setSummaryError('サマリーの生成に失敗しました')
         }
-      } catch {
-        setSummaryError('サマリーの生成に失敗しました')
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setSummaryError('サマリーの生成に失敗しました')
+        }
       } finally {
-        setSummaryLoading(false)
+        setIsStreaming(false)
       }
-    }
-    fetchSummary()
+    })()
+
+    return () => { controller.abort() }
   }, [state, context])
 
   // Save record after summary is available
   useEffect(() => {
-    if (!summary || saving || saved) return
+    if (!summary || isStreaming || saving || saved) return
 
     const saveRecord = async () => {
       setSaving(true)
@@ -109,14 +146,14 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
       }
     }
     saveRecord()
-  }, [summary, saving, saved, state, context])
+  }, [summary, isStreaming, saving, saved, state, context])
 
   return (
     <div>
       <h2 className="text-4xl font-bold text-gray-800 mb-3">1on1記録の完了</h2>
       <p className="text-xl text-gray-500 mb-8">AIが引き継ぎサマリーを生成し、記録を保存します。</p>
 
-      {summaryLoading && (
+      {!summary && isStreaming && (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-5" />
           <p className="text-xl text-gray-500">AIが引き継ぎサマリーを生成しています...</p>
@@ -134,6 +171,9 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
           <h3 className="text-xl font-medium text-gray-700 mb-3">引き継ぎサマリー（AI生成）</h3>
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-8">
             <MarkdownRenderer content={summary} />
+            {isStreaming && (
+              <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+            )}
           </div>
         </div>
       )}

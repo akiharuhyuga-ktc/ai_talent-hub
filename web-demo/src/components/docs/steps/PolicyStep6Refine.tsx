@@ -19,14 +19,15 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
   const [editorContent, setEditorContent] = useState(state.currentDraft)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState('')
   const [roundCount, setRoundCount] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+  }, [messages, isStreaming])
 
   const handleEditorChange = (value: string) => {
     setEditorContent(value)
@@ -34,14 +35,21 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
   }
 
   const handleSend = async () => {
-    if (!input.trim() || loading || roundCount >= MAX_ROUNDS) return
+    if (!input.trim() || isStreaming || roundCount >= MAX_ROUNDS) return
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
     const userMessage: ChatMessage = { role: 'user', content: input.trim() }
     const newMessages = [...messages, userMessage]
     setMessages(newMessages)
     setInput('')
-    setLoading(true)
+    setIsStreaming(true)
     setError('')
+
+    // アシスタントのプレースホルダーを追加
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
     try {
       const res = await fetch('/api/docs/policy/refine', {
@@ -51,27 +59,58 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
           currentContent: editorContent,
           messages: newMessages,
         }),
+        signal: controller.signal,
       })
 
-      if (!res.ok) {
-        const data = await res.json()
+      if (!res.ok || !res.headers.get('content-type')?.includes('text/event-stream')) {
+        const data = await res.json().catch(() => ({}))
         throw new Error(data.error || '壁打ちに失敗しました')
       }
 
-      const data = await res.json()
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let fullText = ''
 
-      const assistantMessage: ChatMessage = { role: 'assistant', content: data.reply }
-      setMessages(prev => [...prev, assistantMessage])
-      setRoundCount(prev => prev + 1)
-
-      if (data.updatedPolicy) {
-        setEditorContent(data.updatedPolicy)
-        onContentUpdate(data.updatedPolicy)
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.text) {
+              fullText += parsed.text
+              // 最後のメッセージ（アシスタント）を更新
+              setMessages(prev => {
+                const updated = [...prev]
+                updated[updated.length - 1] = { role: 'assistant', content: fullText }
+                return updated
+              })
+            }
+            // ストリーム完了後にupdatedPolicyイベントが来る
+            if (parsed.updatedPolicy) {
+              setEditorContent(parsed.updatedPolicy)
+              onContentUpdate(parsed.updatedPolicy)
+            }
+          } catch {}
+        }
       }
-    } catch {
+
+      setRoundCount(prev => prev + 1)
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
       setError('通信に失敗しました。再度お試しください。')
+      // プレースホルダーを削除
+      setMessages(prev => prev.slice(0, -1))
     } finally {
-      setLoading(false)
+      setIsStreaming(false)
+      abortRef.current = null
     }
   }
 
@@ -141,23 +180,17 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
                   {msg.role === 'user' ? (
                     <span className="whitespace-pre-wrap">{msg.content}</span>
                   ) : (
-                    <MarkdownRenderer content={msg.content} className="prose-lg" />
+                    <>
+                      <MarkdownRenderer content={msg.content} className="prose-lg" />
+                      {isStreaming && i === messages.length - 1 && (
+                        <span className="inline-block w-2 h-4 bg-indigo-500 animate-pulse ml-1" />
+                      )}
+                    </>
                   )}
                 </div>
               </div>
             ))}
 
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 rounded-xl px-4 py-3">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce" />
-                  </div>
-                </div>
-              </div>
-            )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-lg">
                 {error}
@@ -182,11 +215,11 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
                     placeholder="AIへのフィードバックを入力..."
                     rows={2}
                     className="flex-1 resize-none rounded-lg border border-gray-200 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    disabled={loading}
+                    disabled={isStreaming}
                   />
                   <button
                     onClick={handleSend}
-                    disabled={!input.trim() || loading}
+                    disabled={!input.trim() || isStreaming}
                     className="px-4 py-3 bg-indigo-600 text-white rounded-lg text-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed self-end"
                   >
                     送信
@@ -209,7 +242,8 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
         </button>
         <button
           onClick={() => onNext(editorContent)}
-          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          disabled={isStreaming}
+          className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-40"
         >
           この内容で確定する
         </button>

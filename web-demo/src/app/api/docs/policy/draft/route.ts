@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callClaude, hasApiKey } from '@/lib/ai/call-claude'
+import { callClaudeStream, createSSEResponse, hasApiKey } from '@/lib/ai/call-claude'
 import {
   buildContinuousDraftSystemPrompt,
   buildContinuousDraftUserMessage,
@@ -11,6 +11,9 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    const t0 = Date.now()
+    console.log(`[PERF] docs/policy/draft 開始`)
+
     if (!hasApiKey()) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 503 })
     }
@@ -41,14 +44,17 @@ export async function POST(req: NextRequest) {
         orgInfo: body.orgInfo || '',
       })
     }
+    console.log(`[PERF] docs/policy/draft プロンプト構築完了: ${Date.now() - t0}ms`)
 
-    const result = await callClaude({
+    const stream = callClaudeStream({
       systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
       maxTokens: 4096,
+      signal: req.signal,
     })
 
-    return NextResponse.json({ draft: result.content, mode: 'live' })
+    console.log(`[PERF] docs/policy/draft ストリーミング開始: ${Date.now() - t0}ms`)
+    return createSSEResponse(stream)
   } catch (error) {
     console.error('Policy draft API error:', error)
     return NextResponse.json({ error: 'Failed to generate policy draft' }, { status: 500 })

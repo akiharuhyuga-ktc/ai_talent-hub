@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callClaude, hasApiKey } from '@/lib/ai/call-claude'
+import { callClaudeStream, createSSEResponse, hasApiKey } from '@/lib/ai/call-claude'
 import {
   buildContinuousDirectionSystemPrompt,
   buildContinuousDirectionUserMessage,
@@ -11,6 +11,9 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
+    const t0 = Date.now()
+    console.log(`[PERF] docs/policy/direction 開始`)
+
     if (!hasApiKey()) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 503 })
     }
@@ -48,14 +51,17 @@ export async function POST(req: NextRequest) {
         upperOrgPolicy: body.upperOrgPolicy || '',
       })
     }
+    console.log(`[PERF] docs/policy/direction プロンプト構築完了: ${Date.now() - t0}ms`)
 
-    const result = await callClaude({
+    const stream = callClaudeStream({
       systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
       maxTokens: 2048,
+      signal: req.signal,
     })
 
-    return NextResponse.json({ direction: result.content, mode: 'live' })
+    console.log(`[PERF] docs/policy/direction ストリーミング開始: ${Date.now() - t0}ms`)
+    return createSSEResponse(stream)
   } catch (error) {
     console.error('Policy direction API error:', error)
     return NextResponse.json({ error: 'Failed to generate direction' }, { status: 500 })

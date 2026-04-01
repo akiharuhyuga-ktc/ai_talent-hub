@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 import type { PolicyWizardState } from '../PolicyWizard'
 
@@ -14,15 +14,21 @@ interface PolicyStep4DirectionProps {
 
 export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4DirectionProps) {
   const [direction, setDirection] = useState(state.direction || '')
-  const [loading, setLoading] = useState(!state.direction)
+  const [isStreaming, setIsStreaming] = useState(!state.direction)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState('')
   const [regenCount, setRegenCount] = useState(0)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const fetchDirection = async () => {
-    setLoading(true)
+  const fetchDirection = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    setIsStreaming(true)
     setError('')
+
     try {
       const body: Record<string, unknown> = { mode: state.flowMode }
 
@@ -48,24 +54,51 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        signal: controller.signal,
       })
 
-      if (!res.ok) {
-        const data = await res.json()
+      if (!res.ok || !res.headers.get('content-type')?.includes('text/event-stream')) {
+        const data = await res.json().catch(() => ({}))
         throw new Error(data.error || 'AI方向性の生成に失敗しました')
       }
 
-      const data = await res.json()
-      if (data.direction) {
-        setDirection(data.direction)
-        setEditText(data.direction)
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let fullText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.text) {
+              fullText += parsed.text
+              setDirection(fullText)
+            }
+          } catch {}
+        }
+      }
+
+      if (fullText) {
+        setEditText(fullText)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'AI方向性の生成に失敗しました')
+      if ((err as Error).name !== 'AbortError') {
+        setError(err instanceof Error ? err.message : 'AI方向性の生成に失敗しました')
+      }
     } finally {
-      setLoading(false)
+      setIsStreaming(false)
+      abortRef.current = null
     }
-  }
+  }, [state])
 
   useEffect(() => {
     if (!state.direction) {
@@ -73,6 +106,7 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
     } else {
       setEditText(state.direction)
     }
+    return () => { abortRef.current?.abort() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -85,7 +119,6 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
 
   const handleToggleEdit = () => {
     if (editing) {
-      // Save edits
       setDirection(editText)
       setEditing(false)
     } else {
@@ -105,17 +138,17 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
         {state.flowMode === 'continuous' ? 'AI方向性の提案' : 'AI骨格の提案'}
       </h2>
       <p className="text-xl text-gray-500 mb-8">
-        入力内容をもとにAIが方針の方向性を提案します。確認・修正してから草案生成に進みます。
+        {isStreaming ? 'AIが方向性を生成中...' : '入力内容をもとにAIが方針の方向性を提案します。確認・修正してから草案生成に進みます。'}
       </p>
 
-      {loading && (
+      {!direction && isStreaming && (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-6" />
           <p className="text-xl text-gray-500">AIが方向性を生成中...</p>
         </div>
       )}
 
-      {error && !loading && (
+      {error && !isStreaming && (
         <div className="text-center py-12">
           <p className="text-xl text-red-600 bg-red-50 border border-red-200 rounded-lg px-5 py-4 mb-6">
             {error}
@@ -138,25 +171,27 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
         </div>
       )}
 
-      {!loading && !error && direction && (
+      {direction && (
         <>
           {/* Edit toggle */}
-          <div className="flex items-center gap-3 mb-4">
-            <button
-              onClick={handleToggleEdit}
-              className="text-xl text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
-            >
-              {editing ? '編集を確定' : '修正する'}
-            </button>
-            {editing && (
+          {!isStreaming && (
+            <div className="flex items-center gap-3 mb-4">
               <button
-                onClick={() => { setEditText(direction); setEditing(false) }}
-                className="text-lg text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={handleToggleEdit}
+                className="text-xl text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
               >
-                キャンセル
+                {editing ? '編集を確定' : '修正する'}
               </button>
-            )}
-          </div>
+              {editing && (
+                <button
+                  onClick={() => { setEditText(direction); setEditing(false) }}
+                  className="text-lg text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  キャンセル
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Content */}
           {editing ? (
@@ -169,6 +204,9 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
           ) : (
             <div className="bg-white border border-gray-200 rounded-lg p-8 mb-4 max-h-[500px] overflow-y-auto">
               <MarkdownRenderer content={direction} />
+              {isStreaming && (
+                <span className="inline-block w-2 h-5 bg-indigo-500 animate-pulse ml-1" />
+              )}
             </div>
           )}
 
@@ -178,27 +216,29 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
           </p>
 
           {/* Actions */}
-          <div className="flex gap-3">
-            <button
-              onClick={onBack}
-              className="py-4 px-8 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-            >
-              戻る
-            </button>
-            <button
-              onClick={handleRegenerate}
-              disabled={regenCount >= MAX_REGENERATIONS}
-              className="py-4 px-8 text-xl border border-indigo-300 text-indigo-600 rounded-lg font-medium hover:bg-indigo-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              再生成
-            </button>
-            <button
-              onClick={handleConfirm}
-              className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-            >
-              この方向性で草案を生成する
-            </button>
-          </div>
+          {!isStreaming && (
+            <div className="flex gap-3">
+              <button
+                onClick={onBack}
+                className="py-4 px-8 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                戻る
+              </button>
+              <button
+                onClick={handleRegenerate}
+                disabled={regenCount >= MAX_REGENERATIONS}
+                className="py-4 px-8 text-xl border border-indigo-300 text-indigo-600 rounded-lg font-medium hover:bg-indigo-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                再生成
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="flex-1 py-4 text-xl bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                この方向性で草案を生成する
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

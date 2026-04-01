@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callClaude, hasApiKey } from '@/lib/ai/call-claude'
+import { callClaudeStream, createSSEResponse, hasApiKey } from '@/lib/ai/call-claude'
 import { loadSharedDocs } from '@/lib/fs/shared-docs'
 import { buildDiagnosisSystemPrompt, buildDiagnosisUserMessage } from '@/lib/prompts/diagnosis'
 
@@ -10,6 +10,9 @@ export async function POST(
   { params }: { params: { name: string } }
 ) {
   try {
+    const t0 = Date.now()
+    console.log(`[PERF] goals/diagnosis 開始`)
+
     if (!hasApiKey()) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 503 })
     }
@@ -26,14 +29,17 @@ export async function POST(
       memberInput: body.memberInput,
       previousPeriod: body.previousPeriod,
     })
+    console.log(`[PERF] goals/diagnosis プロンプト構築完了: ${Date.now() - t0}ms`)
 
-    const result = await callClaude({
+    const stream = callClaudeStream({
       systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
       maxTokens: 1024,
+      signal: req.signal,
     })
 
-    return NextResponse.json({ diagnosis: result.content, mode: 'live' })
+    console.log(`[PERF] goals/diagnosis ストリーミング開始: ${Date.now() - t0}ms`)
+    return createSSEResponse(stream)
   } catch (error) {
     console.error('Diagnosis API error:', error)
     return NextResponse.json({ error: 'Failed to generate diagnosis' }, { status: 500 })

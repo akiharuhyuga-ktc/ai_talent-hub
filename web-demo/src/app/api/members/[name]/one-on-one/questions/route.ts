@@ -22,6 +22,9 @@ export async function POST(
   { params }: { params: { name: string } }
 ) {
   try {
+    const t0 = Date.now()
+    console.log(`[PERF] one-on-one/questions 開始`)
+
     if (!hasApiKey()) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 503 })
     }
@@ -37,19 +40,23 @@ export async function POST(
       previousSummary: body.previousSummary || '',
       orgPolicy: body.orgPolicy || '',
     })
+    console.log(`[PERF] one-on-one/questions プロンプト構築完了: ${Date.now() - t0}ms`)
 
     const result = await callClaude({
       systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
       maxTokens: 1024,
     })
+    console.log(`[PERF] one-on-one/questions Claude応答完了: ${Date.now() - t0}ms`)
 
     const parsed = extractJsonArray(result.content)
     if (parsed && Array.isArray(parsed)) {
+      console.log(`[PERF] one-on-one/questions 処理完了: ${Date.now() - t0}ms`)
       return NextResponse.json({ questions: parsed, mode: 'live' })
     }
 
     // Fallback if AI response can't be parsed
+    console.log(`[PERF] one-on-one/questions 処理完了(fallback): ${Date.now() - t0}ms`)
     return NextResponse.json({ questions: FALLBACK_QUESTIONS, mode: 'live' })
   } catch (error) {
     console.error('Questions API error:', error)
