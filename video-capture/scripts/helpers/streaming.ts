@@ -11,8 +11,14 @@ import { Page } from '@playwright/test'
  * Step7壁打ち再生成は別途 text=再生成中... で検出すること。
  */
 export async function waitForStreamingStart(page: Page, timeout = 60000): Promise<void> {
-  await page.waitForSelector('.animate-spin, .animate-pulse', { timeout })
-  await page.waitForTimeout(500)
+  try {
+    await page.waitForSelector('.animate-spin, .animate-pulse', { timeout })
+    await page.waitForTimeout(500)
+  } catch {
+    // AI生成が高速で完了した場合、スピナー/カーソルを見逃すことがある
+    // フォールバック: ストリーミング開始マーカーなしで続行（ffmpegでカット不要）
+    console.log('⚠️ ストリーミングインジケータ未検出（高速完了の可能性）')
+  }
 }
 
 /**
