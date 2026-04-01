@@ -10,14 +10,14 @@ import { Page } from '@playwright/test'
  * どちらかが出た時点でAI生成が開始されたと判定する。
  * Step7壁打ち再生成は別途 text=再生成中... で検出すること。
  */
-export async function waitForStreamingStart(page: Page, timeout = 60000): Promise<void> {
+export async function waitForStreamingStart(page: Page, timeout = 5000): Promise<void> {
   try {
     await page.waitForSelector('.animate-spin, .animate-pulse', { timeout })
     await page.waitForTimeout(500)
   } catch {
-    // AI生成が高速で完了した場合、スピナー/カーソルを見逃すことがある
-    // フォールバック: ストリーミング開始マーカーなしで続行（ffmpegでカット不要）
-    console.log('⚠️ ストリーミングインジケータ未検出（高速完了の可能性）')
+    // AI生成が高速で完了しスピナー/カーソルを見逃した場合
+    // 5秒で諦めて完了ボタン待ちに移る
+    console.log('⚠️ ストリーミングインジケータ未検出（5sタイムアウト）')
   }
 }
 
