@@ -142,11 +142,13 @@ async function main() {
 
     // Step7: 壁打ち1回 + 確定保存
     await page.click('text=壁打ちへ進む')
-    await page.waitForTimeout(3000) // Step7レンダリング待ち
+    // Step7のヘッダーが表示されるまで待つ
+    await page.waitForSelector('text=壁打ち・精緻化', { timeout: 15000 })
+    await page.waitForTimeout(2000) // Step7レンダリング完了待ち
 
     // チェックボックスが全選択されていることを確認（未選択なら全クリック）
     const checkboxes = page.locator('input[type="checkbox"]')
-    await page.waitForSelector('input[type="checkbox"]', { timeout: 10000 })
+    await page.waitForSelector('input[type="checkbox"]', { timeout: 15000 })
     const checkboxCount = await checkboxes.count()
     console.log(`📋 チェックボックス数: ${checkboxCount}`)
     for (let i = 0; i < checkboxCount; i++) {
