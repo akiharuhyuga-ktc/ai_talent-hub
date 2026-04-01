@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     const stream = callClaudeStream({
       systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
-      maxTokens: 4096,
+      maxTokens: 8192,
       signal: req.signal,
     })
 

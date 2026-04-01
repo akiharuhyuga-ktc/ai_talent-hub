@@ -156,14 +156,14 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
           <div className="flex gap-3 justify-center">
             <button
               onClick={onBack}
-              className="px-8 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              className="px-8 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
             >
               戻る
             </button>
             <button
               onClick={handleRegenerate}
               disabled={regenCount >= MAX_REGENERATIONS}
-              className="px-8 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40"
+              className="px-8 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow disabled:opacity-40"
             >
               再試行
             </button>
@@ -198,7 +198,7 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
             <textarea
               value={editText}
               onChange={e => setEditText(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono resize-none focus:outline-none focus:ring-2 focus:ring-brand-400 h-[400px]"
+              className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl font-mono resize-none focus:outline-none focus:ring-2 focus:ring-brand-400 h-[400px]"
               spellCheck={false}
             />
           ) : (
@@ -217,23 +217,23 @@ export function PolicyStep4Direction({ state, onConfirm, onBack }: PolicyStep4Di
 
           {/* Actions */}
           {!isStreaming && (
-            <div className="flex gap-3">
+            <div className="flex justify-end gap-4">
               <button
                 onClick={onBack}
-                className="py-4 px-8 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                className="py-3.5 px-8 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
               >
                 戻る
               </button>
               <button
                 onClick={handleRegenerate}
                 disabled={regenCount >= MAX_REGENERATIONS}
-                className="py-4 px-8 text-xl border border-brand-300 text-brand-600 rounded-lg font-medium hover:bg-brand-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="py-3.5 px-8 text-xl border border-brand-300 text-brand-600 rounded-xl font-medium hover:bg-brand-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 再生成
               </button>
               <button
                 onClick={handleConfirm}
-                className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+                className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
               >
                 この方向性で草案を生成する
               </button>

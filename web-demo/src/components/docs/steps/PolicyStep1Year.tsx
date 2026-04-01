@@ -106,7 +106,7 @@ export function PolicyStep1Year({ availableYears, onNext }: PolicyStep1YearProps
             }}
             min={2020}
             max={2099}
-            className="w-48 border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-48 border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
           <span className="text-xl text-gray-500 ml-3">年度</span>
         </div>
@@ -148,13 +148,15 @@ export function PolicyStep1Year({ availableYears, onNext }: PolicyStep1YearProps
         )}
 
         {/* Next button */}
-        <button
-          onClick={handleNext}
-          disabled={loading || checking || priorExists === null}
-          className="w-full py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {loading ? '読み込み中...' : '次へ進む'}
-        </button>
+        <div className="flex justify-end">
+          <button
+            onClick={handleNext}
+            disabled={loading || checking || priorExists === null}
+            className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {loading ? '読み込み中...' : '次へ進む'}
+          </button>
+        </div>
       </div>
     </div>
   )

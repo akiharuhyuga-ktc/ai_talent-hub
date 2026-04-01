@@ -127,7 +127,7 @@ export function PolicyStep5Draft({ state, onDraftGenerated, onBack }: PolicyStep
           </p>
           <button
             onClick={onBack}
-            className="px-8 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            className="px-8 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
           >
             戻る
           </button>
@@ -144,16 +144,16 @@ export function PolicyStep5Draft({ state, onDraftGenerated, onBack }: PolicyStep
           </div>
 
           {!isStreaming && (
-            <div className="flex gap-3">
+            <div className="flex justify-end gap-4">
               <button
                 onClick={onBack}
-                className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
               >
                 戻る
               </button>
               <button
                 onClick={() => onDraftGenerated(draft)}
-                className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+                className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
               >
                 壁打ちへ進む
               </button>

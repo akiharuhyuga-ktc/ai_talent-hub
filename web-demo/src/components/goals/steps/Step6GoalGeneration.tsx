@@ -95,7 +95,7 @@ export function Step6GoalGeneration({ state, context, onGenerated, onBack }: Pro
     return (
       <div className="text-center py-16">
         <p className="text-xl text-red-500 mb-5">{error}</p>
-        <button onClick={onBack} className="px-8 py-3 text-xl border border-gray-300 rounded-lg hover:bg-gray-50">戻る</button>
+        <button onClick={onBack} className="px-8 py-3 text-xl border border-gray-200 rounded-xl hover:bg-gray-50">戻る</button>
       </div>
     )
   }
@@ -114,18 +114,19 @@ export function Step6GoalGeneration({ state, context, onGenerated, onBack }: Pro
         )}
       </div>
 
-      <div className="flex gap-3">
-        <button onClick={onBack} className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors">
-          戻る
-        </button>
-        <button
-          onClick={() => onGenerated(goals)}
-          disabled={isStreaming}
-          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40"
-        >
-          壁打ちへ進む
-        </button>
-      </div>
+      {!isStreaming && (
+        <div className="flex justify-end gap-4">
+          <button onClick={onBack} className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors">
+            戻る
+          </button>
+          <button
+            onClick={() => onGenerated(goals)}
+            className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
+          >
+            壁打ちへ進む
+          </button>
+        </div>
+      )}
     </div>
   )
 }

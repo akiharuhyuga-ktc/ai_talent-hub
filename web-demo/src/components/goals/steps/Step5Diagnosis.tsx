@@ -95,7 +95,7 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
     return (
       <div className="text-center py-16">
         <p className="text-xl text-red-500 mb-5">{error}</p>
-        <button onClick={onBack} className="px-8 py-3 text-xl border border-gray-300 rounded-lg hover:bg-gray-50">戻る</button>
+        <button onClick={onBack} className="px-8 py-3 text-xl border border-gray-200 rounded-xl hover:bg-gray-50">戻る</button>
       </div>
     )
   }
@@ -112,7 +112,7 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
           value={diagnosis}
           onChange={e => setDiagnosis(e.target.value)}
           rows={12}
-          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none mb-8"
+          className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl font-mono focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none mb-8"
         />
       ) : (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 mb-8">
@@ -123,25 +123,25 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
         </div>
       )}
 
-      <div className="flex gap-3">
-        <button onClick={onBack} className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors">
-          戻る
-        </button>
-        <button
-          onClick={() => setEditing(!editing)}
-          disabled={isStreaming}
-          className="flex-1 py-4 text-xl border border-amber-300 text-amber-700 bg-amber-50 rounded-lg font-medium hover:bg-amber-100 transition-colors disabled:opacity-40"
-        >
-          {editing ? 'プレビュー' : '修正する'}
-        </button>
-        <button
-          onClick={() => onConfirm(diagnosis)}
-          disabled={isStreaming}
-          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40"
-        >
-          この診断で進む
-        </button>
-      </div>
+      {!isStreaming && (
+        <div className="flex justify-end gap-4">
+          <button onClick={onBack} className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors">
+            戻る
+          </button>
+          <button
+            onClick={() => setEditing(!editing)}
+            className="px-8 py-3.5 text-xl border border-amber-300 text-amber-700 bg-amber-50 rounded-xl font-medium hover:bg-amber-100 transition-colors"
+          >
+            {editing ? 'プレビュー' : '修正する'}
+          </button>
+          <button
+            onClick={() => onConfirm(diagnosis)}
+            className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
+          >
+            この診断で進む
+          </button>
+        </div>
+      )}
     </div>
   )
 }

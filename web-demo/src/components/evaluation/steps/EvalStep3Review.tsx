@@ -90,7 +90,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
 
               <div className="mb-4">
                 <label className="block text-xl font-medium text-gray-700 mb-2">評価</label>
-                <div className="flex gap-3">
+                <div className="flex justify-end gap-4">
                   {GRADE_OPTIONS.map(g => {
                     const gc = gradeColorMap[g]
                     const isSelected = ge.grade === g
@@ -116,8 +116,8 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
                 <textarea
                   value={ge.rationale}
                   onChange={e => updateGoalEval(i, { rationale: e.target.value })}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+                  rows={5}
+                  className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
                 />
               </div>
 
@@ -131,7 +131,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
                     onChange={e => updateGoalEval(i, { changeReason: e.target.value })}
                     rows={2}
                     placeholder="AIの評価から変更した理由を入力してください"
-                    className="w-full border border-amber-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none bg-white"
+                    className="w-full border border-amber-300 rounded-xl px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none bg-white"
                   />
                 </div>
               )}
@@ -146,7 +146,7 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
           <div className="mb-4">
             <label className="block text-xl font-medium text-gray-700 mb-2">総合評価</label>
-            <div className="flex gap-3">
+            <div className="flex justify-end gap-4">
               {GRADE_OPTIONS.map(g => {
                 const gc = gradeColorMap[g]
                 const isSelected = overallGrade === g
@@ -172,8 +172,8 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
             <textarea
               value={overallRationale}
               onChange={e => setOverallRationale(e.target.value)}
-              rows={4}
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+              rows={6}
+              className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
         </div>
@@ -185,24 +185,24 @@ export function EvalStep3Review({ state, onConfirm, onBack }: Props) {
         <textarea
           value={selfEvalGap}
           onChange={e => setSelfEvalGap(e.target.value)}
-          rows={3}
+          rows={5}
           placeholder="自己評価との乖離についての分析"
-          className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+          className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
         />
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-3">
+      <div className="flex justify-end gap-4">
         <button
           onClick={onBack}
-          className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+          className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
         >
           戻る
         </button>
         <button
           onClick={handleConfirm}
           disabled={!isValid}
-          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow disabled:opacity-40 disabled:cursor-not-allowed"
         >
           評価を確定する
         </button>

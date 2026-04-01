@@ -57,9 +57,9 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
           <textarea
             value={teamInfo}
             onChange={e => { setTeamInfo(e.target.value); setError('') }}
-            rows={3}
+            rows={5}
             placeholder="例: 3チーム編成（Flutter/KMP/Producer）、計24名"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -70,9 +70,9 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
           <textarea
             value={techDomains}
             onChange={e => { setTechDomains(e.target.value); setError('') }}
-            rows={3}
+            rows={5}
             placeholder="例: モバイルアプリ開発（Flutter/KMP）、AI機能PoC、販売店DXアプリ"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -83,9 +83,9 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
           <textarea
             value={challenges}
             onChange={e => { setChallenges(e.target.value); setError('') }}
-            rows={3}
+            rows={5}
             placeholder="例: 属人化の解消、テスト自動化の不足、ナレッジ共有の仕組み"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -96,9 +96,9 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
           <textarea
             value={strengths}
             onChange={e => { setStrengths(e.target.value); setError('') }}
-            rows={3}
+            rows={5}
             placeholder="例: 多国籍チームの多様性、新技術への積極的な取り組み"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -109,9 +109,9 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
           <textarea
             value={mission}
             onChange={e => { setMission(e.target.value); setError('') }}
-            rows={3}
+            rows={5}
             placeholder="例: 全社のモバイル戦略を推進し、ユーザー体験の向上を担う"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -122,9 +122,9 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
           <textarea
             value={themes}
             onChange={e => setThemes(e.target.value)}
-            rows={3}
+            rows={5}
             placeholder="例: AI活用の推進、開発プロセスの改善、人材育成"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -134,16 +134,16 @@ export function PolicyStep2BCurrentState({ onNext, onBack }: PolicyStep2BCurrent
           </p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-4">
           <button
             onClick={onBack}
-            className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
           >
             戻る
           </button>
           <button
             onClick={handleNext}
-            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+            className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
           >
             次へ進む
           </button>

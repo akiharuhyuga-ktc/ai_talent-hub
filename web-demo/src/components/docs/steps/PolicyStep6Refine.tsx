@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 import { clsx } from 'clsx'
+import { MessageCircle, Send } from 'lucide-react'
 import type { ChatMessage } from '@/lib/types'
 import type { PolicyWizardState } from '../PolicyWizard'
 
@@ -48,7 +49,6 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
     setIsStreaming(true)
     setError('')
 
-    // アシスタントのプレースホルダーを追加
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
     try {
@@ -86,14 +86,12 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
             const parsed = JSON.parse(data)
             if (parsed.text) {
               fullText += parsed.text
-              // 最後のメッセージ（アシスタント）を更新
               setMessages(prev => {
                 const updated = [...prev]
                 updated[updated.length - 1] = { role: 'assistant', content: fullText }
                 return updated
               })
             }
-            // ストリーム完了後にupdatedPolicyイベントが来る
             if (parsed.updatedPolicy) {
               setEditorContent(parsed.updatedPolicy)
               onContentUpdate(parsed.updatedPolicy)
@@ -106,7 +104,6 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
       setError('通信に失敗しました。再度お試しください。')
-      // プレースホルダーを削除
       setMessages(prev => prev.slice(0, -1))
     } finally {
       setIsStreaming(false)
@@ -122,43 +119,44 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
   }
 
   return (
-    <div>
-      <h2 className="text-4xl font-bold text-gray-800 mb-3">壁打ち</h2>
-      <p className="text-xl text-gray-500 mb-2">
-        左側のエディタで方針を直接編集し、右側のチャットでAIにフィードバックを求められます
-      </p>
-      <p className="text-lg text-gray-400 mb-6">
-        <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full">
-          壁打ち: {roundCount}/{MAX_ROUNDS}回
-        </span>
-      </p>
-
-      {/* Split layout */}
-      <div className="flex gap-6 h-[600px]">
-        {/* LEFT: Markdown editor (60%) */}
-        <div className="w-[60%] flex flex-col">
-          <label className="text-xl font-medium text-gray-700 mb-2">
-            {state.targetYear}年度 組織方針（Markdown）
-          </label>
+    <div className="h-full flex flex-col">
+      {/* Split layout — full width */}
+      <div className="flex flex-1 min-h-0">
+        {/* LEFT: Editor pane */}
+        <div className="w-[55%] flex flex-col min-h-0 p-8 bg-white">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-2xl font-semibold text-gray-900">組織方針（編集中）</h2>
+            <button
+              onClick={() => onNext(editorContent)}
+              disabled={isStreaming}
+              className="px-6 py-2.5 bg-brand-600 text-white rounded-xl text-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 shadow-glow"
+            >
+              この内容で確定する
+            </button>
+          </div>
           <textarea
             value={editorContent}
             onChange={e => handleEditorChange(e.target.value)}
-            className="flex-1 border border-gray-300 rounded-lg px-5 py-4 text-xl font-mono resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="flex-1 border border-gray-200 rounded-xl bg-surface-alt px-6 py-5 text-xl font-mono resize-none focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-400"
             spellCheck={false}
           />
         </div>
 
-        {/* RIGHT: Chat panel (40%) */}
-        <div className="w-[40%] flex flex-col border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
+        {/* RIGHT: Chat pane */}
+        <div className="w-[45%] flex flex-col bg-surface border-l border-gray-200">
           {/* Chat header */}
-          <div className="px-5 py-3 border-b border-gray-200 bg-white">
-            <span className="text-xl font-medium text-gray-700">AI壁打ち</span>
+          <div className="flex items-center gap-2.5 px-6 py-4 border-b border-gray-200">
+            <MessageCircle size={18} className="text-brand-600" />
+            <span className="text-xl font-semibold text-gray-900">AIと壁打ち</span>
+            <span className="ml-auto text-lg bg-brand-50 text-brand-600 px-3 py-1 rounded-full font-medium">
+              {roundCount}/{MAX_ROUNDS}回
+            </span>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
             {messages.length === 0 && (
-              <p className="text-lg text-gray-400 text-center mt-8">
+              <p className="text-lg text-gray-400 text-center mt-12">
                 方針についてAIに質問やフィードバックを求めましょう
               </p>
             )}
@@ -168,14 +166,19 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
                 key={i}
                 className={clsx(
                   'flex',
-                  msg.role === 'user' ? 'justify-end' : 'justify-start'
+                  msg.role === 'user' ? 'justify-end' : 'justify-start gap-2.5'
                 )}
               >
+                {msg.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-300 to-brand-600 flex items-center justify-center shrink-0 mt-1">
+                    <span className="text-white text-xs font-bold">AI</span>
+                  </div>
+                )}
                 <div className={clsx(
-                  'max-w-[90%] rounded-xl px-4 py-3 text-lg',
+                  'max-w-[85%] px-4 py-3 text-lg',
                   msg.role === 'user'
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-white border border-gray-200 text-gray-900'
+                    ? 'bg-brand-600 text-white rounded-2xl rounded-br-sm'
+                    : 'bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tl-sm'
                 )}>
                   {msg.role === 'user' ? (
                     <span className="whitespace-pre-wrap">{msg.content}</span>
@@ -183,7 +186,7 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
                     <>
                       <MarkdownRenderer content={msg.content} className="prose-lg" />
                       {isStreaming && i === messages.length - 1 && (
-                        <span className="inline-block w-2 h-4 bg-brand-500 animate-pulse ml-1" />
+                        <span className="inline-block w-2 h-5 bg-brand-500 animate-pulse ml-1" />
                       )}
                     </>
                   )}
@@ -192,7 +195,7 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
             ))}
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-lg">
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-2 text-lg">
                 {error}
               </div>
             )}
@@ -200,52 +203,42 @@ export function PolicyStep6Refine({ state, onContentUpdate, onNext, onBack }: Po
           </div>
 
           {/* Chat input */}
-          <div className="p-4 border-t border-gray-200 bg-white">
+          <div className="p-4 border-t border-gray-200">
             {roundCount >= MAX_ROUNDS ? (
               <p className="text-lg text-amber-600 text-center py-2">
                 壁打ち回数の上限に達しました
               </p>
             ) : (
-              <>
-                <div className="flex gap-2">
-                  <textarea
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="AIへのフィードバックを入力..."
-                    rows={2}
-                    className="flex-1 resize-none rounded-lg border border-gray-200 px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                    disabled={isStreaming}
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={!input.trim() || isStreaming}
-                    className="px-4 py-3 bg-brand-600 text-white rounded-lg text-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed self-end"
-                  >
-                    送信
-                  </button>
-                </div>
-                <p className="text-sm text-gray-400 mt-1">Shift+Enter で送信</p>
-              </>
+              <div className="flex gap-3 items-end">
+                <textarea
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="修正の指示を入力..."
+                  rows={1}
+                  className="flex-1 resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-lg focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  disabled={isStreaming}
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isStreaming}
+                  className="w-11 h-11 bg-brand-600 text-white rounded-xl flex items-center justify-center hover:bg-brand-700 transition-colors disabled:opacity-40 shrink-0"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
             )}
           </div>
         </div>
       </div>
 
       {/* Navigation buttons */}
-      <div className="flex gap-3 mt-8">
+      <div className="flex gap-3 px-8 py-4 border-t border-gray-200 shrink-0">
         <button
           onClick={onBack}
-          className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+          className="px-8 py-3 text-lg border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
         >
           戻る
-        </button>
-        <button
-          onClick={() => onNext(editorContent)}
-          disabled={isStreaming}
-          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40"
-        >
-          この内容で確定する
         </button>
       </div>
     </div>

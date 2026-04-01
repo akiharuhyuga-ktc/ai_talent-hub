@@ -1,12 +1,7 @@
 import Link from 'next/link'
 import { Badge, teamBadgeVariant } from '@/components/ui/Badge'
+import { teamGradients } from '@/lib/team-colors'
 import type { MemberSummary } from '@/lib/types'
-
-const teamGradients: Record<string, string> = {
-  Flutter: 'from-brand-600 to-brand-800',
-  KMP: 'from-emerald-500 to-emerald-700',
-  Producer: 'from-amber-500 to-amber-700',
-}
 
 interface MemberCardProps {
   member: MemberSummary

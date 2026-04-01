@@ -17,7 +17,7 @@ const CIRCLE_NUM_MAP: Record<string, number> = {
 }
 
 // 目標セクション見出しの正規表現
-const GOAL_HEADING_RE = /^## 目標([①②③④⑤])[（(](.+?)[）)][：:](.+)$/
+const GOAL_HEADING_RE = /^#{0,3}\s*目標([①②③④⑤])[（(](.+?)[）)][：:](.+)$/
 
 export function parseGoalsToSections(markdown: string): ParsedGoals {
   const lines = markdown.split('\n')

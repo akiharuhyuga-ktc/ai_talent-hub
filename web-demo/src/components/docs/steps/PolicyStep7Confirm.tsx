@@ -70,17 +70,17 @@ export function PolicyStep7Confirm({ state, onSave, onBack }: PolicyStep7Confirm
           <p className="text-xl text-amber-800 font-medium mb-4">
             {state.targetYear}年度の組織方針は既に存在します。上書きしますか？
           </p>
-          <div className="flex gap-3">
+          <div className="flex justify-end gap-4">
             <button
               onClick={() => setShowOverwriteDialog(false)}
-              className="flex-1 py-3 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              className="flex-1 py-3 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
             >
               キャンセル
             </button>
             <button
               onClick={() => doSave(true)}
               disabled={saving}
-              className="flex-1 py-3 text-xl bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50"
+              className="flex-1 py-3 text-xl bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50"
             >
               {saving ? '保存中...' : '上書きする'}
             </button>
@@ -90,17 +90,17 @@ export function PolicyStep7Confirm({ state, onSave, onBack }: PolicyStep7Confirm
 
       {/* Navigation buttons */}
       {!showOverwriteDialog && (
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-4">
           <button
             onClick={onBack}
-            className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
           >
             戻る
           </button>
           <button
             onClick={() => doSave(false)}
             disabled={saving}
-            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50"
+            className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow disabled:opacity-50"
           >
             {saving ? '保存中...' : '保存する'}
           </button>

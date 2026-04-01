@@ -212,17 +212,17 @@ export function EvalStep2AIDraft({ state, context, onDraftGenerated, onBack }: P
       )}
 
       {/* Buttons */}
-      <div className="flex gap-3">
+      <div className="flex justify-end gap-4">
         <button
           onClick={onBack}
-          className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+          className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
         >
           戻る
         </button>
         {showDraft && (
           <button
             onClick={() => onDraftGenerated(draft)}
-            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+            className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
           >
             確認・修正へ進む
           </button>

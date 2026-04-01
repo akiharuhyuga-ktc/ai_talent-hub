@@ -34,12 +34,14 @@ export function Step1AutoLoad({ context, onNext }: Props) {
         <InfoCard label="運用ガイドライン" loaded={!!context.guidelines} />
       </div>
 
-      <button
-        onClick={onNext}
-        className="w-full py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
-      >
-        次へ進む
-      </button>
+      <div className="flex justify-end">
+        <button
+          onClick={onNext}
+          className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
+        >
+          次へ進む
+        </button>
+      </div>
     </div>
   )
 }

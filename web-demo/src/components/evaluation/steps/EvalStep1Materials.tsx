@@ -134,7 +134,7 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
             <select
               value={selfEval.score}
               onChange={e => setSelfEval({ ...selfEval, score: e.target.value as EvaluationGrade | '' })}
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400"
+              className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
               <option value="">選択してください</option>
               {GRADE_OPTIONS.map(opt => (
@@ -150,9 +150,9 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
             <textarea
               value={selfEval.achievementComment}
               onChange={e => setSelfEval({ ...selfEval, achievementComment: e.target.value })}
-              rows={4}
+              rows={6}
               placeholder="目標に対する達成状況を記入してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+              className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
 
@@ -163,9 +163,9 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
             <textarea
               value={selfEval.reflectionComment}
               onChange={e => setSelfEval({ ...selfEval, reflectionComment: e.target.value })}
-              rows={4}
+              rows={6}
               placeholder="期間を振り返っての所感を記入してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+              className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
         </div>
@@ -181,9 +181,9 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
             <textarea
               value={supplement.notableEpisodes}
               onChange={e => setSupplement({ ...supplement, notableEpisodes: e.target.value })}
-              rows={3}
+              rows={5}
               placeholder="評価に影響する具体的なエピソードがあれば入力してください"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+              className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
 
@@ -193,20 +193,20 @@ export function EvalStep1Materials({ state, context, onNext }: Props) {
             <textarea
               value={supplement.environmentChanges}
               onChange={e => setSupplement({ ...supplement, environmentChanges: e.target.value })}
-              rows={3}
+              rows={5}
               placeholder="組織変更、プロジェクト変動、本人の事情など"
-              className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+              className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
             />
           </div>
         </div>
       </div>
 
       {/* Next button */}
-      <div className="flex gap-3">
+      <div className="flex justify-end gap-4">
         <button
           onClick={() => onNext(selfEval as SelfEvaluation, supplement)}
           disabled={!isValid}
-          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow disabled:opacity-40 disabled:cursor-not-allowed"
         >
           次へ進む
         </button>

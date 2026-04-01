@@ -143,7 +143,7 @@ export function GoalWizard({ context, onClose }: GoalWizardProps) {
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-16 py-5 border-b border-brand-700 bg-brand-800">
+      <div className="flex items-center justify-between px-10 py-5 border-b border-brand-700 bg-brand-800">
         <h1 className="text-4xl font-bold text-white">
           {context.memberName}さんの目標設定 - {formatPeriodLabel(targetPeriod)}
         </h1>
@@ -156,13 +156,13 @@ export function GoalWizard({ context, onClose }: GoalWizardProps) {
       </div>
 
       {/* Stepper */}
-      <div className="px-16 py-5 border-b border-gray-100">
+      <div className="px-10 py-5 border-b border-gray-100 bg-[#FAFBFC]">
         <WizardStepper currentStep={state.currentStep} />
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-16 py-8">
+        <div className="max-w-[1400px] mx-auto px-10 py-8">
           {renderStep()}
         </div>
       </div>

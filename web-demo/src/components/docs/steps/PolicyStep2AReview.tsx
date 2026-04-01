@@ -47,9 +47,9 @@ export function PolicyStep2AReview({ onNext, onBack }: PolicyStep2AReviewProps) 
           <textarea
             value={whatWorked}
             onChange={e => { setWhatWorked(e.target.value); setError('') }}
-            rows={4}
+            rows={6}
             placeholder="チームで成功した取り組み、達成できた目標など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -60,9 +60,9 @@ export function PolicyStep2AReview({ onNext, onBack }: PolicyStep2AReviewProps) 
           <textarea
             value={whatDidntWork}
             onChange={e => { setWhatDidntWork(e.target.value); setError('') }}
-            rows={4}
+            rows={6}
             placeholder="課題が残った点、改善が必要な領域など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -73,9 +73,9 @@ export function PolicyStep2AReview({ onNext, onBack }: PolicyStep2AReviewProps) 
           <textarea
             value={leftBehind}
             onChange={e => setLeftBehind(e.target.value)}
-            rows={3}
+            rows={5}
             placeholder="着手できなかったこと、来期に持ち越す課題など"
-            className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+            className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
         </div>
 
@@ -85,16 +85,16 @@ export function PolicyStep2AReview({ onNext, onBack }: PolicyStep2AReviewProps) 
           </p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-4">
           <button
             onClick={onBack}
-            className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
           >
             戻る
           </button>
           <button
             onClick={handleNext}
-            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+            className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
           >
             次へ進む
           </button>

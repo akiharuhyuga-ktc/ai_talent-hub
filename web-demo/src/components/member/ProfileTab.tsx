@@ -1,16 +1,10 @@
 import { Badge, teamBadgeVariant } from '@/components/ui/Badge'
+import { teamGradients } from '@/lib/team-colors'
 import type { MemberDetail } from '@/lib/types'
 
 interface ProfileTabProps {
   member: MemberDetail
 }
-
-const teamGradients: Record<string, string> = {
-  Flutter: 'from-brand-600 to-brand-800',
-  KMP: 'from-emerald-500 to-emerald-700',
-  Producer: 'from-amber-500 to-amber-700',
-}
-
 function SkillRow({ label, value }: { label: string; value: string }) {
   const isEmpty = !value || value.includes('未入力')
   return (

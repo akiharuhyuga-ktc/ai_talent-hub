@@ -35,10 +35,10 @@ export function OOStep1ActionReview({ actionReviews, isFirstTime, priorityMessag
             初回の1on1です。前回のアクションはありません。次のステップに進んでください。
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-4">
           <button
             onClick={() => onNext([])}
-            className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+            className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow"
           >
             次へ進む
           </button>
@@ -81,7 +81,7 @@ export function OOStep1ActionReview({ actionReviews, isFirstTime, priorityMessag
               <select
                 value={review.status}
                 onChange={e => updateReview(i, 'status', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                className="w-full border border-gray-200 rounded-xl px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 bg-[#fafbfc]"
               >
                 {STATUS_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -96,7 +96,7 @@ export function OOStep1ActionReview({ actionReviews, isFirstTime, priorityMessag
                 onChange={e => updateReview(i, 'comment', e.target.value)}
                 rows={2}
                 placeholder="補足があれば入力してください"
-                className="w-full border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+                className="w-full border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
               />
             </div>
           </div>
@@ -109,11 +109,11 @@ export function OOStep1ActionReview({ actionReviews, isFirstTime, priorityMessag
         )}
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex justify-end gap-4">
         <button
           onClick={() => onNext(reviews)}
           disabled={!allStatusSelected}
-          className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow disabled:opacity-40 disabled:cursor-not-allowed"
         >
           次へ進む
         </button>

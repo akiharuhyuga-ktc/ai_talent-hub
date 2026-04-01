@@ -184,7 +184,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
                     目標{goal.label}（{goal.type}）：{goal.title}
                   </span>
                 </div>
-                <div className="px-8 py-4 max-h-[250px] overflow-y-auto">
+                <div className="px-8 py-4 max-h-[350px] overflow-y-auto">
                   {isTarget && isStreaming ? (
                     <div className="flex items-center gap-3 text-brand-500 py-8 justify-center">
                       <div className="w-5 h-5 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
@@ -198,7 +198,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
             )
           })
         ) : (
-          <div className="bg-white border border-gray-200 rounded-lg p-8 max-h-[400px] overflow-y-auto">
+          <div className="bg-white border border-gray-200 rounded-lg p-8 max-h-[500px] overflow-y-auto">
             <MarkdownRenderer content={currentGoals} />
             {isStreaming && (
               <span className="inline-block w-2 h-5 bg-brand-500 animate-pulse ml-1" />
@@ -232,18 +232,18 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
           {count < 2 && (
             <div className="mb-8">
               <label className="block text-xl font-medium text-gray-700 mb-2">フィードバック</label>
-              <div className="flex gap-3">
+              <div className="flex justify-end gap-4">
                 <textarea
                   value={feedback}
                   onChange={e => setFeedback(e.target.value)}
-                  rows={3}
+                  rows={5}
                   placeholder="修正してほしい点やもっと具体的にしたい部分を入力してください"
-                  className="flex-1 border border-gray-300 rounded-lg px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+                  className="flex-1 border border-gray-200 rounded-xl bg-[#fafbfc] px-5 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
                 />
                 <button
                   onClick={handleSendFeedback}
                   disabled={!feedback.trim() || isStreaming || selectedLabels.size === 0}
-                  className="self-end px-6 py-4 text-xl bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="self-end px-6 py-3.5 text-xl bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {isStreaming ? '再生成中...' : '再生成'}
                 </button>
@@ -259,14 +259,14 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
             </p>
           )}
 
-          <div className="flex gap-3">
-            <button onClick={onBack} className="flex-1 py-4 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors">
+          <div className="flex justify-end gap-4">
+            <button onClick={onBack} className="px-10 py-3.5 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors">
               戻る
             </button>
             <button
               onClick={handleConfirm}
               disabled={saving || isStreaming}
-              className="flex-1 py-4 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50"
+              className="px-10 py-3.5 text-xl bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-glow disabled:opacity-50"
             >
               {saving ? '保存中...' : 'この目標で確定する'}
             </button>

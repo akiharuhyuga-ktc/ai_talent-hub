@@ -247,7 +247,7 @@ export function PolicyWizard({ availableYears, criteria: _criteria, guidelines: 
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-16 py-5 border-b border-brand-700 bg-brand-800">
+      <div className="flex items-center justify-between px-10 py-5 border-b border-brand-700 bg-brand-800">
         <h1 className="text-4xl font-bold text-white">
           {headerTitle}
         </h1>
@@ -261,16 +261,18 @@ export function PolicyWizard({ availableYears, criteria: _criteria, guidelines: 
 
       {/* Stepper */}
       {state.currentStep <= 7 && (
-        <div className="px-16 py-5 border-b border-gray-100">
+        <div className="px-10 py-5 border-b border-gray-100 bg-[#FAFBFC]">
           <PolicyStepper currentStep={state.currentStep} flowMode={state.flowMode} />
         </div>
       )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-16 py-8">
-          {renderStep()}
-        </div>
+        {state.currentStep === 6 ? (
+          <div className="h-full">{renderStep()}</div>
+        ) : (
+          <div className="max-w-[1400px] mx-auto px-10 py-8">{renderStep()}</div>
+        )}
       </div>
 
       {/* Exit confirmation dialog */}
@@ -284,13 +286,13 @@ export function PolicyWizard({ availableYears, criteria: _criteria, guidelines: 
             <div className="flex gap-3">
               <button
                 onClick={() => setShowExitConfirm(false)}
-                className="flex-1 py-3 text-xl border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 py-3 text-xl border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
               >
                 続ける
               </button>
               <button
                 onClick={onClose}
-                className="flex-1 py-3 text-xl bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
+                className="flex-1 py-3 text-xl bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors"
               >
                 中止する
               </button>

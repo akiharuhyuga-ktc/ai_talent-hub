@@ -23,8 +23,8 @@ export function Sidebar() {
       const res = await fetch('/api/demo-mode', { cache: 'no-store' })
       const data = await res.json()
       setDemoMode(data.enabled)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Failed to fetch demo mode:', err)
     }
   }, [])
 
@@ -43,8 +43,8 @@ export function Sidebar() {
       if (pathname !== '/') {
         router.push('/')
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Failed to fetch demo mode:', err)
     } finally {
       setToggling(false)
     }
