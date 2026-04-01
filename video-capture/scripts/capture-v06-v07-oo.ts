@@ -97,6 +97,8 @@ async function main() {
     const selects2 = page.locator('select')
     const textareas2 = page.locator('textarea')
     const selectCount2 = await selects2.count()
+    const textareaCount2 = await textareas2.count()
+    console.log(`📋 Step2: select=${selectCount2}, textarea=${textareaCount2}`)
 
     const goalStatuses = [INPUT.step2.goal1Status, INPUT.step2.goal2Status, INPUT.step2.goal3Status]
     const goalMemos = [INPUT.step2.goal1Memo, INPUT.step2.goal2Memo, INPUT.step2.goal3Memo]
@@ -104,8 +106,10 @@ async function main() {
     for (let i = 0; i < Math.min(selectCount2, 3); i++) {
       await selects2.nth(i).selectOption({ label: goalStatuses[i] })
       await page.waitForTimeout(FIELD_WAIT)
-      await textareas2.nth(i).fill(goalMemos[i])
-      await page.waitForTimeout(FIELD_WAIT)
+      if (i < textareaCount2) {
+        await textareas2.nth(i).fill(goalMemos[i])
+        await page.waitForTimeout(FIELD_WAIT)
+      }
     }
 
     await scrollWizardToBottom(page, 4000)
@@ -114,7 +118,19 @@ async function main() {
     await page.waitForTimeout(STEP_WAIT)
     ts.mark('V06_END')
 
-    await page.click('text=次へ進む')
+    // 「次へ進む」がdisabledの場合はスクリーンショットを撮ってデバッグ
+    const nextBtn = page.locator('button:has-text("次へ進む")')
+    const isEnabled = await nextBtn.isEnabled()
+    console.log(`📋 次へ進む enabled: ${isEnabled}`)
+    if (!isEnabled) {
+      await page.screenshot({ path: path.join(__dirname, '../output/raw/debug-v06-step2.png') })
+      console.log('📸 debug-v06-step2.png saved')
+    }
+    await nextBtn.click({ timeout: 5000 }).catch(async () => {
+      // disabled対策: scrollして未入力のフィールドがないか確認
+      console.log('⚠️ 次へ進む disabled — force click試行')
+      await nextBtn.click({ force: true })
+    })
     await page.waitForTimeout(FIELD_WAIT)
 
     // Step3: コンディション
