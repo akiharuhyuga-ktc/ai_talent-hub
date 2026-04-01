@@ -144,11 +144,29 @@ async function main() {
     await page.click('text=壁打ちへ進む')
     // Step7のヘッダーが表示されるまで待つ
     await page.waitForSelector('text=壁打ち・精緻化', { timeout: 15000 })
-    await page.waitForTimeout(2000) // Step7レンダリング完了待ち
+    await page.waitForTimeout(3000) // Step7レンダリング完了待ち
 
-    // チェックボックスが全選択されていることを確認（未選択なら全クリック）
+    // デバッグ: Step7の状態をスクリーンショット
+    await page.screenshot({ path: path.join(__dirname, '../output/raw/debug-step7.png') })
+    const h2s = await page.locator('h2').allTextContents()
+    console.log('Step7 h2:', JSON.stringify(h2s))
+    const goalCards = await page.locator('input[type="checkbox"]').count()
+    console.log(`Step7 checkbox count: ${goalCards}`)
+    // 「この目標で確定する」ボタンの存在確認
+    const confirmBtn = await page.locator('text=この目標で確定する').isVisible().catch(() => false)
+    console.log(`Step7 確定ボタン visible: ${confirmBtn}`)
+
+    // チェックボックスがない場合は壁打ちをスキップして直接確定
     const checkboxes = page.locator('input[type="checkbox"]')
-    await page.waitForSelector('input[type="checkbox"]', { timeout: 15000 })
+    const checkboxCount = await checkboxes.count()
+    if (checkboxCount === 0) {
+      console.log('⚠️ チェックボックスなし — 壁打ちスキップ、直接確定')
+      await page.click('text=この目標で確定する')
+      await page.waitForTimeout(3000)
+      console.log('✅ 目標を保存完了')
+      ts.save(path.join(__dirname, '../output/raw/timestamps-v02-v05.json'))
+      return
+    }
     const checkboxCount = await checkboxes.count()
     console.log(`📋 チェックボックス数: ${checkboxCount}`)
     for (let i = 0; i < checkboxCount; i++) {
