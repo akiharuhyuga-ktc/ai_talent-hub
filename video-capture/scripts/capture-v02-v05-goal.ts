@@ -142,16 +142,20 @@ async function main() {
 
     // Step7: 壁打ち1回 + 確定保存
     await page.click('text=壁打ちへ進む')
-    await page.waitForTimeout(STEP_WAIT)
+    await page.waitForTimeout(3000) // Step7レンダリング待ち
 
     // チェックボックスが全選択されていることを確認（未選択なら全クリック）
     const checkboxes = page.locator('input[type="checkbox"]')
+    await page.waitForSelector('input[type="checkbox"]', { timeout: 10000 })
     const checkboxCount = await checkboxes.count()
+    console.log(`📋 チェックボックス数: ${checkboxCount}`)
     for (let i = 0; i < checkboxCount; i++) {
       const cb = checkboxes.nth(i)
-      if (!(await cb.isChecked())) {
+      const checked = await cb.isChecked()
+      console.log(`  [${i}] checked: ${checked}`)
+      if (!checked) {
         await cb.click()
-        await page.waitForTimeout(200)
+        await page.waitForTimeout(300)
       }
     }
 
@@ -161,8 +165,14 @@ async function main() {
     await page.keyboard.type(INPUT.step7.feedback, { delay: 25 })
     await page.waitForTimeout(FIELD_WAIT)
 
+    // 再生成ボタンの状態確認
+    const regenBtn = page.locator('button:has-text("再生成")')
+    const btnDisabled = await regenBtn.getAttribute('disabled')
+    const btnText = await regenBtn.textContent()
+    console.log(`📋 再生成ボタン: text="${btnText}", disabled=${btnDisabled}`)
+
     // 再生成ボタンが有効になるまで待機してクリック
-    await page.locator('button:has-text("再生成"):not([disabled])').click({ timeout: 10000 })
+    await page.locator('button:has-text("再生成"):not([disabled])').click({ timeout: 15000 })
     console.log('⏳ 壁打ち再生成中...')
 
     // Step7のストリーミング検出: animate-spinではなく「再生成中...」テキスト
