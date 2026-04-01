@@ -167,7 +167,6 @@ async function main() {
       ts.save(path.join(__dirname, '../output/raw/timestamps-v02-v05.json'))
       return
     }
-    const checkboxCount = await checkboxes.count()
     console.log(`📋 チェックボックス数: ${checkboxCount}`)
     for (let i = 0; i < checkboxCount; i++) {
       const cb = checkboxes.nth(i)
