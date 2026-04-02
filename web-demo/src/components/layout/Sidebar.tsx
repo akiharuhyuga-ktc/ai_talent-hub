@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { useEffect, useState, useCallback } from 'react'
@@ -53,11 +54,15 @@ export function Sidebar() {
   return (
     <aside className="w-80 shrink-0 bg-brand-800 flex flex-col h-screen sticky top-0">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-8 pt-8 pb-8">
-        <div className="w-11 h-11 rounded-[10px] bg-gradient-to-br from-brand-300 to-brand-600 flex items-center justify-center">
-          <span className="text-white text-lg font-bold">TH</span>
-        </div>
-        <span className="text-white text-2xl font-semibold tracking-tight">TalentHub</span>
+      <div className="w-full overflow-hidden">
+        <Image
+          src="/logo.png"
+          alt="KTC Tallent Hub"
+          width={1024}
+          height={1024}
+          className="w-full scale-125"
+          priority
+        />
       </div>
 
       {/* Navigation */}
