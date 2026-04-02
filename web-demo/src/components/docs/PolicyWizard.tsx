@@ -245,15 +245,15 @@ export function PolicyWizard({ availableYears, criteria: _criteria, guidelines: 
     : '組織方針の作成'
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col">
+    <div className="fixed inset-0 left-80 z-50 bg-white flex flex-col border-t-2 border-brand-500">
       {/* Header */}
-      <div className="flex items-center justify-between px-10 py-5 border-b border-brand-700 bg-brand-800">
-        <h1 className="text-4xl font-bold text-white">
+      <div className="flex items-center justify-between px-10 py-5 border-b border-gray-200 bg-white">
+        <h1 className="text-3xl font-bold text-brand-900">
           {headerTitle}
         </h1>
         <button
           onClick={handleClose}
-          className="text-brand-200 hover:text-white transition-colors text-2xl"
+          className="text-gray-400 hover:text-gray-700 transition-colors text-xl font-medium"
         >
           ✕ 閉じる
         </button>
