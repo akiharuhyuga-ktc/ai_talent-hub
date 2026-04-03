@@ -25,6 +25,7 @@ function deriveTeamShort(team: string): string {
   if (team.includes('Flutter')) return 'Flutter'
   if (team.includes('KMP')) return 'KMP'
   if (team.includes('Producer') || team.includes('プロデュー') || team.includes('企画')) return 'Producer'
+  if (team.includes('Manager') || team.includes('マネージャー') || team.includes('manager')) return 'Manager'
   return 'その他'
 }
 

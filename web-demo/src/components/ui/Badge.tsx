@@ -34,5 +34,6 @@ export function teamBadgeVariant(teamShort: string): Variant {
   if (teamShort === 'Flutter') return 'brand'
   if (teamShort === 'KMP') return 'emerald'
   if (teamShort === 'Producer') return 'amber'
+  if (teamShort === 'Manager') return 'purple'
   return 'gray'
 }

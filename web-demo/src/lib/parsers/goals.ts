@@ -14,15 +14,20 @@ export function parseGoals(raw: string): GoalsData {
 // 丸数字 → 数値のマッピング
 const CIRCLE_NUM_MAP: Record<string, number> = {
   '①': 1, '②': 2, '③': 3, '④': 4, '⑤': 5,
+  '⑥': 6, '⑦': 7, '⑧': 8, '⑨': 9, '⑩': 10,
 }
 
 // 数値 → 丸数字のマッピング
 const NUM_CIRCLE_MAP: Record<number, string> = {
   1: '①', 2: '②', 3: '③', 4: '④', 5: '⑤',
+  6: '⑥', 7: '⑦', 8: '⑧', 9: '⑨', 10: '⑩',
 }
 
 // 目標セクション見出しの正規表現
-const GOAL_HEADING_RE = /^#{0,3}\s*目標([①②③④⑤])[（(](.+?)[）)][：:](.+)$/
+// - #{0,4}: Markdownヘッダー（####まで許容）
+// - \*{0,2}: 太字マーカー（**）を許容
+// - 丸数字①〜⑩に対応
+const GOAL_HEADING_RE = /^#{0,4}\s*\*{0,2}\s*目標([①②③④⑤⑥⑦⑧⑨⑩])[（(](.+?)[）)][：:](.+?)(?:\*{0,2})$/
 
 export function parseGoalsToSections(markdown: string): ParsedGoals {
   const lines = markdown.split('\n')
@@ -93,5 +98,5 @@ function escapeRegex(s: string): string {
 
 /** 目標コンテンツから見出し行を除去（カードヘッダーで別途表示するため） */
 export function stripGoalHeading(content: string): string {
-  return content.replace(/^#{0,3}\s*目標[①②③④⑤][（(].+?[）)][：:].+\n*/m, '').trimStart()
+  return content.replace(/^#{0,4}\s*\*{0,2}\s*目標[①②③④⑤⑥⑦⑧⑨⑩][（(].+?[）)][：:].+?(?:\*{0,2})$\n*/m, '').trimStart()
 }
