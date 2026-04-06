@@ -44,3 +44,15 @@ data/
 
 # video capture（デモ動画用・一時的）
 video-capture/
+
+# メンバー個人データ（talent-management/members/）
+talent-management/members/
+
+# 年度別組織方針ファイル
+talent-management/shared/org-policy-*.md
+
+# プレゼン資料
+docs/presentations/
+
+# Superpowers（ローカル作業ファイル）
+docs/superpowers/
