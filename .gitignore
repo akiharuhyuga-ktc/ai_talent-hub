@@ -51,6 +51,10 @@ talent-management/members/
 # 年度別組織方針ファイル
 talent-management/shared/org-policy-*.md
 
+# 社内機密文書（部方針・評価基準）
+talent-management/shared/department-policy.md
+talent-management/shared/evaluation-criteria.md
+
 # プレゼン資料
 docs/presentations/
 
