@@ -1,8 +1,8 @@
 # AIタレントハブ システム設計書
 
-> 文書バージョン：2.3
+> 文書バージョン：2.4
 > 作成日：2026-03-21
-> 最終更新：2026-03-21（チームマトリクスビュー（セクション16）を追加）
+> 最終更新：2026-04-06（実装との差分を全セクションで同期。API追加・コンポーネント名修正・ファイル一覧更新）
 > 対象システム：KTC TalentHub（モバイルアプリ開発部 AIタレントマネジメントシステム）
 
 ---
@@ -696,22 +696,43 @@ Talent_Management_AI/
 
 | 項目 | 内容 |
 |------|------|
-| 概要 | 指定期間のチームマトリクスデータ（目標/1on1/評価の実施状況）を全メンバー分取得 |
-| クエリパラメータ | `period`（任意）: 対象期間（例: `2025-h2`）。省略時は `getActivePeriod()` |
-| レスポンス | `{ matrix: TeamPeriodMatrix }` |
-| 詳細 | セクション16を参照 |
-
-### 5.18 GET /api/team/matrix
-
-**ファイル**：`app/api/team/matrix/route.ts`
-
-| 項目 | 内容 |
-|------|------|
 | 概要 | 指定期間のチーム全体の目標・1on1・評価ステータスをマトリクス形式で取得 |
 | クエリパラメータ | `period`（任意。例: `2026-h1`。未指定時は `getActivePeriod()` を使用） |
 | レスポンス | `{ matrix: TeamPeriodMatrix }` |
 | エラー | 500: ファイル読み取り失敗 |
 | 詳細 | セクション16を参照 |
+
+### 5.19 POST /api/members/[name]/goals/edit
+
+**ファイル**：`app/api/members/[name]/goals/edit/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | AI を使って既存の目標を編集・改善する。目標内容とマネージャーの指示を受け取り、改善案を返す |
+| リクエスト | `{ currentGoals: string, editInstruction: string, memberName: string, context: WizardContextData }` |
+| レスポンス | `{ editedGoals: string }` |
+| エラー | 503: APIキー未設定 / 500: AI呼び出し失敗 |
+| 用途 | GoalsTab の「目標を編集する」機能で使用 |
+
+### 5.20 GET /api/demo-mode
+
+**ファイル**：`app/api/demo-mode/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | デモモードの現在の有効/無効状態を取得 |
+| レスポンス | `{ demoMode: boolean }` |
+
+### 5.21 POST /api/demo-mode
+
+**ファイル**：`app/api/demo-mode/route.ts`
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | デモモードのオン/オフを切り替える |
+| リクエスト | `{ enabled: boolean }` |
+| レスポンス | `{ demoMode: boolean }` |
+| 詳細 | セクション13を参照 |
 
 ---
 
@@ -1013,9 +1034,20 @@ data/          ← 個人情報・機密データ全体
 | `api/members/[name]/goals/route.ts` | POST | 目標保存 |
 | `api/members/[name]/goals/diagnosis/route.ts` | POST | AI診断サマリー生成 |
 | `api/members/[name]/goals/generate/route.ts` | POST | AI目標生成（壁打ち対応） |
+| `api/members/[name]/goals/edit/route.ts` | POST | AI目標編集（既存目標の改善） |
+| `api/members/[name]/one-on-one/questions/route.ts` | POST | AIヒアリング質問生成 |
+| `api/members/[name]/one-on-one/summary/route.ts` | POST | AI引き継ぎサマリー生成 |
+| `api/members/[name]/one-on-one/route.ts` | POST | 1on1記録保存 |
+| `api/members/[name]/reviews/draft/route.ts` | POST | AI評価ドラフト生成 |
+| `api/members/[name]/reviews/comment/route.ts` | POST | AI評価者コメント生成 |
+| `api/members/[name]/reviews/route.ts` | POST | 評価保存 |
 | `api/chat/route.ts` | POST | ~~AIチャット~~ **v1.6で廃止。残存するが未使用（将来削除候補）** |
 | `api/demo-mode/route.ts` | GET/POST | デモモード状態の取得・切替（v1.6新設） |
 | `api/docs/route.ts` | GET | 共有ドキュメント取得 |
+| `api/docs/policy/route.ts` | POST | 組織方針保存 |
+| `api/docs/policy/direction/route.ts` | POST | AI組織方針の方向性提案 |
+| `api/docs/policy/draft/route.ts` | POST | AI組織方針ドラフト生成 |
+| `api/docs/policy/refine/route.ts` | POST | AI組織方針リファイン |
 | `api/team/matrix/route.ts` | GET | チームマトリクス取得（期間別の目標・1on1・評価ステータス） |
 
 ### 9.4 コンポーネント（`web-demo/src/components/`）
@@ -1051,6 +1083,33 @@ data/          ← 個人情報・機密データ全体
 | `dashboard/TeamMatrixView.tsx` | Client | チームマトリクスビューのコンテナ（ツールバー：期間セレクター + チームフィルター + サマリーチップ） |
 | `dashboard/TeamMatrixTable.tsx` | Client | チームマトリクスのテーブル本体（メンバー行 × ステータス列） |
 | `dashboard/MatrixCell.tsx` | Server | マトリクスセル（○/×/－ のステータス表示） |
+| `one-on-one/OneOnOneWizard.tsx` | Client | 1on1ウィザード本体（useReducer + 5ステップ描画） |
+| `one-on-one/OneOnOneStepper.tsx` | Client | ステッパーUI（5ステップの進捗表示） |
+| `one-on-one/OOCompletionScreen.tsx` | Client | 1on1ウィザード完了画面（保存確認 + サマリー表示） |
+| `one-on-one/steps/OOStep1ActionReview.tsx` | Client | Step1: 前回アクションアイテム振り返り |
+| `one-on-one/steps/OOStep2GoalProgress.tsx` | Client | Step2: 目標進捗確認 |
+| `one-on-one/steps/OOStep3Condition.tsx` | Client | Step3: コンディション入力（モチベーション/業務負荷/チーム関係） |
+| `one-on-one/steps/OOStep4Hearing.tsx` | Client | Step4: AI ヒアリング質問生成 + メモ入力 |
+| `one-on-one/steps/OOStep5NextActions.tsx` | Client | Step5: ネクストアクション設定 |
+| `evaluation/EvaluationWizard.tsx` | Client | 評価ウィザード本体（useReducer + 4ステップ描画） |
+| `evaluation/EvaluationStepper.tsx` | Client | ステッパーUI（4ステップの進捗表示） |
+| `evaluation/EvalCompletionScreen.tsx` | Client | 評価ウィザード完了画面（保存確認 + ドラフト表示） |
+| `evaluation/steps/EvalStep1Materials.tsx` | Client | Step1: 評価資料確認（目標・1on1記録・前期評価） |
+| `evaluation/steps/EvalStep2AIDraft.tsx` | Client | Step2: AI評価ドラフト生成 |
+| `evaluation/steps/EvalStep3Review.tsx` | Client | Step3: ドラフト確認・編集 |
+| `evaluation/steps/EvalStep4Comment.tsx` | Client | Step4: AI評価者コメント生成 |
+| `docs/PolicyWizard.tsx` | Client | 組織方針ウィザード本体（useReducer + 7ステップ描画） |
+| `docs/PolicyStepper.tsx` | Client | ステッパーUI（7ステップの進捗表示） |
+| `docs/PolicyStepComplete.tsx` | Client | 組織方針ウィザード完了画面（保存確認） |
+| `docs/steps/PolicyStep1Year.tsx` | Client | Step1: 対象年度・策定タイプ選択（継続/新規） |
+| `docs/steps/PolicyStep2AReview.tsx` | Client | Step2A: 前年度振り返り（継続策定ルート） |
+| `docs/steps/PolicyStep2BCurrentState.tsx` | Client | Step2B: 組織現状入力（新規策定ルート） |
+| `docs/steps/PolicyStep3AThemes.tsx` | Client | Step3A: 注力テーマ入力（継続策定ルート） |
+| `docs/steps/PolicyStep3BUpperPolicy.tsx` | Client | Step3B: 上位組織方針入力（新規策定ルート） |
+| `docs/steps/PolicyStep4Direction.tsx` | Client | Step4: AI方向性提案 |
+| `docs/steps/PolicyStep5Draft.tsx` | Client | Step5: AI組織方針ドラフト生成 |
+| `docs/steps/PolicyStep6Refine.tsx` | Client | Step6: ドラフト壁打ち・リファイン |
+| `docs/steps/PolicyStep7Confirm.tsx` | Client | Step7: 最終確認・保存 |
 
 ### 9.5 ライブラリ（`web-demo/src/lib/`）
 
@@ -1061,11 +1120,23 @@ data/          ← 個人情報・機密データ全体
 | `lib/fs/members.ts` | メンバーデータ読み取り（getMemberNames, getAllMemberSummaries, getMemberDetail, parseReview, getTeamPeriodMatrix, getAvailablePeriods）。getMemberNames は `profile.md` が存在するディレクトリのみをメンバーとして認識する |
 | `lib/fs/shared-docs.ts` | 共有ドキュメント読み取り（loadSharedDocs） |
 | `lib/parsers/profile.ts` | プロフィールパーサー（extractField, parseProjectLine, deriveTeamShort, parseProfile） |
-| `lib/parsers/goals.ts` | 目標パーサー（parseGoals） |
+| `lib/parsers/goals.ts` | 目標パーサー（parseGoals）。rawMarkdown から期間・メンバー名を抽出 |
+| `lib/parsers/goals-entries.ts` | 目標エントリパーサー。目標本文を個別エントリ（実行目標/挑戦目標/インパクト目標）に分解 |
+| `lib/parsers/one-on-one.ts` | 1on1記録パーサー（parseOneOnOneRecord, parseActionItems, parseConditionScore, parseSummary） |
 | `lib/ai/call-claude.ts` | Claude API 呼び出し（Azure AI Foundry / Anthropic デュアルパス + hasApiKey） |
 | ~~`lib/mock/responses.ts`~~ | ~~モックレスポンス（キーワードマッチング + フォールバック）~~ **v1.5で廃止予定 → v1.6で削除済み** |
 | `lib/prompts/diagnosis.ts` | 診断サマリー用プロンプト（buildDiagnosisSystemPrompt, buildDiagnosisUserMessage） |
 | `lib/prompts/goal-generation.ts` | 目標生成用プロンプト（buildGoalGenerationSystemPrompt, buildGoalGenerationUserMessage） |
+| `lib/prompts/goal-edit.ts` | 目標編集用プロンプト（buildGoalEditSystemPrompt, buildGoalEditUserMessage） |
+| `lib/prompts/one-on-one-questions.ts` | 1on1ヒアリング質問生成プロンプト（buildOOQuestionsSystemPrompt, buildOOQuestionsUserMessage） |
+| `lib/prompts/one-on-one-summary.ts` | 1on1引き継ぎサマリー生成プロンプト（buildOOSummarySystemPrompt, buildOOSummaryUserMessage） |
+| `lib/prompts/evaluation-draft.ts` | 評価ドラフト生成プロンプト（buildEvalDraftSystemPrompt, buildEvalDraftUserMessage） |
+| `lib/prompts/evaluation-comment.ts` | 評価者コメント生成プロンプト（buildEvalCommentSystemPrompt, buildEvalCommentUserMessage） |
+| `lib/prompts/policy-direction.ts` | 組織方針の方向性提案プロンプト（buildPolicyDirectionSystemPrompt, buildPolicyDirectionUserMessage） |
+| `lib/prompts/policy-draft.ts` | 組織方針ドラフト生成プロンプト（buildPolicyDraftSystemPrompt, buildPolicyDraftUserMessage） |
+| `lib/prompts/policy-refine.ts` | 組織方針リファインプロンプト（buildPolicyRefineSystemPrompt, buildPolicyRefineUserMessage） |
+| `lib/utils/period.ts` | 期間管理ユーティリティ（getActivePeriod, parsePeriod, formatPeriodLabel, getAvailablePeriods） |
+| `lib/team-colors.ts` | チームカラー定義（Flutter/KMP/Producer/その他のTailwindクラスマッピング） |
 
 ### 9.6 フック（`web-demo/src/hooks/`）
 
@@ -1155,7 +1226,7 @@ data/          ← 個人情報・機密データ全体
 
 #### Step1: 前回アクションアイテム振り返り
 
-**コンポーネント名**：`OOStep1PreviousActions`
+**コンポーネント名**：`OOStep1ActionReview`
 
 **表示内容**：
 - 前回の1on1記録（`one-on-one/YYYY-MM.md`）からアクションアイテムを自動ロード
@@ -1362,7 +1433,7 @@ data/          ← 個人情報・機密データ全体
 
 #### Step5: ネクストアクション設定
 
-**コンポーネント名**：`OOStep5Actions`
+**コンポーネント名**：`OOStep5NextActions`
 
 **表示内容**：
 - 次回までのアクションアイテムを複数登録する
@@ -1409,7 +1480,7 @@ data/          ← 個人情報・機密データ全体
 
 #### 完了画面
 
-**コンポーネント名**：`OOStepComplete`
+**コンポーネント名**：`OOCompletionScreen`
 
 **表示内容**：
 - 完了メッセージ：「1on1記録を保存しました」
@@ -1528,7 +1599,7 @@ export interface OneOnOneWizardContextData {
 
 - 日付：YYYY-MM-DD
 - メンバー：{名前}
-- 実施者：比良津暁
+- 実施者：日向彰治
 
 ## 前回アクションアイテム振り返り
 
@@ -2107,12 +2178,12 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 |------------|------|------|
 | `web-demo/src/components/one-on-one/OneOnOneWizard.tsx` | Client Component | 1on1ウィザード本体（useReducer + 5ステップ描画） |
 | `web-demo/src/components/one-on-one/OneOnOneStepper.tsx` | Client Component | ステッパーUI（5ステップの進捗表示） |
-| `web-demo/src/components/one-on-one/steps/OOStep1PreviousActions.tsx` | Client Component | Step1: 前回アクションアイテム振り返り |
+| `web-demo/src/components/one-on-one/steps/OOStep1ActionReview.tsx` | Client Component | Step1: 前回アクションアイテム振り返り |
 | `web-demo/src/components/one-on-one/steps/OOStep2GoalProgress.tsx` | Client Component | Step2: 目標進捗確認 |
 | `web-demo/src/components/one-on-one/steps/OOStep3Condition.tsx` | Client Component | Step3: コンディション確認 |
 | `web-demo/src/components/one-on-one/steps/OOStep4Hearing.tsx` | Client Component | Step4: AIヒアリング質問 + メモ |
-| `web-demo/src/components/one-on-one/steps/OOStep5Actions.tsx` | Client Component | Step5: ネクストアクション設定 |
-| `web-demo/src/components/one-on-one/steps/OOStepComplete.tsx` | Client Component | 完了画面 |
+| `web-demo/src/components/one-on-one/steps/OOStep5NextActions.tsx` | Client Component | Step5: ネクストアクション設定 |
+| `web-demo/src/components/one-on-one/steps/OOCompletionScreen.tsx` | Client Component | 完了画面 |
 | `web-demo/src/app/api/members/[name]/one-on-one/route.ts` | API Route | 1on1記録保存 |
 | `web-demo/src/app/api/members/[name]/one-on-one/questions/route.ts` | API Route | AIヒアリング質問生成 |
 | `web-demo/src/app/api/members/[name]/one-on-one/summary/route.ts` | API Route | AI引き継ぎサマリー生成 |
@@ -2156,12 +2227,12 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 
 1. `OneOnOneStepper.tsx` を実装（5ステップ進捗バー）
 2. `OneOnOneWizard.tsx` を実装（useReducer + 全体レイアウト）
-3. `OOStep1PreviousActions.tsx` を実装（前回振り返り）
+3. `OOStep1ActionReview.tsx` を実装（前回振り返り）
 4. `OOStep2GoalProgress.tsx` を実装（目標進捗 + タイムライン警告）
 5. `OOStep3Condition.tsx` を実装（コンディション + 前月比）
 6. `OOStep4Hearing.tsx` を実装（AI質問 + メモ）
-7. `OOStep5Actions.tsx` を実装（ネクストアクション）
-8. `OOStepComplete.tsx` を実装（完了画面 + サマリー表示）
+7. `OOStep5NextActions.tsx` を実装（ネクストアクション）
+8. `OOCompletionScreen.tsx` を実装（完了画面 + サマリー表示）
 
 #### フェーズ4: 統合・テスト（見積：0.5日）
 
@@ -2226,7 +2297,7 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 
 #### ステッパー
 
-`ReviewStepper` コンポーネントで4ステップの進捗を視覚的に表示する。`WizardStepper` / `OneOnOneStepper` と同一のUIパターンを採用し、ステップ数のみ4に変更する。
+`EvaluationStepper` コンポーネントで4ステップの進捗を視覚的に表示する。`WizardStepper` / `OneOnOneStepper` と同一のUIパターンを採用し、ステップ数のみ4に変更する。
 
 ステップラベル：
 1. 素材収集
@@ -2236,7 +2307,7 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 
 #### Step1: 評価素材の自動収集 + 自己評価入力
 
-**コンポーネント名**：`ReviewStep1Materials`
+**コンポーネント名**：`EvalStep1Materials`
 
 **表示内容**：
 - 自動収集された評価素材（目標データ、1on1記録、プロフィール情報）を一覧表示
@@ -2321,7 +2392,7 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 
 #### Step2: AI評価ドラフト生成
 
-**コンポーネント名**：`ReviewStep2Draft`
+**コンポーネント名**：`EvalStep2AIDraft`
 
 **表示内容**：
 - AIが生成した評価ドラフトを表示
@@ -2384,7 +2455,7 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 
 #### Step3: マネージャー確認・修正
 
-**コンポーネント名**：`ReviewStep3Edit`
+**コンポーネント名**：`EvalStep3Review`
 
 **表示内容**：
 - AI評価ドラフトの各項目を編集可能な状態で表示
@@ -2448,7 +2519,7 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 
 #### Step4: AI評価者コメント生成
 
-**コンポーネント名**：`ReviewStep4Comment`
+**コンポーネント名**：`EvalStep4Comment`
 
 **表示内容**：
 - AIが生成した評価者コメント（200〜300文字）を表示
@@ -2496,7 +2567,7 @@ export function getTimelineWarning(goalBody: string, currentDate: Date): {
 
 #### 完了画面
 
-**コンポーネント名**：`ReviewStepComplete`
+**コンポーネント名**：`EvalCompletionScreen`
 
 **表示内容**：
 - 完了メッセージ：「評価を保存しました」
@@ -3142,13 +3213,13 @@ export interface EvaluationWizardContextData {
 
 | ファイルパス | 種類 | 役割 |
 |------------|------|------|
-| `web-demo/src/components/reviews/ReviewWizard.tsx` | Client Component | 評価ウィザード本体（useReducer + 4ステップ描画） |
-| `web-demo/src/components/reviews/ReviewStepper.tsx` | Client Component | ステッパーUI（4ステップの進捗表示） |
-| `web-demo/src/components/reviews/steps/ReviewStep1Materials.tsx` | Client Component | Step1: 評価素材の自動収集 + 自己評価入力 |
-| `web-demo/src/components/reviews/steps/ReviewStep2Draft.tsx` | Client Component | Step2: AI評価ドラフト表示 |
-| `web-demo/src/components/reviews/steps/ReviewStep3Edit.tsx` | Client Component | Step3: マネージャー確認・修正 |
-| `web-demo/src/components/reviews/steps/ReviewStep4Comment.tsx` | Client Component | Step4: AI評価者コメント生成 + 編集 |
-| `web-demo/src/components/reviews/ReviewStepComplete.tsx` | Client Component | 完了画面（評価サマリー + 次期目標誘導） |
+| `web-demo/src/components/evaluation/ReviewWizard.tsx` | Client Component | 評価ウィザード本体（useReducer + 4ステップ描画） |
+| `web-demo/src/components/evaluation/EvaluationStepper.tsx` | Client Component | ステッパーUI（4ステップの進捗表示） |
+| `web-demo/src/components/evaluation/steps/EvalStep1Materials.tsx` | Client Component | Step1: 評価素材の自動収集 + 自己評価入力 |
+| `web-demo/src/components/evaluation/steps/EvalStep2AIDraft.tsx` | Client Component | Step2: AI評価ドラフト表示 |
+| `web-demo/src/components/evaluation/steps/EvalStep3Review.tsx` | Client Component | Step3: マネージャー確認・修正 |
+| `web-demo/src/components/evaluation/steps/EvalStep4Comment.tsx` | Client Component | Step4: AI評価者コメント生成 + 編集 |
+| `web-demo/src/components/evaluation/EvalCompletionScreen.tsx` | Client Component | 完了画面（評価サマリー + 次期目標誘導） |
 | `web-demo/src/app/api/members/[name]/reviews/route.ts` | API Route | 評価保存 |
 | `web-demo/src/app/api/members/[name]/reviews/draft/route.ts` | API Route | AI評価ドラフト生成 |
 | `web-demo/src/app/api/members/[name]/reviews/comment/route.ts` | API Route | AI評価者コメント生成 |
@@ -3193,13 +3264,13 @@ export interface EvaluationWizardContextData {
 
 #### フェーズ3: ウィザードUI（見積：2.5日）
 
-1. `ReviewStepper.tsx` を実装（4ステップ進捗バー）
+1. `EvaluationStepper.tsx` を実装（4ステップ進捗バー）
 2. `ReviewWizard.tsx` を実装（useReducer + 全体レイアウト）
-3. `ReviewStep1Materials.tsx` を実装（自動収集表示 + 自己評価入力 + マネージャー補足入力）
-4. `ReviewStep2Draft.tsx` を実装（AI評価ドラフト表示）
-5. `ReviewStep3Edit.tsx` を実装（評価グレード・根拠の編集 + 変更検知 + 変更理由入力）
-6. `ReviewStep4Comment.tsx` を実装（AI評価者コメント表示 + 編集）
-7. `ReviewStepComplete.tsx` を実装（完了画面 + 次期目標誘導）
+3. `EvalStep1Materials.tsx` を実装（自動収集表示 + 自己評価入力 + マネージャー補足入力）
+4. `EvalStep2AIDraft.tsx` を実装（AI評価ドラフト表示）
+5. `EvalStep3Review.tsx` を実装（評価グレード・根拠の編集 + 変更検知 + 変更理由入力）
+6. `EvalStep4Comment.tsx` を実装（AI評価者コメント表示 + 編集）
+7. `EvalCompletionScreen.tsx` を実装（完了画面 + 次期目標誘導）
 
 #### フェーズ4: 統合・連携テスト（見積：1日）
 
@@ -4439,6 +4510,8 @@ export function DocsTabs({ docs }: DocsTabsProps) {
 | 年度変更時の挙動 | なし | `GET /api/docs?year={year}` でAPIから取得してコンテンツを更新 |
 
 ### 14.6 組織方針ウィザード（PolicyWizard）— 7ステップ分岐フロー
+
+> **実装ステータス**：実装済み（v2.4時点）。`components/docs/` 配下に PolicyWizard.tsx / PolicyStepper.tsx / PolicyStepComplete.tsx および steps/ 配下の各ステップコンポーネントが存在する。
 
 #### 14.6.1 概要・方針
 
@@ -5950,7 +6023,7 @@ interface PolicyWizardProps {
 
 ## 15. 既知の未実装事項（バックログ）
 
-v2.2時点で設計済みだが未実装の項目を以下に記録する。各項目は推奨対応時期に達した段階で実装を検討すること。
+v2.4時点で設計済みだが未実装の項目を以下に記録する。各項目は推奨対応時期に達した段階で実装を検討すること。
 
 | # | 内容 | 優先度 | 推奨対応時期 | 関連セクション |
 |---|------|--------|------------|--------------|
