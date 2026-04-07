@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getAllMemberSummaries } from '@/lib/fs/members'
+import { getAllMemberSummaries, isMemberDataDirectoryError } from '@/lib/fs/members'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +9,16 @@ export async function GET() {
     return NextResponse.json({ members })
   } catch (error) {
     console.error('Failed to read member data:', error)
+    if (isMemberDataDirectoryError(error)) {
+      return NextResponse.json(
+        {
+          error: error.code,
+          message: error.hint,
+          mode: error.mode,
+        },
+        { status: 500 }
+      )
+    }
     return NextResponse.json({ error: 'Failed to read member data' }, { status: 500 })
   }
 }

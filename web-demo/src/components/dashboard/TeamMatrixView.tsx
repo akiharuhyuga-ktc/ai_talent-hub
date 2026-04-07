@@ -37,16 +37,24 @@ export function TeamMatrixView({ activePeriod, today }: TeamMatrixViewProps) {
   const [matrix, setMatrix] = useState<TeamPeriodMatrix | null>(null)
   const [availablePeriods, setAvailablePeriods] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const fetchMatrix = useCallback(async (period: string) => {
     setLoading(true)
+    setErrorMessage(null)
     try {
       const res = await fetch(`/api/team/matrix?period=${encodeURIComponent(period)}`)
       const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'チームマトリクスを取得できませんでした。')
+      }
       setMatrix(data.matrix)
       setAvailablePeriods(data.availablePeriods || [])
     } catch (err) {
       console.error('Failed to fetch team matrix:', err)
+      setMatrix(null)
+      setAvailablePeriods([])
+      setErrorMessage(err instanceof Error ? err.message : 'チームマトリクスを取得できませんでした。')
     } finally {
       setLoading(false)
     }
@@ -166,6 +174,11 @@ export function TeamMatrixView({ activePeriod, today }: TeamMatrixViewProps) {
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-200 border-t-brand-600" />
           <span className="ml-3 text-lg text-gray-500">読み込み中...</span>
+        </div>
+      ) : errorMessage ? (
+        <div className="rounded-radius-xl border border-amber-200 bg-amber-50 p-6 text-gray-800">
+          <h2 className="text-xl font-semibold text-amber-900">チームマトリクスを読み込めません</h2>
+          <p className="mt-3 text-sm leading-6">{errorMessage}</p>
         </div>
       ) : (
         <TeamMatrixTable members={filteredMembers} period={selectedPeriod} today={today} />
