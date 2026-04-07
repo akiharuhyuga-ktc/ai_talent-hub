@@ -20,7 +20,6 @@ export async function GET(req: NextRequest) {
           error: error.code,
           message: error.hint,
           mode: error.mode,
-          directoryPath: error.directoryPath,
         },
         { status: 500 }
       )
