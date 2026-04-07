@@ -16,6 +16,15 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Data Path Notes
+
+This demo switches the member data directory based on `data/.demo-mode.json`.
+
+- `{"enabled": true}`: reads `data/demo-members`
+- `{"enabled": false}`: reads `data/members`
+
+If the selected directory does not exist, the dashboard and team matrix now show a configuration error message instead of a raw `ENOENT` stack trace.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

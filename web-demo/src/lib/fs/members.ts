@@ -1,10 +1,42 @@
 import fs from 'fs'
 import path from 'path'
-import { getMembersDir } from './paths'
+import { DEMO_MEMBERS_DIR, DEMO_MODE_FILE, MEMBERS_DIR, getMembersDir, isDemoMode } from './paths'
 import { parseProfile } from '../parsers/profile'
 import { parseGoals } from '../parsers/goals'
 import { getActivePeriod, parsePeriodFromFilename, sortPeriods, getOneOnOnePeriod, PERIOD_CONFIG } from '../utils/period'
 import type { MemberSummary, MemberDetail, OneOnOneRecord, ReviewData, GoalsData, GoalEvaluation, EvaluationGrade, MemberPeriodStatus, TeamPeriodMatrix } from '../types'
+
+export class MemberDataDirectoryError extends Error {
+  readonly code = 'MEMBER_DATA_DIRECTORY_MISSING'
+  readonly mode: 'demo' | 'standard'
+  readonly directoryPath: string
+  readonly hint: string
+
+  constructor() {
+    const demoMode = isDemoMode()
+    const mode = demoMode ? 'demo' : 'standard'
+    const directoryPath = demoMode ? DEMO_MEMBERS_DIR : MEMBERS_DIR
+    const hint = demoMode
+      ? `デモモードが有効ですが、${directoryPath} が存在しません。data/demo-members を配置するか、${DEMO_MODE_FILE} の enabled を false にしてください。`
+      : `デモモードが無効のため ${directoryPath} を参照しています。通常データを使わない場合は ${DEMO_MODE_FILE} の enabled を true にしてください。`
+
+    super(`Member data directory not found: ${directoryPath}`)
+    this.name = 'MemberDataDirectoryError'
+    this.mode = mode
+    this.directoryPath = directoryPath
+    this.hint = hint
+  }
+}
+
+function ensureMembersDirExists(membersDir: string): void {
+  if (!fs.existsSync(membersDir)) {
+    throw new MemberDataDirectoryError()
+  }
+}
+
+export function isMemberDataDirectoryError(error: unknown): error is MemberDataDirectoryError {
+  return error instanceof MemberDataDirectoryError
+}
 
 /**
  * Decode + resolve member name to a safe directory path.
@@ -24,6 +56,7 @@ export function safeMemberDir(encodedName: string): string {
 
 export function getMemberNames(): string[] {
   const membersDir = getMembersDir()
+  ensureMembersDirExists(membersDir)
   return fs.readdirSync(membersDir)
     .filter(name => {
       const full = path.join(membersDir, name)
@@ -40,6 +73,7 @@ export function getMemberNames(): string[] {
 
 export function getAllMemberSummaries(): MemberSummary[] {
   const membersDir = getMembersDir()
+  ensureMembersDirExists(membersDir)
   return getMemberNames().map(name => {
     const profilePath = path.join(membersDir, name, 'profile.md')
     if (!fs.existsSync(profilePath)) return null
