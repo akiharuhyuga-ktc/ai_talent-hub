@@ -42,7 +42,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <dt className="font-semibold">参照先ディレクトリ</dt>
-              <dd>{error.directoryPath}</dd>
+              <dd>{error.mode === 'demo' ? 'data/demo-members' : 'data/members'}</dd>
             </div>
           </dl>
         </section>
