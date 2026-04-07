@@ -60,3 +60,6 @@ docs/presentations/
 
 # Superpowers（ローカル作業ファイル）
 docs/superpowers/
+
+# VS Code local MCP settings
+.vscode/mcp.json
