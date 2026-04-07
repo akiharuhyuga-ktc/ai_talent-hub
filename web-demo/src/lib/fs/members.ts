@@ -73,7 +73,6 @@ export function getMemberNames(): string[] {
 
 export function getAllMemberSummaries(): MemberSummary[] {
   const membersDir = getMembersDir()
-  ensureMembersDirExists(membersDir)
   return getMemberNames().map(name => {
     const profilePath = path.join(membersDir, name, 'profile.md')
     if (!fs.existsSync(profilePath)) return null
