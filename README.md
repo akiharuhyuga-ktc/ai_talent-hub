@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KTC Talent Hub
+
+このリポジトリの現行アプリは `frontend/` 配下の Next.js プロジェクトです。アプリの実装本体・依存関係・ビルド設定は `frontend/` に集約しています。
 
 ## Getting Started
 
-First, run the development server:
+アプリ起動や依存関係更新は `frontend/` で行います。
 
 ```bash
+cd frontend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+ブラウザで http://localhost:3000 を開くと、`frontend/` のアプリが起動します。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Repository Layout
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `frontend/`: 現行の Next.js アプリ本体
+- `data/`: メンバーデータとデモデータ
+- `talent-management/`: テンプレート、ガイドライン、共有ドキュメント
+- `docs/`: 設計メモと仕様書
+- `old/root-src/`: 廃止済みの旧ルート実装アーカイブ
 
-## Learn More
+## Data Layout
 
-To learn more about Next.js, take a look at the following resources:
+- メンバーデータは `data/` 配下に配置します。
+- `data/.demo-mode.json` が `{"enabled": true}` の場合は `data/demo-members` を参照します。
+- `data/.demo-mode.json` が `{"enabled": false}` の場合は `data/members` を参照します。
+- 参照先ディレクトリが存在しない場合、画面と API は設定エラーを返します。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- アプリの依存関係を更新したら、`frontend/` 側の lockfile が更新されます。
+- アプリの設定変更は `frontend/package.json`、`frontend/tsconfig.json`、`frontend/tailwind.config.ts` などを編集します。
+- 画面や API の挙動確認前に、`data/` 配下の構成がモード設定と一致していることを確認してください。
