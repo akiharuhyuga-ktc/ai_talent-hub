@@ -178,13 +178,13 @@ interface SingleGoal {
 
 | ファイル | 変更内容 |
 |---------|---------|
-| `web-demo/src/lib/parsers/goals.ts` | `parseGoalsToSections()`, `mergeGoalSections()` 追加、`SingleGoal` 型追加 |
-| `web-demo/src/lib/types.ts` | `SingleGoal` 型のexport（必要に応じて） |
-| `web-demo/src/components/goals/steps/Step7Refinement.tsx` | チェックボックスUI追加、カード表示、マージロジック追加 |
-| `web-demo/src/app/api/members/[name]/goals/generate/route.ts` | `targetGoalLabels` パラメータ対応、プロンプト分岐 |
-| `web-demo/src/components/member/GoalsTab.tsx` | 個別カード表示、編集・AI修正ボタン・フロー追加、ウィザードとの排他制御 |
-| `web-demo/src/app/api/members/[name]/goals/edit/route.ts` | 新規作成: 個別目標AI修正エンドポイント |
-| `web-demo/src/lib/prompts/goal-edit.ts` | 新規作成: 個別目標修正用プロンプト |
+| `frontend/src/lib/parsers/goals.ts` | `parseGoalsToSections()`, `mergeGoalSections()` 追加、`SingleGoal` 型追加 |
+| `frontend/src/lib/types.ts` | `SingleGoal` 型のexport（必要に応じて） |
+| `frontend/src/components/goals/steps/Step7Refinement.tsx` | チェックボックスUI追加、カード表示、マージロジック追加 |
+| `frontend/src/app/api/members/[name]/goals/generate/route.ts` | `targetGoalLabels` パラメータ対応、プロンプト分岐 |
+| `frontend/src/components/member/GoalsTab.tsx` | 個別カード表示、編集・AI修正ボタン・フロー追加、ウィザードとの排他制御 |
+| `frontend/src/app/api/members/[name]/goals/edit/route.ts` | 新規作成: 個別目標AI修正エンドポイント |
+| `frontend/src/lib/prompts/goal-edit.ts` | 新規作成: 個別目標修正用プロンプト |
 
 ### 既存データへの影響
 

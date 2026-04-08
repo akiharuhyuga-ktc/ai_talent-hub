@@ -14,32 +14,32 @@
 
 | Task | File | Action |
 |------|------|--------|
-| A2 | `web-demo/src/lib/fs/paths.ts` | Modify line 4 |
-| B1 | `web-demo/src/lib/fs/members.ts` | Add `safeMemberDir`, modify `getMemberDetail` |
-| B1 | `web-demo/src/app/api/members/[name]/goals/route.ts` | Add path guard |
-| B1 | `web-demo/src/app/api/members/[name]/one-on-one/route.ts` | Add path guard |
-| B1 | `web-demo/src/app/api/members/[name]/reviews/route.ts` | Add path guard |
-| A1 | `web-demo/src/components/evaluation/steps/EvalStep4Comment.tsx` | Fix request body fields |
-| C1 | `web-demo/src/hooks/useChat.ts` | Fix stale closure |
-| C2 | `web-demo/src/app/api/members/[name]/goals/generate/route.ts` | Validate role |
-| C3 | `web-demo/src/app/api/members/[name]/reviews/draft/route.ts` | Add maxDuration |
-| C4 | `web-demo/src/components/goals/steps/Step7Refinement.tsx` | Add error feedback |
-| C5 | `web-demo/src/app/api/chat/route.ts` | Add force-dynamic |
-| C6 | `web-demo/src/app/api/members/[name]/reviews/draft/route.ts` | Fix regex |
-| C7 | `web-demo/src/app/api/chat/route.ts` | Add orgPolicy to prompt |
-| C7 | `web-demo/src/app/api/members/[name]/one-on-one/summary/route.ts` | Add orgPolicy to prompt |
-| C7 | `web-demo/src/app/api/members/[name]/reviews/comment/route.ts` | Add orgPolicy to prompt |
+| A2 | `frontend/src/lib/fs/paths.ts` | Modify line 4 |
+| B1 | `frontend/src/lib/fs/members.ts` | Add `safeMemberDir`, modify `getMemberDetail` |
+| B1 | `frontend/src/app/api/members/[name]/goals/route.ts` | Add path guard |
+| B1 | `frontend/src/app/api/members/[name]/one-on-one/route.ts` | Add path guard |
+| B1 | `frontend/src/app/api/members/[name]/reviews/route.ts` | Add path guard |
+| A1 | `frontend/src/components/evaluation/steps/EvalStep4Comment.tsx` | Fix request body fields |
+| C1 | `frontend/src/hooks/useChat.ts` | Fix stale closure |
+| C2 | `frontend/src/app/api/members/[name]/goals/generate/route.ts` | Validate role |
+| C3 | `frontend/src/app/api/members/[name]/reviews/draft/route.ts` | Add maxDuration |
+| C4 | `frontend/src/components/goals/steps/Step7Refinement.tsx` | Add error feedback |
+| C5 | `frontend/src/app/api/chat/route.ts` | Add force-dynamic |
+| C6 | `frontend/src/app/api/members/[name]/reviews/draft/route.ts` | Fix regex |
+| C7 | `frontend/src/app/api/chat/route.ts` | Add orgPolicy to prompt |
+| C7 | `frontend/src/app/api/members/[name]/one-on-one/summary/route.ts` | Add orgPolicy to prompt |
+| C7 | `frontend/src/app/api/members/[name]/reviews/comment/route.ts` | Add orgPolicy to prompt |
 
 ---
 
 ### Task 1: A2 — ハードコードされた絶対パスを修正
 
 **Files:**
-- Modify: `web-demo/src/lib/fs/paths.ts:4`
+- Modify: `frontend/src/lib/fs/paths.ts:4`
 
 - [ ] **Step 1: Modify paths.ts to use environment variable or cwd**
 
-Replace line 4 in `web-demo/src/lib/fs/paths.ts`:
+Replace line 4 in `frontend/src/lib/fs/paths.ts`:
 
 ```typescript
 // Before (line 4):
@@ -50,21 +50,21 @@ const PROJECT_ROOT = process.env.TALENT_DATA_ROOT
   ?? path.resolve(process.cwd(), '..')
 ```
 
-This uses `TALENT_DATA_ROOT` env var if set, otherwise resolves to the parent of the Next.js app's working directory (`web-demo/..` = project root).
+This uses `TALENT_DATA_ROOT` env var if set, otherwise resolves to the parent of the Next.js app's working directory (`frontend/..` = project root).
 
 - [ ] **Step 2: Verify the app starts and dashboard loads**
 
 Run:
 ```bash
-cd web-demo && rm -rf .next && npm run build 2>&1 | tail -20
+cd frontend && rm -rf .next && npm run build 2>&1 | tail -20
 ```
 
-Expected: Build succeeds without errors. The resolved `PROJECT_ROOT` should point to `/Users/akiharu.hyuga/Documents/Talent_Management_AI` since `cwd()` in `web-demo/` resolves `..` to the project root.
+Expected: Build succeeds without errors. The resolved `PROJECT_ROOT` should point to `/Users/akiharu.hyuga/Documents/Talent_Management_AI` since `cwd()` in `frontend/` resolves `..` to the project root.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add web-demo/src/lib/fs/paths.ts
+git add frontend/src/lib/fs/paths.ts
 git commit -m "fix(A2): replace hardcoded absolute path with env var / cwd fallback"
 ```
 
@@ -73,14 +73,14 @@ git commit -m "fix(A2): replace hardcoded absolute path with env var / cwd fallb
 ### Task 2: B1 — パストラバーサル脆弱性の修正
 
 **Files:**
-- Modify: `web-demo/src/lib/fs/members.ts:53-56` (add `safeMemberDir`, update `getMemberDetail`)
-- Modify: `web-demo/src/app/api/members/[name]/goals/route.ts:14-15`
-- Modify: `web-demo/src/app/api/members/[name]/one-on-one/route.ts:13-14`
-- Modify: `web-demo/src/app/api/members/[name]/reviews/route.ts:14-15`
+- Modify: `frontend/src/lib/fs/members.ts:53-56` (add `safeMemberDir`, update `getMemberDetail`)
+- Modify: `frontend/src/app/api/members/[name]/goals/route.ts:14-15`
+- Modify: `frontend/src/app/api/members/[name]/one-on-one/route.ts:13-14`
+- Modify: `frontend/src/app/api/members/[name]/reviews/route.ts:14-15`
 
 - [ ] **Step 1: Add `safeMemberDir` helper to `members.ts`**
 
-Add this function after the existing imports (before `getMemberNames`) in `web-demo/src/lib/fs/members.ts`:
+Add this function after the existing imports (before `getMemberNames`) in `frontend/src/lib/fs/members.ts`:
 
 ```typescript
 /**
@@ -102,7 +102,7 @@ export function safeMemberDir(encodedName: string): string {
 
 - [ ] **Step 2: Update `getMemberDetail` to use `safeMemberDir`**
 
-Replace lines 53-57 in `web-demo/src/lib/fs/members.ts`:
+Replace lines 53-57 in `frontend/src/lib/fs/members.ts`:
 
 ```typescript
 // Before:
@@ -125,7 +125,7 @@ export function getMemberDetail(encodedName: string): MemberDetail | null {
 
 - [ ] **Step 3: Update `goals/route.ts` to use `safeMemberDir`**
 
-Replace lines 1-18 in `web-demo/src/app/api/members/[name]/goals/route.ts`:
+Replace lines 1-18 in `frontend/src/app/api/members/[name]/goals/route.ts`:
 
 ```typescript
 import fs from 'fs'
@@ -157,7 +157,7 @@ The rest of the function remains unchanged — it already uses `memberDir` and `
 
 - [ ] **Step 4: Update `one-on-one/route.ts` to use `safeMemberDir`**
 
-Replace lines 1-17 in `web-demo/src/app/api/members/[name]/one-on-one/route.ts`:
+Replace lines 1-17 in `frontend/src/app/api/members/[name]/one-on-one/route.ts`:
 
 ```typescript
 import fs from 'fs'
@@ -188,7 +188,7 @@ The rest of the function remains unchanged.
 
 - [ ] **Step 5: Update `reviews/route.ts` to use `safeMemberDir`**
 
-Replace lines 1-18 in `web-demo/src/app/api/members/[name]/reviews/route.ts`:
+Replace lines 1-18 in `frontend/src/app/api/members/[name]/reviews/route.ts`:
 
 ```typescript
 import fs from 'fs'
@@ -247,7 +247,7 @@ if (!/^\d{4}-h[12]$/.test(filename)) {
 
 Run:
 ```bash
-cd web-demo && rm -rf .next && npm run build 2>&1 | tail -20
+cd frontend && rm -rf .next && npm run build 2>&1 | tail -20
 ```
 
 Expected: Build succeeds.
@@ -255,10 +255,10 @@ Expected: Build succeeds.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add web-demo/src/lib/fs/members.ts \
-  web-demo/src/app/api/members/\[name\]/goals/route.ts \
-  web-demo/src/app/api/members/\[name\]/one-on-one/route.ts \
-  web-demo/src/app/api/members/\[name\]/reviews/route.ts
+git add frontend/src/lib/fs/members.ts \
+  frontend/src/app/api/members/\[name\]/goals/route.ts \
+  frontend/src/app/api/members/\[name\]/one-on-one/route.ts \
+  frontend/src/app/api/members/\[name\]/reviews/route.ts
 git commit -m "fix(B1): add path traversal guard with safeMemberDir + filename validation"
 ```
 
@@ -267,7 +267,7 @@ git commit -m "fix(B1): add path traversal guard with safeMemberDir + filename v
 ### Task 3: A1 — EvalStep4Comment とAPIのフィールド不整合を修正
 
 **Files:**
-- Modify: `web-demo/src/components/evaluation/steps/EvalStep4Comment.tsx:36-44`
+- Modify: `frontend/src/components/evaluation/steps/EvalStep4Comment.tsx:36-44`
 
 - [ ] **Step 1: Fix the request body in EvalStep4Comment.tsx**
 
@@ -275,7 +275,7 @@ The API route (`reviews/comment/route.ts` lines 21-28) expects: `goalEvaluations
 
 The type `EvaluationDraft` has fields: `goalEvaluations`, `overallGrade`, `overallRationale`, `selfEvalGap`, `specialNotes`.
 
-Replace lines 36-44 in `web-demo/src/components/evaluation/steps/EvalStep4Comment.tsx`:
+Replace lines 36-44 in `frontend/src/components/evaluation/steps/EvalStep4Comment.tsx`:
 
 ```typescript
           body: JSON.stringify({
@@ -293,7 +293,7 @@ This sends exactly the fields the API route expects, destructured from `state.co
 
 Run:
 ```bash
-cd web-demo && rm -rf .next && npm run build 2>&1 | tail -20
+cd frontend && rm -rf .next && npm run build 2>&1 | tail -20
 ```
 
 Expected: Build succeeds.
@@ -301,7 +301,7 @@ Expected: Build succeeds.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add web-demo/src/components/evaluation/steps/EvalStep4Comment.tsx
+git add frontend/src/components/evaluation/steps/EvalStep4Comment.tsx
 git commit -m "fix(A1): align EvalStep4Comment request body with reviews/comment API contract"
 ```
 
@@ -310,11 +310,11 @@ git commit -m "fix(A1): align EvalStep4Comment request body with reviews/comment
 ### Task 4: C1 — useChat stale closure 修正
 
 **Files:**
-- Modify: `web-demo/src/hooks/useChat.ts`
+- Modify: `frontend/src/hooks/useChat.ts`
 
 - [ ] **Step 1: Fix stale closure by using a ref for messages**
 
-Replace the relevant section of `web-demo/src/hooks/useChat.ts`. The fix uses a `messagesRef` to always read the latest value:
+Replace the relevant section of `frontend/src/hooks/useChat.ts`. The fix uses a `messagesRef` to always read the latest value:
 
 Add after line 15 (`const abortRef = ...`):
 ```typescript
@@ -336,7 +336,7 @@ And update the dependency array on line 87 to remove `messages`:
 
 Run:
 ```bash
-cd web-demo && rm -rf .next && npm run build 2>&1 | tail -20
+cd frontend && rm -rf .next && npm run build 2>&1 | tail -20
 ```
 
 Expected: Build succeeds.
@@ -344,7 +344,7 @@ Expected: Build succeeds.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add web-demo/src/hooks/useChat.ts
+git add frontend/src/hooks/useChat.ts
 git commit -m "fix(C1): use messagesRef to prevent stale closure in useChat sendMessage"
 ```
 
@@ -353,11 +353,11 @@ git commit -m "fix(C1): use messagesRef to prevent stale closure in useChat send
 ### Task 5: C2 — refinementMessages のrole検証
 
 **Files:**
-- Modify: `web-demo/src/app/api/members/[name]/goals/generate/route.ts:38-42`
+- Modify: `frontend/src/app/api/members/[name]/goals/generate/route.ts:38-42`
 
 - [ ] **Step 1: Add role validation**
 
-Replace lines 38-42 in `web-demo/src/app/api/members/[name]/goals/generate/route.ts`:
+Replace lines 38-42 in `frontend/src/app/api/members/[name]/goals/generate/route.ts`:
 
 ```typescript
     if (body.refinementMessages && body.refinementMessages.length > 0) {
@@ -372,7 +372,7 @@ Replace lines 38-42 in `web-demo/src/app/api/members/[name]/goals/generate/route
 - [ ] **Step 2: Commit**
 
 ```bash
-git add web-demo/src/app/api/members/\[name\]/goals/generate/route.ts
+git add frontend/src/app/api/members/\[name\]/goals/generate/route.ts
 git commit -m "fix(C2): validate refinementMessages role to prevent system prompt injection"
 ```
 
@@ -381,11 +381,11 @@ git commit -m "fix(C2): validate refinementMessages role to prevent system promp
 ### Task 6: C3 + C6 — reviews/draft のタイムアウト対策 + 正規表現修正
 
 **Files:**
-- Modify: `web-demo/src/app/api/members/[name]/reviews/draft/route.ts`
+- Modify: `frontend/src/app/api/members/[name]/reviews/draft/route.ts`
 
 - [ ] **Step 1: Add maxDuration and fix extractJson regex**
 
-In `web-demo/src/app/api/members/[name]/reviews/draft/route.ts`:
+In `frontend/src/app/api/members/[name]/reviews/draft/route.ts`:
 
 After `export const dynamic = 'force-dynamic'` (line 6), add:
 ```typescript
@@ -410,7 +410,7 @@ function extractJson(text: string): unknown | null {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add web-demo/src/app/api/members/\[name\]/reviews/draft/route.ts
+git add frontend/src/app/api/members/\[name\]/reviews/draft/route.ts
 git commit -m "fix(C3,C6): add maxDuration=120 and fix greedy JSON extraction regex"
 ```
 
@@ -419,7 +419,7 @@ git commit -m "fix(C3,C6): add maxDuration=120 and fix greedy JSON extraction re
 ### Task 7: C4 — Step7Refinement の保存エラーフィードバック追加
 
 **Files:**
-- Modify: `web-demo/src/components/goals/steps/Step7Refinement.tsx:100-117`
+- Modify: `frontend/src/components/goals/steps/Step7Refinement.tsx:100-117`
 
 - [ ] **Step 1: Add error state and user feedback**
 
@@ -462,7 +462,7 @@ Then add error display in the JSX. Find the area just before the `{saved ? (` bl
 - [ ] **Step 2: Commit**
 
 ```bash
-git add web-demo/src/components/goals/steps/Step7Refinement.tsx
+git add frontend/src/components/goals/steps/Step7Refinement.tsx
 git commit -m "fix(C4): show error message when goal save fails in Step7Refinement"
 ```
 
@@ -471,13 +471,13 @@ git commit -m "fix(C4): show error message when goal save fails in Step7Refineme
 ### Task 8: C5 + C7 — chat/route.ts に force-dynamic 追加 + orgPolicy をプロンプトに含める
 
 **Files:**
-- Modify: `web-demo/src/app/api/chat/route.ts`
-- Modify: `web-demo/src/app/api/members/[name]/one-on-one/summary/route.ts`
-- Modify: `web-demo/src/app/api/members/[name]/reviews/comment/route.ts`
+- Modify: `frontend/src/app/api/chat/route.ts`
+- Modify: `frontend/src/app/api/members/[name]/one-on-one/summary/route.ts`
+- Modify: `frontend/src/app/api/members/[name]/reviews/comment/route.ts`
 
 - [ ] **Step 1: Fix chat/route.ts — add force-dynamic and orgPolicy**
 
-In `web-demo/src/app/api/chat/route.ts`:
+In `frontend/src/app/api/chat/route.ts`:
 
 After line 4 (`import type { ChatRequest } ...`), add:
 ```typescript
@@ -493,7 +493,7 @@ Replace line 21 (the `shared.guidelines` line in the systemPrompt array):
 
 - [ ] **Step 2: Fix one-on-one/summary/route.ts — add orgPolicy context**
 
-In `web-demo/src/app/api/members/[name]/one-on-one/summary/route.ts`:
+In `frontend/src/app/api/members/[name]/one-on-one/summary/route.ts`:
 
 Add import for `loadSharedDocs` after line 2:
 ```typescript
@@ -515,7 +515,7 @@ Replace the `buildSummarySystemPrompt()` call on line 20:
 
 - [ ] **Step 3: Fix reviews/comment/route.ts — add orgPolicy context**
 
-In `web-demo/src/app/api/members/[name]/reviews/comment/route.ts`:
+In `frontend/src/app/api/members/[name]/reviews/comment/route.ts`:
 
 Add import for `loadSharedDocs` after line 2:
 ```typescript
@@ -539,7 +539,7 @@ Replace the `buildEvaluationCommentSystemPrompt()` call on line 20:
 
 Run:
 ```bash
-cd web-demo && rm -rf .next && npm run build 2>&1 | tail -20
+cd frontend && rm -rf .next && npm run build 2>&1 | tail -20
 ```
 
 Expected: Build succeeds.
@@ -547,9 +547,9 @@ Expected: Build succeeds.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add web-demo/src/app/api/chat/route.ts \
-  web-demo/src/app/api/members/\[name\]/one-on-one/summary/route.ts \
-  web-demo/src/app/api/members/\[name\]/reviews/comment/route.ts
+git add frontend/src/app/api/chat/route.ts \
+  frontend/src/app/api/members/\[name\]/one-on-one/summary/route.ts \
+  frontend/src/app/api/members/\[name\]/reviews/comment/route.ts
 git commit -m "fix(C5,C7): add force-dynamic to chat route + include orgPolicy in AI prompts"
 ```
 
@@ -560,7 +560,7 @@ git commit -m "fix(C5,C7): add force-dynamic to chat route + include orgPolicy i
 - [ ] **Step 1: Clean build (ビルドエラーがないこと)**
 
 ```bash
-cd web-demo && rm -rf .next && npm run build 2>&1 | tail -30
+cd frontend && rm -rf .next && npm run build 2>&1 | tail -30
 ```
 
 Expected: Build completes with no errors.
@@ -569,7 +569,7 @@ Expected: Build completes with no errors.
 
 dev serverを起動して手動で確認する:
 ```bash
-cd web-demo && npm run dev
+cd frontend && npm run dev
 ```
 
 確認手順:
@@ -605,3 +605,4 @@ git log --oneline -10
 ```
 
 Expected: 8 new commits corresponding to Tasks 1-8.
+
