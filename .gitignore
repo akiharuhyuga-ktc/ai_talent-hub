@@ -2,7 +2,7 @@
 .idea
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -64,3 +64,12 @@ docs/superpowers/
 
 # VS Code local MCP settings
 .vscode/mcp.json
+
+# Go
+backend/tmp/
+
+# Vite
+frontend/dist/
+
+# Docker
+docker-compose.override.yml

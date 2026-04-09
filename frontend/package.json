@@ -1,0 +1,49 @@
+{
+  "name": "ktc-talent-hub-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "preinstall": "pnpm dlx only-allow pnpm",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "lint": "biome check ./src",
+    "format": "biome check ./src --write",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "gen:api": "orval",
+    "lint:api": "redocly lint ../openapi/openapi.json"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-router": "^1.162.6",
+    "@tanstack/react-router-devtools": "^1.162.6",
+    "axios": "^1.13.5",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.4",
+    "@faker-js/faker": "^10.4.0",
+    "@redocly/cli": "^2.19.1",
+    "@tanstack/router-plugin": "^1.162.6",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react-swc": "^4.2.3",
+    "@vitest/coverage-v8": "^4.0.18",
+    "jsdom": "^27.4.0",
+    "msw": "^2.12.10",
+    "orval": "^7.16.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  }
+}
