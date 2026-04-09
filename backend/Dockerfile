@@ -1,6 +1,4 @@
-FROM golang:1.26-alpine
-
-RUN go install github.com/air-verse/air@latest
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
@@ -9,6 +7,13 @@ RUN go mod download 2>/dev/null || true
 
 COPY . .
 
+ARG VERSION=dev
+RUN go build -ldflags "-X main.version=${VERSION}" -o server .
+
+FROM gcr.io/distroless/static-debian12
+
+COPY --from=builder /app/server /server
+
 EXPOSE 8080
 
-CMD ["air", "-c", ".air.toml"]
+ENTRYPOINT ["/server"]
