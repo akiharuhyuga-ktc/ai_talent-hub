@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "postinstall": "npm run install:web-demo",
-    "dev": "npm --prefix web-demo run dev",
-    "build": "npm --prefix web-demo run build",
-    "start": "npm --prefix web-demo run start",
-    "lint": "npm --prefix web-demo run lint",
-    "install:web-demo": "npm --prefix web-demo install"
+    "setup": "bash scripts/setup.sh",
+    "dev": "bash scripts/setup.sh && docker compose up",
+    "dev:build": "bash scripts/setup.sh && docker compose up --build",
+    "dev:frontend": "cd frontend && pnpm dev",
+    "dev:backend": "cd backend && go run .",
+    "lint": "cd frontend && pnpm lint",
+    "format": "cd frontend && pnpm format",
+    "typecheck": "cd frontend && pnpm typecheck",
+    "test": "cd frontend && pnpm test:run"
   }
 }

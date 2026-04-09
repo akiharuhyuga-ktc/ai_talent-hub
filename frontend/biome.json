@@ -1,0 +1,51 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": false },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "**",
+      "!**/src/api/generated/**",
+      "!**/routeTree.gen.ts"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "tab" },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        "noParameterAssign": "error",
+        "useDefaultParameterLast": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error",
+        "useConst": "error",
+        "noCommonJs": "error",
+        "noNamespace": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noVar": "error"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn",
+        "useHookAtTopLevel": "error",
+        "noUnusedVariables": "error"
+      }
+    }
+  },
+  "javascript": { "formatter": { "quoteStyle": "double" } },
+  "css": {
+    "parser": {
+      "cssModules": false
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": { "source": { "organizeImports": "on" } }
+  }
+}
