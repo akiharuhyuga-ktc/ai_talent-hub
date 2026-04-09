@@ -69,6 +69,7 @@ docs/superpowers/
 backend/tmp/
 
 # Vite
+frontend/.vite/
 frontend/dist/
 
 # Docker
