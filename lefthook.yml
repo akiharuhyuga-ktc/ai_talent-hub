@@ -1,0 +1,14 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: frontend lint
+      glob: "frontend/**/*.{ts,tsx}"
+      run: cd frontend && pnpm lint
+
+    - name: frontend build
+      glob: "frontend/**/*.{ts,tsx}"
+      run: cd frontend && pnpm build
+
+    - name: backend build
+      glob: "backend/**/*.go"
+      run: cd backend && go build ./...
