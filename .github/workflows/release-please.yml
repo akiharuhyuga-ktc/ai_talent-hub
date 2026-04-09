@@ -1,0 +1,41 @@
+## release-please: Conventional Commits に基づく自動リリース管理
+##
+## main ブランチへの Conventional Commits（feat:, fix: 等）を解析し、
+## Release PR を自動作成・更新する。Release PR がマージされるとタグ + GitHub Release を生成する。
+##
+## 設定ファイル:
+##   - release-please-config.json: release-please の設定（release-type, changelog-sections 等）
+##   - .release-please-manifest.json: 現在のバージョン管理
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+name: release-please
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      ## GitHub App トークンを生成する。
+      ## GITHUB_TOKEN で作成されたタグは他のワークフローをトリガーしないため、
+      ## GitHub App トークンを使用して release.yml (on: push: tags: 'v*') を自動起動させる。
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ secrets.CREATE_APP_TOKEN_APP_ID }}
+          private-key: ${{ secrets.CREATE_APP_TOKEN_PRIVATE_KEY }}
+
+      ## release-please-action を manifest モードで実行
+      ## manifest モードでは config + manifest ファイルを参照してバージョンを管理する
+      - uses: googleapis/release-please-action@v4
+        with:
+          manifest-file: .release-please-manifest.json
+          config-file: release-please-config.json
+          token: ${{ steps.app-token.outputs.token }}
