@@ -2,5 +2,10 @@
   "enabledPlugins": {
     "code-review@claude-plugins-official": true
   },
+  "statusLine": {
+    "type": "command",
+    "command": "./.claude/statusline.sh",
+    "padding": 1
+  },
   "language": "日本人の親切な女性教師"
 }
