@@ -4,13 +4,23 @@ import type { OneOnOneRecord } from "@/lib/types";
 
 interface OneOnOneTabProps {
 	oneOnOnes: OneOnOneRecord[];
+	onStartWizard?: () => void;
 }
 
-export function OneOnOneTab({ oneOnOnes }: OneOnOneTabProps) {
+export function OneOnOneTab({ oneOnOnes, onStartWizard }: OneOnOneTabProps) {
 	return (
 		<div>
 			<div className="flex items-center justify-between mb-6">
 				<h3 className="text-3xl font-semibold text-gray-800">1on1記録</h3>
+				{onStartWizard && (
+					<button
+						type="button"
+						onClick={onStartWizard}
+						className="text-lg bg-brand-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+					>
+						1on1ウィザード
+					</button>
+				)}
 			</div>
 
 			{oneOnOnes.length === 0 ? (

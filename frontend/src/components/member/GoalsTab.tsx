@@ -7,9 +7,16 @@ import { formatPeriodLabel, sortPeriods } from "@/lib/utils/period";
 interface GoalsTabProps {
 	goalsByPeriod: Record<string, GoalsData>;
 	activePeriod: string;
+	onStartWizard?: (period: string) => void;
+	isWizardOpen?: boolean;
 }
 
-export function GoalsTab({ goalsByPeriod, activePeriod }: GoalsTabProps) {
+export function GoalsTab({
+	goalsByPeriod,
+	activePeriod,
+	onStartWizard,
+	isWizardOpen,
+}: GoalsTabProps) {
 	const periodSet = new Set(Object.keys(goalsByPeriod));
 	periodSet.add(activePeriod);
 	const allPeriods = sortPeriods(Array.from(periodSet));
@@ -46,6 +53,16 @@ export function GoalsTab({ goalsByPeriod, activePeriod }: GoalsTabProps) {
 						</span>
 					)}
 				</div>
+				{onStartWizard && (
+					<button
+						type="button"
+						disabled={isWizardOpen}
+						onClick={() => onStartWizard(selectedPeriod)}
+						className="text-lg bg-brand-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						目標設定ウィザード
+					</button>
+				)}
 			</div>
 
 			{goals ? (

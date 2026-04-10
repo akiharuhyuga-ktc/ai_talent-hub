@@ -27,9 +27,15 @@
         "noCommonJs": "error",
         "noNamespace": "error"
       },
+      "a11y": {
+        "noLabelWithoutControl": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useSemanticElements": "warn"
+      },
       "suspicious": {
         "noExplicitAny": "error",
-        "noVar": "error"
+        "noVar": "error",
+        "noArrayIndexKey": "warn"
       },
       "correctness": {
         "useExhaustiveDependencies": "warn",
