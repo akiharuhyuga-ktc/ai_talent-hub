@@ -44,7 +44,11 @@ export async function POST(
     }
 
     // 2フィールド部分ブラッシュアップ指示の追加
-    if (body.targetField && body.shortTermGoals != null && body.capabilityGoals != null) {
+    const validTargetFields = ['shortTerm', 'capability', 'both']
+    if (
+      body.targetField && validTargetFields.includes(body.targetField) &&
+      body.shortTermGoals != null && body.capabilityGoals != null
+    ) {
       const targetInstruction = buildRefinementTargetInstruction(
         body.targetField,
         body.shortTermGoals,

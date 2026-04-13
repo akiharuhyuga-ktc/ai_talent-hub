@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer'
 import { parseGoalFields, assembleGoalMarkdown } from '@/lib/goals/field-parser'
 import type { GoalWizardState, WizardContextData, ChatMessage, RefinementTarget } from '@/lib/types'
@@ -30,6 +30,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [copied, setCopied] = useState<'shortTerm' | 'capability' | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const handleCopy = async (text: string, field: 'shortTerm' | 'capability') => {
     await navigator.clipboard.writeText(text)
@@ -39,6 +40,10 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
 
   const handleSendFeedback = async () => {
     if (!feedback.trim() || isStreaming) return
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
     const userMessage: ChatMessage = { role: 'user', content: feedback }
     const updatedMessages = [...messages, userMessage]
@@ -52,6 +57,7 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             memberContext: context.memberProfile,
             managerInput: state.managerInput,
@@ -121,8 +127,13 @@ export function Step7Refinement({ state, context, onAddRefinement, onConfirm, on
       setMessages(finalMessages)
       setCount(newCount)
       onAddRefinement(finalMessages, newShortTerm, newCapability, newCount)
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
     } finally {
-      setIsStreaming(false)
+      if (!controller.signal.aborted) {
+        setIsStreaming(false)
+      }
+      abortRef.current = null
     }
   }
 
