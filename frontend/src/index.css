@@ -1,1 +1,39 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+	--color-brand-50: #ebf7fb;
+	--color-brand-100: #c7e7f0;
+	--color-brand-200: #87cde0;
+	--color-brand-300: #48b6d3;
+	--color-brand-400: #249ebd;
+	--color-brand-500: #1d86a4;
+	--color-brand-600: #19708c;
+	--color-brand-700: #14546c;
+	--color-brand-800: #0e3c4e;
+	--color-brand-900: #082530;
+	--color-brand-950: #041318;
+
+	--color-surface: #f7f8fa;
+	--color-surface-alt: #fafbfc;
+
+	--shadow-card: 0 1px 4px rgba(0, 0, 0, 0.04);
+	--shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06);
+	--shadow-glow: 0 2px 8px rgba(25, 112, 140, 0.2);
+	--shadow-glow-lg: 0 8px 24px rgba(25, 112, 140, 0.2);
+
+	--radius-radius-sm: 5px;
+	--radius-radius-md: 10px;
+	--radius-radius-lg: 12px;
+	--radius-radius-xl: 14px;
+	--radius-radius-2xl: 16px;
+}
+
+html {
+	font-size: 62.5%;
+}
+
+body {
+	background: #f7f8fa;
+	font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+}

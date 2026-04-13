@@ -29,7 +29,8 @@ install: ## frontend の依存パッケージをインストール
 dev: setup ## Docker Compose で開発環境を起動
 	docker compose up
 
-dev-build: setup ## Docker イメージを再ビルドして起動
+dev-build: setup ## Docker イメージを再ビルドして起動（volumes も再作成）
+	docker compose down -v
 	docker compose up --build
 
 down: ## Docker Compose を停止
