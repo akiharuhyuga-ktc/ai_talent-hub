@@ -104,3 +104,169 @@ export interface ChatMessage {
 	role: "user" | "assistant";
 	content: string;
 }
+
+// Parsed goals
+export interface ParsedGoals {
+	header: string;
+	goals: SingleGoal[];
+	footer: string;
+}
+
+// Goal Wizard types
+export interface ManagerInput {
+	expectations: string;
+	biggestChallenge: string;
+}
+
+export interface MemberInput {
+	growthArea: string;
+	currentDifficulties: string;
+	oneYearVision: string;
+}
+
+export interface PreviousPeriod {
+	previousGoals: string;
+	achievementLevel: "achieved" | "mostly-achieved" | "not-achieved" | "";
+	reasonIfNotAchieved: string;
+}
+
+export interface GoalWizardState {
+	currentStep: number;
+	managerInput: ManagerInput;
+	memberInput: MemberInput;
+	previousPeriod: PreviousPeriod;
+	diagnosis: string | null;
+	diagnosisConfirmed: boolean;
+	generatedGoals: string | null;
+	refinementMessages: ChatMessage[];
+	refinementCount: number;
+	finalGoals: string | null;
+}
+
+export interface WizardContextData {
+	memberName: string;
+	memberProfile: string;
+	orgPolicy: string;
+	evaluationCriteria: string;
+	guidelines: string;
+	targetPeriod: string;
+}
+
+// Evaluation Wizard types
+export interface SelfEvaluation {
+	score: EvaluationGrade | "";
+	achievementComment: string;
+	reflectionComment: string;
+}
+
+export interface ManagerSupplementary {
+	notableEpisodes: string;
+	environmentChanges: string;
+}
+
+export interface GoalEvaluation {
+	goalLabel: string;
+	goalText: string;
+	grade: EvaluationGrade | "";
+	rationale: string;
+	changeReason: string;
+}
+
+export interface EvaluationDraft {
+	goalEvaluations: GoalEvaluation[];
+	overallGrade: EvaluationGrade | "";
+	overallRationale: string;
+	selfEvalGap: string;
+	specialNotes: string;
+}
+
+export interface EvaluationWizardState {
+	currentStep: number;
+	period: string;
+	selfEvaluation: SelfEvaluation;
+	managerSupplementary: ManagerSupplementary;
+	aiDraft: EvaluationDraft | null;
+	confirmedDraft: EvaluationDraft | null;
+	evaluatorComment: string;
+	aiCommentDraft: string | null;
+}
+
+export interface EvaluationWizardContextData {
+	memberName: string;
+	memberProfile: string;
+	orgPolicy: string;
+	evaluationCriteria: string;
+	guidelines: string;
+	goalsRawMarkdown: string | null;
+	oneOnOneRecords: OneOnOneRecord[];
+	previousReview: ReviewData | null;
+}
+
+// 1on1 Wizard types
+export interface ConditionScore {
+	motivation: number | null;
+	workload: number | null;
+	teamRelations: number | null;
+	comment: string;
+}
+
+export interface ActionItem {
+	content: string;
+	assignee: "manager" | "member" | "both";
+	deadline: string;
+}
+
+export interface ActionItemReview {
+	content: string;
+	assignee: "manager" | "member" | "both";
+	status: "completed" | "incomplete" | "ongoing" | "";
+	comment: string;
+}
+
+export interface GoalProgressEntry {
+	goalLabel: string;
+	goalText: string;
+	achievedState: string;
+	milestone: string;
+	verificationMethod: string;
+	status: "on-track" | "at-risk" | "delayed" | "";
+	progressComment: string;
+}
+
+export interface HearingQuestion {
+	question: string;
+	intent: string;
+	memo: string;
+}
+
+export interface OneOnOneWizardState {
+	currentStep: number;
+	yearMonth: string;
+	actionReviews: ActionItemReview[];
+	goalProgress: GoalProgressEntry[];
+	condition: ConditionScore;
+	hearingQuestions: HearingQuestion[];
+	additionalMemo: string;
+	nextActions: ActionItem[];
+	aiSummary: string | null;
+	isFirstTime: boolean;
+}
+
+export interface OneOnOneWizardContextData {
+	memberName: string;
+	memberProfile: string;
+	orgPolicy: string;
+	guidelines: string;
+	goalsRawMarkdown: string | null;
+	previousOneOnOne: OneOnOneRecord | null;
+	previousActionItems: ActionItem[];
+	previousCondition: ConditionScore | null;
+	previousSummary: string;
+}
+
+// Chat
+export interface ChatRequest {
+	messages: ChatMessage[];
+	memberName?: string;
+	memberContext?: string;
+}

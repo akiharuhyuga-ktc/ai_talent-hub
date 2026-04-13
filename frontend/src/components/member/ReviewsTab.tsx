@@ -5,6 +5,7 @@ import type { ReviewData } from "@/lib/types";
 
 interface ReviewsTabProps {
 	reviews: ReviewData[];
+	onStartWizard?: () => void;
 }
 
 const evalColorMap: Record<
@@ -164,7 +165,7 @@ function ReviewCard({ review }: { review: ReviewData }) {
 	);
 }
 
-export function ReviewsTab({ reviews }: ReviewsTabProps) {
+export function ReviewsTab({ reviews, onStartWizard }: ReviewsTabProps) {
 	if (reviews.length === 0) {
 		return (
 			<EmptyState
@@ -178,6 +179,15 @@ export function ReviewsTab({ reviews }: ReviewsTabProps) {
 		<div>
 			<div className="flex items-center justify-between mb-6">
 				<h3 className="text-3xl font-semibold text-gray-800">評価・振り返り</h3>
+				{onStartWizard && (
+					<button
+						type="button"
+						onClick={onStartWizard}
+						className="text-lg bg-brand-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+					>
+						評価ウィザード
+					</button>
+				)}
 			</div>
 			<div className="space-y-8">
 				{reviews.map((review) => (
