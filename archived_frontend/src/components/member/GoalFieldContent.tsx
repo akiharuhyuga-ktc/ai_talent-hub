@@ -69,9 +69,8 @@ function getSectionColor(label: string): string {
   return 'border-gray-300 text-gray-600'
 }
 
-export function GoalFieldContent({ content }: GoalFieldContentProps) {
+function GoalBlock({ content }: { content: string }) {
   const { mainText, sections } = parseGoalFieldContent(content)
-
   return (
     <div>
       {mainText && (
@@ -81,7 +80,6 @@ export function GoalFieldContent({ content }: GoalFieldContentProps) {
           </div>
         </div>
       )}
-
       {sections.length > 0 && (
         <div className="space-y-5">
           {sections.map((section, i) => {
@@ -99,6 +97,22 @@ export function GoalFieldContent({ content }: GoalFieldContentProps) {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+export function GoalFieldContent({ content }: GoalFieldContentProps) {
+  // '---' で複数目標が並んでいる場合は個別ブロックとして描画
+  const blocks = content.split(/\n---\n/).map(b => b.trim()).filter(Boolean)
+
+  return (
+    <div className="space-y-8">
+      {blocks.map((block, i) => (
+        <div key={i}>
+          {i > 0 && <hr className="border-gray-200 mb-8" />}
+          <GoalBlock content={block} />
+        </div>
+      ))}
     </div>
   )
 }
