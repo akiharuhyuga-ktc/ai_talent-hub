@@ -43,11 +43,12 @@ export async function POST(
       }
     }
 
-    // 部分的ブラッシュアップ指示の追加
-    if (body.targetGoalLabels && body.targetGoalLabels.length > 0 && body.allGoalsMarkdown) {
+    // 2フィールド部分ブラッシュアップ指示の追加
+    if (body.targetField && body.shortTermGoals != null && body.capabilityGoals != null) {
       const targetInstruction = buildRefinementTargetInstruction(
-        body.targetGoalLabels,
-        body.allGoalsMarkdown,
+        body.targetField,
+        body.shortTermGoals,
+        body.capabilityGoals,
       )
       messages.push({ role: 'user', content: targetInstruction })
     }
