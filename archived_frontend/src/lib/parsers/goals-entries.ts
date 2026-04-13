@@ -1,17 +1,22 @@
 import type { GoalProgressEntry } from '@/lib/types'
+import { parseGoalFields } from '@/lib/goals/field-parser'
 
 /**
  * Parse goal entries from goals markdown.
- * Supports two formats:
- * 1. Wizard format: 目標①（実行）：... └ 達成した姿：... └ 検証方法：... └ 中間確認：...
- * 2. Template format: ### 目標1 - 目標内容：... - 達成指標（KPI）：... - 中間マイルストーン：...
+ * Supports three formats:
+ * 1. Kaonavi format: ## ① 短期成果評価_目標 / ## ② 発揮能力評価_目標
+ * 2. Wizard format: 目標①（実行）：... └ 達成した姿：... └ 検証方法：... └ 中間確認：...
+ * 3. Template format: ### 目標1 - 目標内容：... - 達成指標（KPI）：... - 中間マイルストーン：...
  */
 export function parseGoalEntries(rawMarkdown: string | null): GoalProgressEntry[] {
   if (!rawMarkdown) return []
 
-  const lines = rawMarkdown.split('\n')
+  // カオナビ新フォーマット判定
+  if (rawMarkdown.includes('## ① 短期成果評価_目標')) {
+    return parseKaonaviFormat(rawMarkdown)
+  }
 
-  // Detect format
+  const lines = rawMarkdown.split('\n')
   const isWizardFormat = /目標[①②③④⑤⑥⑦⑧⑨⑩]/.test(rawMarkdown)
 
   if (isWizardFormat) {
@@ -19,6 +24,45 @@ export function parseGoalEntries(rawMarkdown: string | null): GoalProgressEntry[
   } else {
     return parseTemplateFormat(lines)
   }
+}
+
+function parseKaonaviFormat(raw: string): GoalProgressEntry[] {
+  const { shortTerm, capability } = parseGoalFields(raw)
+  const TEMPLATE_PLACEHOLDER = '（上長とのすり合わせ後'
+
+  const extractKaonaviEntry = (
+    content: string,
+    label: string,
+  ): GoalProgressEntry | null => {
+    if (!content || content.trim().startsWith(TEMPLATE_PLACEHOLDER)) return null
+
+    // └ サブフィールドの手前までを goalText として抽出
+    const firstSubFieldIdx = content.search(/^└/m)
+    const goalText = (firstSubFieldIdx >= 0 ? content.slice(0, firstSubFieldIdx) : content).trim()
+
+    const getSubField = (fieldName: string): string => {
+      const re = new RegExp(`└\\s*${fieldName}[：:]\\s*\\n?([\\s\\S]*?)(?=\\n└|\\n---\\n|$)`)
+      const m = content.match(re)
+      return m ? m[1].trim() : ''
+    }
+
+    return {
+      goalLabel: label,
+      goalText,
+      achievedState: getSubField('達成した姿'),
+      milestone: getSubField('中間確認(?:（[^）]*）)?'),
+      verificationMethod: getSubField('検証方法'),
+      status: '',
+      progressComment: '',
+    }
+  }
+
+  const entries: GoalProgressEntry[] = []
+  const e1 = extractKaonaviEntry(shortTerm, '① 短期成果評価_目標')
+  const e2 = extractKaonaviEntry(capability, '② 発揮能力評価_目標')
+  if (e1) entries.push(e1)
+  if (e2) entries.push(e2)
+  return entries
 }
 
 function parseWizardFormat(raw: string): GoalProgressEntry[] {
