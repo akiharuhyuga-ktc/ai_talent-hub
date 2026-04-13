@@ -58,5 +58,8 @@ talent-management/shared/evaluation-criteria.md
 # プレゼン資料
 docs/presentations/
 
+# 社内配布PDF・操作マニュアル類
+docs/*.pdf
+
 # Superpowers（ローカル作業ファイル）
 docs/superpowers/
