@@ -42,8 +42,6 @@ export async function POST(
       `- 作成日：${today}`,
       `- メンバー：${memberName}`,
       '',
-      '## 目標一覧',
-      '',
       content,
       '',
     ].join('\n')
