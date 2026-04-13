@@ -25,8 +25,9 @@ const PERIOD = '2026-h1'
 function hasGoalContent(content: string): boolean {
   return (
     content.includes('## 目標①') ||
-    content.includes('## 目標①（実行）') ||
-    (content.includes('目標文：') && content.length > 300)
+    content.includes('目標①（実行）') ||
+    content.includes('目標①（実行／') ||
+    (content.includes('└ 達成した姿') && content.length > 300)
   )
 }
 
