@@ -40,6 +40,8 @@ export interface SingleGoal {
   content: string      // セクション全体のMarkdown（## 見出し行含む）
 }
 
+export type RefinementTarget = 'shortTerm' | 'capability' | 'both'
+
 export interface ParsedGoals {
   header: string
   goals: SingleGoal[]
@@ -173,10 +175,11 @@ export interface GoalWizardState {
   previousPeriod: PreviousPeriod
   diagnosis: string | null
   diagnosisConfirmed: boolean
-  generatedGoals: string | null
+  shortTermGoals: string | null    // ① 短期成果評価_目標
+  capabilityGoals: string | null   // ② 発揮能力評価_目標
   refinementMessages: ChatMessage[]
   refinementCount: number
-  finalGoals: string | null
+  finalGoals: string | null        // 保存完了後の確定済みmarkdown
 }
 
 export interface WizardContextData {
