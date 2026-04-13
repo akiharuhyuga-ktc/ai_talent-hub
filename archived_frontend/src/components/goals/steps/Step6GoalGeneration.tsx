@@ -75,7 +75,9 @@ export function Step6GoalGeneration({ state, context, onGenerated, onBack }: Pro
           setError('目標の生成に失敗しました')
         }
       } finally {
-        setIsStreaming(false)
+        if (!controller.signal.aborted) {
+          setIsStreaming(false)
+        }
       }
     })()
 

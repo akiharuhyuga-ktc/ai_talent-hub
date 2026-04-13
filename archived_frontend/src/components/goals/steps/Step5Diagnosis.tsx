@@ -75,7 +75,9 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
           setError('診断の生成に失敗しました')
         }
       } finally {
-        setIsStreaming(false)
+        if (!controller.signal.aborted) {
+          setIsStreaming(false)
+        }
       }
     })()
 
