@@ -18,8 +18,8 @@ type Action =
   | { type: 'SET_PREVIOUS_PERIOD'; payload: PreviousPeriod }
   | { type: 'SET_DIAGNOSIS'; payload: string }
   | { type: 'CONFIRM_DIAGNOSIS'; payload: string }
-  | { type: 'SET_GENERATED_GOALS'; payload: string }
-  | { type: 'ADD_REFINEMENT'; payload: { messages: ChatMessage[]; goals: string; count: number } }
+  | { type: 'SET_GENERATED_GOALS'; payload: { shortTermGoals: string; capabilityGoals: string } }
+  | { type: 'ADD_REFINEMENT'; payload: { messages: ChatMessage[]; shortTermGoals: string; capabilityGoals: string; count: number } }
   | { type: 'SET_FINAL_GOALS'; payload: string }
   | { type: 'GO_TO_STEP'; payload: number }
   | { type: 'NEXT_STEP' }
@@ -32,7 +32,8 @@ const initialState: GoalWizardState = {
   previousPeriod: { previousGoals: '', achievementLevel: '', reasonIfNotAchieved: '' },
   diagnosis: null,
   diagnosisConfirmed: false,
-  generatedGoals: null,
+  shortTermGoals: null,
+  capabilityGoals: null,
   refinementMessages: [],
   refinementCount: 0,
   finalGoals: null,
@@ -49,11 +50,11 @@ function reducer(state: GoalWizardState, action: Action): GoalWizardState {
     case 'SET_DIAGNOSIS':
       return { ...state, diagnosis: action.payload }
     case 'CONFIRM_DIAGNOSIS':
-      return { ...state, diagnosis: action.payload, diagnosisConfirmed: true, currentStep: 6, generatedGoals: null }
+      return { ...state, diagnosis: action.payload, diagnosisConfirmed: true, currentStep: 6, shortTermGoals: null, capabilityGoals: null }
     case 'SET_GENERATED_GOALS':
-      return { ...state, generatedGoals: action.payload, currentStep: 7 }
+      return { ...state, shortTermGoals: action.payload.shortTermGoals, capabilityGoals: action.payload.capabilityGoals, currentStep: 7 }
     case 'ADD_REFINEMENT':
-      return { ...state, refinementMessages: action.payload.messages, generatedGoals: action.payload.goals, refinementCount: action.payload.count }
+      return { ...state, refinementMessages: action.payload.messages, shortTermGoals: action.payload.shortTermGoals, capabilityGoals: action.payload.capabilityGoals, refinementCount: action.payload.count }
     case 'SET_FINAL_GOALS':
       return { ...state, finalGoals: action.payload }
     case 'GO_TO_STEP':
@@ -121,7 +122,7 @@ export function GoalWizard({ context, onClose }: GoalWizardProps) {
           <Step6GoalGeneration
             state={state}
             context={context}
-            onGenerated={goals => dispatch({ type: 'SET_GENERATED_GOALS', payload: goals })}
+            onGenerated={(shortTermGoals, capabilityGoals) => dispatch({ type: 'SET_GENERATED_GOALS', payload: { shortTermGoals, capabilityGoals } })}
             onBack={() => dispatch({ type: 'GO_TO_STEP', payload: 5 })}
           />
         )
@@ -130,7 +131,7 @@ export function GoalWizard({ context, onClose }: GoalWizardProps) {
           <Step7Refinement
             state={state}
             context={context}
-            onAddRefinement={(msgs, goals, count) => dispatch({ type: 'ADD_REFINEMENT', payload: { messages: msgs, goals, count } })}
+            onAddRefinement={(msgs, shortTermGoals, capabilityGoals, count) => dispatch({ type: 'ADD_REFINEMENT', payload: { messages: msgs, shortTermGoals, capabilityGoals, count } })}
             onConfirm={goals => { dispatch({ type: 'SET_FINAL_GOALS', payload: goals }) }}
             onBack={() => dispatch({ type: 'GO_TO_STEP', payload: 6 })}
           />
