@@ -70,6 +70,7 @@ docs/superpowers/
 
 # Go
 backend/tmp/
+backend/static/
 
 # Vite
 frontend/.vite/
