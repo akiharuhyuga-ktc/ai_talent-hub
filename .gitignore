@@ -74,6 +74,7 @@ backend/tmp/
 # Vite
 frontend/.vite/
 frontend/dist/
+dist/
 
 # Tauri
 frontend/src-tauri/target/
