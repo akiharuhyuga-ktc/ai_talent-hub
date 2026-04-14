@@ -75,5 +75,9 @@ backend/tmp/
 frontend/.vite/
 frontend/dist/
 
+# Tauri
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+
 # Docker
 docker-compose.override.yml

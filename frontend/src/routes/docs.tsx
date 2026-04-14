@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import axios from "axios";
+import customInstance from "@/api/custom-instance";
 import { DocsTabs } from "@/components/docs/DocsTabs";
 
 interface DocsResponse {
@@ -19,8 +19,7 @@ function DocsPage() {
 	const { data, isLoading } = useQuery({
 		queryKey: ["docs"],
 		queryFn: async () => {
-			const res = await axios.get<DocsResponse>("/api/docs");
-			return res.data;
+			return customInstance<DocsResponse>({ method: "get", url: "/api/docs" });
 		},
 	});
 

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import axios from "axios";
 import { useState } from "react";
+import customInstance from "@/api/custom-instance";
 import { EvaluationWizard } from "@/components/evaluation/EvaluationWizard";
 import { GoalWizard } from "@/components/goals/GoalWizard";
 import { GoalsTab } from "@/components/member/GoalsTab";
@@ -45,16 +45,17 @@ function MemberDetailPage() {
 	const { data: member, isLoading } = useQuery({
 		queryKey: ["members", memberId],
 		queryFn: async () => {
-			const res = await axios.get<MemberDetail>(`/api/members/${memberId}`);
-			return res.data;
+			return customInstance<MemberDetail>({
+				method: "get",
+				url: `/api/members/${memberId}`,
+			});
 		},
 	});
 
 	const { data: docs } = useQuery({
 		queryKey: ["docs"],
 		queryFn: async () => {
-			const res = await axios.get<DocsData>("/api/docs");
-			return res.data;
+			return customInstance<DocsData>({ method: "get", url: "/api/docs" });
 		},
 	});
 

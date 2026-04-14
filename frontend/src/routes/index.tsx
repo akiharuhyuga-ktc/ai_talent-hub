@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import axios from "axios";
+import customInstance from "@/api/custom-instance";
 import { MemberGrid } from "@/components/dashboard/MemberGrid";
 import { StatsBar } from "@/components/dashboard/StatsBar";
 import type { MemberSummary } from "@/lib/types";
@@ -13,8 +13,10 @@ function DashboardPage() {
 	const { data: members, isLoading } = useQuery({
 		queryKey: ["members"],
 		queryFn: async () => {
-			const res = await axios.get<MemberSummary[]>("/api/members");
-			return res.data;
+			return customInstance<MemberSummary[]>({
+				method: "get",
+				url: "/api/members",
+			});
 		},
 	});
 
