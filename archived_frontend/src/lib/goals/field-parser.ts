@@ -25,8 +25,16 @@ export function parseGoalFields(text: string): ParsedGoalFields {
   const shortTermIdx = text.indexOf(SHORT_TERM_MARKER)
   const capabilityIdx = text.indexOf(CAPABILITY_MARKER)
 
+  // ① のみない場合：② だけ出力されるケース（targetField === 'capability' の部分再生成）
   if (shortTermIdx === -1) {
-    return { shortTerm: '', capability: '' }
+    if (capabilityIdx === -1) {
+      return { shortTerm: '', capability: '' }
+    }
+    const capability = text
+      .slice(capabilityIdx + CAPABILITY_MARKER.length)
+      .replace(/^\n+/, '')
+      .trim()
+    return { shortTerm: '', capability }
   }
 
   if (capabilityIdx === -1) {
