@@ -303,9 +303,16 @@ export function getMemberPeriodStatus(memberName: string, period: string): Membe
   let hasGoal = false
   if (fs.existsSync(goalPath)) {
     const content = fs.readFileSync(goalPath, 'utf-8')
-    // ウィザード生成: 「目標①」等を含む / テンプレート: 「- 目標内容：」が空のまま
-    hasGoal = /目標[①②③④⑤]/.test(content) ||
-      (content.includes('- 目標内容：') && /- 目標内容：\S/.test(content))
+    if (content.includes('## ① 短期成果評価_目標')) {
+      // 新フォーマット: shortTermフィールドがテンプレートプレースホルダーでないことを確認
+      const shortTermMatch = content.match(/## ① 短期成果評価_目標\s*\n+([\s\S]*?)(?:\n---|\n## |$)/)
+      const shortTerm = shortTermMatch ? shortTermMatch[1].trim() : ''
+      hasGoal = !!shortTerm && !shortTerm.startsWith('（上長とのすり合わせ後')
+    } else {
+      // 旧フォーマット: ウィザード生成は「目標①」等を含む / テンプレートは「- 目標内容：」が空のまま
+      hasGoal = /目標[①②③④⑤]/.test(content) ||
+        (content.includes('- 目標内容：') && /- 目標内容：\S/.test(content))
+    }
   }
 
   // Review
