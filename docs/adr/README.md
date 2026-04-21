@@ -40,5 +40,6 @@ NNNN-タイトル.md
 | # | タイトル | ステータス |
 |---|---------|-----------|
 | [0001](0001-api-key-management-proxy.md) | Claude API キー管理 — プロキシサーバー方式の採用 | proposed |
+| [0002](0002-desktop-app-framework.md) | デスクトップアプリ配布 — フレームワーク選定 | proposed |
 
 テンプレートは [0000-template.md](0000-template.md) を参照。

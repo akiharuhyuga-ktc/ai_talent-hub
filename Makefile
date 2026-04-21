@@ -1,5 +1,6 @@
 .PHONY: help setup dev dev-build down logs \
        install gen gen-api lint lint-api format typecheck test test-coverage build \
+       desktop desktop-dev desktop-demo \
        clean clean-volumes clean-all
 
 # ============================================================================
@@ -81,11 +82,24 @@ build: ## frontend のプロダクションビルド
 quality: lint typecheck test ## Lint + 型チェック + テストをまとめて実行
 
 # ============================================================================
+# Desktop (Tauri)
+# ============================================================================
+
+desktop: ## デスクトップアプリをビルド（本番用）
+	@cd frontend && pnpm tauri build
+
+desktop-dev: ## デスクトップアプリを開発モードで起動（MSW モック有効）
+	@cd frontend && pnpm tauri dev
+
+desktop-demo: ## デスクトップアプリをデモモードでビルド（モックデータ同梱）
+	@cd frontend && VITE_DEMO_MODE=true pnpm tauri build
+
+# ============================================================================
 # Clean
 # ============================================================================
 
 clean: ## frontend のビルド成果物を削除
-	@rm -rf frontend/dist frontend/node_modules/.tmp
+	@rm -rf frontend/dist frontend/node_modules/.tmp frontend/src-tauri/target
 
 clean-volumes: ## Docker の named volumes を削除
 	docker compose down -v
