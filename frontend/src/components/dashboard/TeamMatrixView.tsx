@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { clsx } from "clsx";
 import { useMemo, useState } from "react";
+import customInstance from "@/api/custom-instance";
 import type { MemberPeriodStatus, TeamPeriodMatrix } from "@/lib/types";
 import { formatPeriodLabel } from "@/lib/utils/period";
 import { TeamMatrixTable } from "./TeamMatrixTable";
@@ -77,13 +77,14 @@ export function TeamMatrixView({ activePeriod, today }: TeamMatrixViewProps) {
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["team-matrix", selectedPeriod],
 		queryFn: async () => {
-			const res = await axios.get<{
+			return customInstance<{
 				matrix: TeamPeriodMatrix;
 				availablePeriods: string[];
-			}>("/api/team/matrix", {
+			}>({
+				method: "get",
+				url: "/api/team/matrix",
 				params: { period: selectedPeriod },
 			});
-			return res.data;
 		},
 	});
 

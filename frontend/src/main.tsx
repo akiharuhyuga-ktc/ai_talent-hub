@@ -23,6 +23,9 @@ async function bootstrap() {
 	if (import.meta.env.DEV) {
 		const { worker } = await import("./mocks/browser");
 		await worker.start({ onUnhandledRequest: "bypass" });
+	} else if (import.meta.env.VITE_DEMO_MODE === "true") {
+		const { enableDemoMock } = await import("./mocks/demo-mock");
+		enableDemoMock();
 	}
 
 	createRoot(document.getElementById("root") as HTMLElement).render(

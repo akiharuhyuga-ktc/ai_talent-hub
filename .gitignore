@@ -70,10 +70,16 @@ docs/superpowers/
 
 # Go
 backend/tmp/
+backend/static/
 
 # Vite
 frontend/.vite/
 frontend/dist/
+dist/
+
+# Tauri
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
 
 # Docker
 docker-compose.override.yml
