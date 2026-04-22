@@ -40,7 +40,7 @@ export function OOStep4Hearing({
 			setError("");
 			try {
 				const res = await fetch(
-					`/api/members/${context.memberName}/one-on-one/questions`,
+					`/api/members/${context.memberId}/one-on-one/questions`,
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },

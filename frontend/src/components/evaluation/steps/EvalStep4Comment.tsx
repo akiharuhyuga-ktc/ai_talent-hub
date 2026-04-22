@@ -37,7 +37,7 @@ export function EvalStep4Comment({
 			setError("");
 			try {
 				const res = await fetch(
-					`/api/members/${context.memberName}/reviews/comment`,
+					`/api/members/${context.memberId}/reviews/comment`,
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },

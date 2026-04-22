@@ -32,7 +32,7 @@ export function OneOnOneTab({ oneOnOnes, onStartWizard }: OneOnOneTabProps) {
 				<div className="space-y-6">
 					{oneOnOnes.map((record) => (
 						<div
-							key={record.filename}
+							key={record.id}
 							className="bg-white border border-gray-200 rounded-xl overflow-hidden"
 						>
 							<div className="bg-gray-50 px-8 py-5 border-b border-gray-200">

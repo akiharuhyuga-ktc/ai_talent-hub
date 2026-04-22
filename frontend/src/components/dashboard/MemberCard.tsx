@@ -70,7 +70,7 @@ export function MemberCard({ member }: MemberCardProps) {
 				{/* Link */}
 				<Link
 					to="/members/$memberId"
-					params={{ memberId: member.folderName }}
+					params={{ memberId: member.id }}
 					className="mt-3 inline-flex items-center text-xl text-brand-600 font-medium hover:text-brand-800 transition-colors"
 				>
 					詳細を見る →

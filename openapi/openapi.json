@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "KTC Talent Hub API",
-    "version": "0.1.0",
-    "description": "KTC Talent Hub backend API"
+    "version": "0.2.0",
+    "description": "KTC Talent Hub backend API — タレントマネジメントアプリケーション"
   },
   "servers": [
     {
@@ -22,11 +22,426 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members": {
+      "get": {
+        "tags": ["members"],
+        "operationId": "listMembers",
+        "summary": "メンバー一覧を取得",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MemberSummary" }
                 }
               }
             }
+          }
+        }
+      },
+      "post": {
+        "tags": ["members"],
+        "operationId": "createMember",
+        "summary": "メンバーを追加",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateMemberRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemberRecord" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{slug}": {
+      "get": {
+        "tags": ["members"],
+        "operationId": "getMember",
+        "summary": "メンバー詳細を取得",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "メンバーのslug (例: tanaka-taro)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MemberDetail" }
+              }
+            }
+          },
+          "404": { "description": "メンバーが見つからない" }
+        }
+      }
+    },
+    "/members/{slug}/goals": {
+      "post": {
+        "tags": ["goals"],
+        "operationId": "saveGoals",
+        "summary": "目標を保存",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SaveGoalsRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OkResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{slug}/goals/diagnosis": {
+      "post": {
+        "tags": ["goals"],
+        "operationId": "diagnosisGoals",
+        "summary": "目標診断 (SSE)",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DiagnosisRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": {
+              "text/event-stream": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{slug}/goals/generate": {
+      "post": {
+        "tags": ["goals"],
+        "operationId": "generateGoals",
+        "summary": "目標生成 (SSE)",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GenerateGoalsRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": {
+              "text/event-stream": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{slug}/goals/edit": {
+      "post": {
+        "tags": ["goals"],
+        "operationId": "editGoal",
+        "summary": "目標編集 (SSE)",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/EditGoalRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": {
+              "text/event-stream": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{slug}/reviews": {
+      "post": {
+        "tags": ["reviews"],
+        "operationId": "saveReview",
+        "summary": "評価を保存",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SaveReviewRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OkResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{slug}/reviews/draft": {
+      "post": {
+        "tags": ["reviews"],
+        "operationId": "draftReview",
+        "summary": "評価ドラフト生成 (SSE)",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/members/{slug}/reviews/comment": {
+      "post": {
+        "tags": ["reviews"],
+        "operationId": "reviewComment",
+        "summary": "評価コメント生成 (SSE)",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/members/{slug}/one-on-one": {
+      "post": {
+        "tags": ["one-on-one"],
+        "operationId": "saveOneOnOne",
+        "summary": "1on1記録を保存",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OkResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{slug}/one-on-one/questions": {
+      "post": {
+        "tags": ["one-on-one"],
+        "operationId": "generateQuestions",
+        "summary": "ヒアリング質問を生成",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HearingQuestionsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members/{slug}/one-on-one/summary": {
+      "post": {
+        "tags": ["one-on-one"],
+        "operationId": "summarizeOneOnOne",
+        "summary": "1on1サマリー生成 (SSE)",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/team/matrix": {
+      "get": {
+        "tags": ["team"],
+        "operationId": "getTeamMatrix",
+        "summary": "チームマトリクスを取得",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "対象期間 (例: 2026-h1)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TeamMatrixResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "tags": ["docs"],
+        "operationId": "getDocs",
+        "summary": "組織ドキュメントを取得",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DocsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs/policy": {
+      "post": {
+        "tags": ["docs"],
+        "operationId": "savePolicy",
+        "summary": "チーム方針を保存",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OkResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs/policy/direction": {
+      "post": {
+        "tags": ["docs"],
+        "operationId": "policyDirection",
+        "summary": "方針の方向性を生成 (SSE)",
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/docs/policy/draft": {
+      "post": {
+        "tags": ["docs"],
+        "operationId": "policyDraft",
+        "summary": "方針ドラフト生成 (SSE)",
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/docs/policy/refine": {
+      "post": {
+        "tags": ["docs"],
+        "operationId": "policyRefine",
+        "summary": "方針精緻化 (SSE)",
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/chat": {
+      "post": {
+        "tags": ["chat"],
+        "operationId": "chat",
+        "summary": "AIチャット (SSE)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
           }
         }
       }
@@ -38,10 +453,411 @@
         "type": "object",
         "required": ["status"],
         "properties": {
-          "status": {
-            "type": "string",
-            "example": "ok"
+          "status": { "type": "string", "example": "ok" }
+        }
+      },
+      "MemberRecord": {
+        "type": "object",
+        "description": "members テーブルのレコード",
+        "required": ["id", "slug", "name", "role", "team", "teamShort", "joinedAt", "mainProject", "rdPct", "skills", "expectedRole", "rawMarkdown", "activePeriod"],
+        "properties": {
+          "id": { "type": "string", "description": "ULID (mbr_ prefix)" },
+          "slug": { "type": "string" },
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "team": { "type": "string" },
+          "teamShort": { "type": "string" },
+          "joinedAt": { "type": "string" },
+          "mainProject": { "type": "string" },
+          "rdPct": { "type": "integer" },
+          "skills": { "$ref": "#/components/schemas/SkillSet" },
+          "expectedRole": { "$ref": "#/components/schemas/ExpectedRole" },
+          "rawMarkdown": { "type": "string" },
+          "activePeriod": { "type": "string" }
+        }
+      },
+      "ProjectRecord": {
+        "type": "object",
+        "description": "project_allocations テーブルのレコード",
+        "required": ["id", "memberId", "name", "april", "may", "june", "avgPct"],
+        "properties": {
+          "id": { "type": "string" },
+          "memberId": { "type": "string", "description": "FK to MemberRecord.id" },
+          "name": { "type": "string" },
+          "april": { "type": "integer" },
+          "may": { "type": "integer" },
+          "june": { "type": "integer" },
+          "avgPct": { "type": "integer" }
+        }
+      },
+      "CreateMemberRequest": {
+        "type": "object",
+        "required": ["name", "role", "team", "teamShort", "joinedAt"],
+        "properties": {
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "team": { "type": "string" },
+          "teamShort": { "type": "string" },
+          "joinedAt": { "type": "string" },
+          "mainProject": { "type": "string" },
+          "rdPct": { "type": "integer" },
+          "projects": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProjectAllocation" }
           }
+        }
+      },
+      "OkResponse": {
+        "type": "object",
+        "required": ["ok"],
+        "properties": {
+          "ok": { "type": "boolean" }
+        }
+      },
+      "ProjectAllocation": {
+        "type": "object",
+        "required": ["name", "april", "may", "june", "avgPct"],
+        "properties": {
+          "name": { "type": "string" },
+          "april": { "type": "integer" },
+          "may": { "type": "integer" },
+          "june": { "type": "integer" },
+          "avgPct": { "type": "integer" }
+        }
+      },
+      "SkillSet": {
+        "type": "object",
+        "required": ["technical", "experience", "strengths", "challenges"],
+        "properties": {
+          "technical": { "type": "string" },
+          "experience": { "type": "string" },
+          "strengths": { "type": "string" },
+          "challenges": { "type": "string" }
+        }
+      },
+      "ExpectedRole": {
+        "type": "object",
+        "required": ["current", "longTerm"],
+        "properties": {
+          "current": { "type": "string" },
+          "longTerm": { "type": "string" }
+        }
+      },
+      "MemberSummary": {
+        "type": "object",
+        "required": ["id", "slug", "name", "role", "team", "teamShort", "joinedAt", "projects", "mainProject", "rdPct"],
+        "properties": {
+          "id": { "type": "string", "description": "ULID (mbr_ prefix)", "example": "mbr_01JSGXK3P0QXYZ1234ABCD" },
+          "slug": { "type": "string", "description": "URL-safe identifier", "example": "tanaka-taro" },
+          "name": { "type": "string", "example": "田中 太郎" },
+          "role": { "type": "string" },
+          "team": { "type": "string" },
+          "teamShort": { "type": "string" },
+          "joinedAt": { "type": "string", "description": "YYYY-MM format", "example": "2021-04" },
+          "projects": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProjectAllocation" }
+          },
+          "mainProject": { "type": "string" },
+          "rdPct": { "type": "integer" }
+        }
+      },
+      "MemberProfile": {
+        "type": "object",
+        "description": "MemberSummary + profile details",
+        "allOf": [
+          { "$ref": "#/components/schemas/MemberSummary" },
+          {
+            "type": "object",
+            "required": ["skills", "expectedRole", "rawMarkdown"],
+            "properties": {
+              "skills": { "$ref": "#/components/schemas/SkillSet" },
+              "expectedRole": { "$ref": "#/components/schemas/ExpectedRole" },
+              "rawMarkdown": { "type": "string", "description": "Raw profile markdown" }
+            }
+          }
+        ]
+      },
+      "GoalsData": {
+        "type": "object",
+        "required": ["id", "memberId", "period", "memberName", "rawMarkdown"],
+        "properties": {
+          "id": { "type": "string", "description": "ULID (goal_ prefix)", "example": "goal_01JSGXK3P1QXYZ1234ABCD" },
+          "memberId": { "type": "string", "description": "FK to Member.id" },
+          "period": { "type": "string", "example": "2026-h1" },
+          "memberName": { "type": "string" },
+          "rawMarkdown": { "type": "string" }
+        }
+      },
+      "OneOnOneRecord": {
+        "type": "object",
+        "required": ["id", "memberId", "date", "rawMarkdown"],
+        "properties": {
+          "id": { "type": "string", "description": "ULID (oo_ prefix)", "example": "oo_01JSGXK3P2QXYZ1234ABCD" },
+          "memberId": { "type": "string", "description": "FK to Member.id" },
+          "date": { "type": "string", "description": "YYYY-MM format", "example": "2026-04" },
+          "rawMarkdown": { "type": "string" }
+        }
+      },
+      "EvaluatorComment": {
+        "type": "object",
+        "required": ["label", "evaluator", "content"],
+        "properties": {
+          "label": { "type": "string" },
+          "evaluator": { "type": "string" },
+          "content": { "type": "string" }
+        }
+      },
+      "ReviewData": {
+        "type": "object",
+        "required": ["id", "memberId", "period", "grade", "roleName", "h2Eval", "annualEval", "promotion", "feedbackPoints", "feedbackExpectations", "evaluatorComments", "rawMarkdown"],
+        "properties": {
+          "id": { "type": "string", "description": "ULID (rev_ prefix)", "example": "rev_01JSGXK3P3QXYZ1234ABCD" },
+          "memberId": { "type": "string", "description": "FK to Member.id" },
+          "period": { "type": "string" },
+          "grade": { "type": "string" },
+          "roleName": { "type": "string" },
+          "h2Eval": { "type": "string" },
+          "annualEval": { "type": "string" },
+          "promotion": { "type": "boolean" },
+          "feedbackPoints": { "type": "string" },
+          "feedbackExpectations": { "type": "string" },
+          "evaluatorComments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/EvaluatorComment" }
+          },
+          "rawMarkdown": { "type": "string" }
+        }
+      },
+      "MemberDetail": {
+        "type": "object",
+        "description": "MemberProfile + goals, 1on1, reviews",
+        "allOf": [
+          { "$ref": "#/components/schemas/MemberProfile" },
+          {
+            "type": "object",
+            "required": ["goalsByPeriod", "activePeriod", "oneOnOnes", "reviews"],
+            "properties": {
+              "goals": {
+                "nullable": true,
+                "allOf": [{ "$ref": "#/components/schemas/GoalsData" }],
+                "description": "Active period goals (null if not set)"
+              },
+              "goalsByPeriod": {
+                "type": "object",
+                "additionalProperties": { "$ref": "#/components/schemas/GoalsData" },
+                "description": "Goals keyed by period string"
+              },
+              "activePeriod": { "type": "string", "example": "2026-h1" },
+              "oneOnOnes": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/OneOnOneRecord" }
+              },
+              "reviews": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ReviewData" }
+              }
+            }
+          }
+        ]
+      },
+      "SingleGoal": {
+        "type": "object",
+        "required": ["index", "label", "type", "title", "content"],
+        "properties": {
+          "index": { "type": "integer" },
+          "label": { "type": "string", "description": "丸数字 (①②③...)" },
+          "type": { "type": "string", "description": "目標種別 (実行/挑戦/成長...)" },
+          "title": { "type": "string" },
+          "content": { "type": "string" }
+        }
+      },
+      "ParsedGoals": {
+        "type": "object",
+        "required": ["header", "goals", "footer"],
+        "properties": {
+          "header": { "type": "string" },
+          "goals": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SingleGoal" }
+          },
+          "footer": { "type": "string" }
+        }
+      },
+      "MemberPeriodStatus": {
+        "type": "object",
+        "required": ["memberId", "memberName", "team", "hasGoal", "oneOnOneMonths", "hasReview"],
+        "properties": {
+          "memberId": { "type": "string" },
+          "memberName": { "type": "string" },
+          "team": { "type": "string" },
+          "hasGoal": { "type": "boolean" },
+          "oneOnOneMonths": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "hasReview": { "type": "boolean" }
+        }
+      },
+      "TeamPeriodMatrix": {
+        "type": "object",
+        "required": ["period", "members"],
+        "properties": {
+          "period": { "type": "string" },
+          "members": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MemberPeriodStatus" }
+          }
+        }
+      },
+      "TeamMatrixResponse": {
+        "type": "object",
+        "required": ["matrix", "availablePeriods"],
+        "properties": {
+          "matrix": { "$ref": "#/components/schemas/TeamPeriodMatrix" },
+          "availablePeriods": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "ChatMessage": {
+        "type": "object",
+        "required": ["role", "content"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["user", "assistant"]
+          },
+          "content": { "type": "string" }
+        }
+      },
+      "EvaluationGrade": {
+        "type": "string",
+        "enum": ["S", "A", "B+", "B", "C", "D"]
+      },
+      "DocsResponse": {
+        "type": "object",
+        "required": ["orgPolicy", "criteria", "guidelines"],
+        "properties": {
+          "orgPolicy": { "type": "string" },
+          "criteria": { "type": "string" },
+          "guidelines": { "type": "string" }
+        }
+      },
+      "HearingQuestionItem": {
+        "type": "object",
+        "required": ["question", "intent"],
+        "properties": {
+          "question": { "type": "string" },
+          "intent": { "type": "string" }
+        }
+      },
+      "HearingQuestionsResponse": {
+        "type": "object",
+        "required": ["questions"],
+        "properties": {
+          "questions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HearingQuestionItem" }
+          }
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "required": ["messages"],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ChatMessage" }
+          },
+          "memberName": { "type": "string" },
+          "memberContext": { "type": "string" }
+        }
+      },
+      "SaveGoalsRequest": {
+        "type": "object",
+        "required": ["content", "period"],
+        "properties": {
+          "content": { "type": "string" },
+          "period": { "type": "string" }
+        }
+      },
+      "DiagnosisRequest": {
+        "type": "object",
+        "required": ["memberContext", "managerInput", "memberInput"],
+        "properties": {
+          "memberContext": { "type": "string" },
+          "managerInput": { "$ref": "#/components/schemas/ManagerInputPayload" },
+          "memberInput": { "$ref": "#/components/schemas/MemberInputPayload" },
+          "previousPeriod": { "$ref": "#/components/schemas/PreviousPeriodPayload" }
+        }
+      },
+      "GenerateGoalsRequest": {
+        "type": "object",
+        "required": ["memberContext", "managerInput", "memberInput", "diagnosis"],
+        "properties": {
+          "memberContext": { "type": "string" },
+          "managerInput": { "$ref": "#/components/schemas/ManagerInputPayload" },
+          "memberInput": { "$ref": "#/components/schemas/MemberInputPayload" },
+          "previousPeriod": { "$ref": "#/components/schemas/PreviousPeriodPayload" },
+          "diagnosis": { "type": "string" },
+          "refinementMessages": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ChatMessage" }
+          },
+          "targetGoalLabels": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "allGoalsMarkdown": { "type": "string" }
+        }
+      },
+      "EditGoalRequest": {
+        "type": "object",
+        "required": ["goal", "instruction", "memberContext", "allGoals"],
+        "properties": {
+          "goal": { "$ref": "#/components/schemas/SingleGoal" },
+          "instruction": { "type": "string" },
+          "memberContext": { "type": "string" },
+          "allGoals": { "type": "string" }
+        }
+      },
+      "SaveReviewRequest": {
+        "type": "object",
+        "required": ["content", "period"],
+        "properties": {
+          "content": { "type": "string" },
+          "period": { "type": "string" }
+        }
+      },
+      "ManagerInputPayload": {
+        "type": "object",
+        "required": ["expectations", "biggestChallenge"],
+        "properties": {
+          "expectations": { "type": "string" },
+          "biggestChallenge": { "type": "string" }
+        }
+      },
+      "MemberInputPayload": {
+        "type": "object",
+        "required": ["growthArea", "currentDifficulties", "oneYearVision"],
+        "properties": {
+          "growthArea": { "type": "string" },
+          "currentDifficulties": { "type": "string" },
+          "oneYearVision": { "type": "string" }
+        }
+      },
+      "PreviousPeriodPayload": {
+        "type": "object",
+        "required": ["previousGoals", "achievementLevel", "reasonIfNotAchieved"],
+        "properties": {
+          "previousGoals": { "type": "string" },
+          "achievementLevel": {
+            "type": "string",
+            "enum": ["achieved", "mostly-achieved", "not-achieved", ""]
+          },
+          "reasonIfNotAchieved": { "type": "string" }
         }
       }
     }

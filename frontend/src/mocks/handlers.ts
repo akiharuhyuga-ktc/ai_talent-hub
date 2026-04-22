@@ -1,19 +1,5 @@
 import { delay, HttpResponse, http } from "msw";
-import type { MemberPeriodStatus, TeamPeriodMatrix } from "@/lib/types";
-import {
-	MOCK_CRITERIA,
-	MOCK_DIAGNOSIS_TEXT,
-	MOCK_EVALUATION_COMMENT,
-	MOCK_GENERATED_GOALS,
-	MOCK_GUIDELINES,
-	MOCK_HEARING_QUESTIONS,
-	MOCK_OO_SUMMARY,
-	MOCK_ORG_POLICY,
-	MOCK_POLICY_DIRECTION,
-	MOCK_POLICY_DRAFT,
-	mockMemberDetails,
-	mockMembers,
-} from "./data";
+import { mockDb } from "./db";
 
 // ---------------------------------------------------------------------------
 // SSE streaming helper
@@ -54,38 +40,31 @@ function sseResponse(text: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Team matrix builder
-// ---------------------------------------------------------------------------
-
-function buildTeamMatrix(period: string): TeamPeriodMatrix {
-	const members: MemberPeriodStatus[] = mockMembers.map((m) => ({
-		memberId: m.folderName,
-		memberName: m.name,
-		team: m.teamShort,
-		hasGoal: Math.random() > 0.3,
-		oneOnOneMonths: ["04"],
-		hasReview: false,
-	}));
-	return { period, members };
-}
-
-// ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
 
 export const handlers = [
 	// -----------------------------------------------------------------------
-	// Existing: Members & Team
+	// Members & Team
 	// -----------------------------------------------------------------------
 	http.get("/api/members", async () => {
 		await delay(300);
-		return HttpResponse.json(mockMembers);
+		return HttpResponse.json(mockDb.getMembers());
 	}),
 
-	http.get("/api/members/:name", async ({ params }) => {
+	http.post("/api/members", async ({ request }) => {
+		await delay(300);
+		const body = (await request.json()) as Record<string, unknown>;
+		const record = mockDb.addMember(
+			body as Parameters<typeof mockDb.addMember>[0],
+		);
+		return HttpResponse.json(record, { status: 201 });
+	}),
+
+	http.get("/api/members/:memberId", async ({ params }) => {
 		await delay(200);
-		const name = params.name as string;
-		const detail = mockMemberDetails[name];
+		const memberId = params.memberId as string;
+		const detail = mockDb.getMemberDetail(memberId);
 		if (!detail) {
 			return new HttpResponse(null, { status: 404 });
 		}
@@ -96,9 +75,8 @@ export const handlers = [
 		await delay(300);
 		const url = new URL(request.url);
 		const period = url.searchParams.get("period") || "2026-h1";
-		const matrix = buildTeamMatrix(period);
 		return HttpResponse.json({
-			matrix,
+			matrix: mockDb.buildTeamMatrix(period),
 			availablePeriods: ["2026-h1", "2025-h2"],
 		});
 	}),
@@ -111,87 +89,118 @@ export const handlers = [
 	// -----------------------------------------------------------------------
 	// Goal Wizard
 	// -----------------------------------------------------------------------
-	http.post("/api/members/:name/goals/diagnosis", async () => {
+	http.post("/api/members/:memberId/goals/diagnosis", async () => {
 		await delay(200);
-		return sseResponse(MOCK_DIAGNOSIS_TEXT);
+		return sseResponse(mockDb.getAiResponse("diagnosis") as string);
 	}),
 
-	http.post("/api/members/:name/goals/generate", async () => {
+	http.post("/api/members/:memberId/goals/generate", async () => {
 		await delay(200);
-		return sseResponse(MOCK_GENERATED_GOALS);
+		return sseResponse(mockDb.getAiResponse("generatedGoals") as string);
 	}),
 
-	http.post("/api/members/:name/goals", async () => {
+	http.post("/api/members/:memberId/goals", async ({ params, request }) => {
 		await delay(300);
+		const memberId = params.memberId as string;
+		const body = (await request.json()) as { content: string; period: string };
+		mockDb.saveGoals(memberId, body.period, body.content);
 		return HttpResponse.json({ ok: true });
 	}),
 
-	http.post("/api/members/:name/goals/edit", async () => {
+	http.post("/api/members/:memberId/goals/edit", async () => {
 		await delay(200);
-		return sseResponse(MOCK_GENERATED_GOALS);
+		return sseResponse(mockDb.getAiResponse("generatedGoals") as string);
 	}),
 
 	// -----------------------------------------------------------------------
 	// Evaluation Wizard
 	// -----------------------------------------------------------------------
-	http.post("/api/members/:name/reviews/draft", async () => {
+	http.post("/api/members/:memberId/reviews/draft", async () => {
 		await delay(200);
-		return sseResponse(MOCK_EVALUATION_COMMENT);
+		return sseResponse(mockDb.getAiResponse("evaluationComment") as string);
 	}),
 
-	http.post("/api/members/:name/reviews/comment", async () => {
+	http.post("/api/members/:memberId/reviews/comment", async () => {
 		await delay(200);
-		return sseResponse(MOCK_EVALUATION_COMMENT);
+		return sseResponse(mockDb.getAiResponse("evaluationComment") as string);
 	}),
 
-	http.post("/api/members/:name/reviews", async () => {
+	http.post("/api/members/:memberId/reviews", async ({ params, request }) => {
 		await delay(300);
+		const memberId = params.memberId as string;
+		const body = (await request.json()) as { content: string; period: string };
+		mockDb.saveReview(memberId, {
+			id: `rev_${memberId}_${body.period}`,
+			memberId,
+			period: body.period,
+			grade: "",
+			roleName: "",
+			h2Eval: "",
+			annualEval: "",
+			promotion: false,
+			feedbackPoints: "",
+			feedbackExpectations: "",
+			evaluatorComments: [],
+			rawMarkdown: body.content,
+		});
 		return HttpResponse.json({ ok: true });
 	}),
 
 	// -----------------------------------------------------------------------
 	// 1on1 Wizard
 	// -----------------------------------------------------------------------
-	http.post("/api/members/:name/one-on-one/questions", async () => {
+	http.post("/api/members/:memberId/one-on-one/questions", async () => {
 		await delay(300);
-		return HttpResponse.json({ questions: MOCK_HEARING_QUESTIONS });
+		return HttpResponse.json({
+			questions: mockDb.getHearingQuestions(),
+		});
 	}),
 
-	http.post("/api/members/:name/one-on-one/summary", async () => {
+	http.post("/api/members/:memberId/one-on-one/summary", async () => {
 		await delay(200);
-		return sseResponse(MOCK_OO_SUMMARY);
+		return sseResponse(mockDb.getAiResponse("oneOnOneSummary") as string);
 	}),
 
-	http.post("/api/members/:name/one-on-one", async () => {
-		await delay(300);
-		return HttpResponse.json({ ok: true });
-	}),
+	http.post(
+		"/api/members/:memberId/one-on-one",
+		async ({ params, request }) => {
+			await delay(300);
+			const memberId = params.memberId as string;
+			const body = (await request.json()) as {
+				content: string;
+				yearMonth: string;
+			};
+			mockDb.saveOneOnOne(memberId, {
+				id: `oo_${memberId}_${body.yearMonth.replace("-", "")}`,
+				memberId,
+				date: body.yearMonth,
+				rawMarkdown: body.content,
+			});
+			return HttpResponse.json({ ok: true });
+		},
+	),
 
 	// -----------------------------------------------------------------------
 	// Docs / Policy
 	// -----------------------------------------------------------------------
 	http.get("/api/docs", async () => {
 		await delay(200);
-		return HttpResponse.json({
-			orgPolicy: MOCK_ORG_POLICY,
-			criteria: MOCK_CRITERIA,
-			guidelines: MOCK_GUIDELINES,
-		});
+		return HttpResponse.json(mockDb.getOrgDocs());
 	}),
 
 	http.post("/api/docs/policy/direction", async () => {
 		await delay(200);
-		return sseResponse(MOCK_POLICY_DIRECTION);
+		return sseResponse(mockDb.getAiResponse("policyDirection") as string);
 	}),
 
 	http.post("/api/docs/policy/draft", async () => {
 		await delay(200);
-		return sseResponse(MOCK_POLICY_DRAFT);
+		return sseResponse(mockDb.getAiResponse("policyDraft") as string);
 	}),
 
 	http.post("/api/docs/policy/refine", async () => {
 		await delay(200);
-		return sseResponse(MOCK_POLICY_DRAFT);
+		return sseResponse(mockDb.getAiResponse("policyDraft") as string);
 	}),
 
 	http.post("/api/docs/policy", async () => {
@@ -204,8 +213,6 @@ export const handlers = [
 	// -----------------------------------------------------------------------
 	http.post("/api/chat", async () => {
 		await delay(200);
-		return sseResponse(
-			"ご質問ありがとうございます。メンバーの目標設定や評価について、何でもお気軽にご相談ください。具体的な状況を教えていただければ、より適切なアドバイスが可能です。",
-		);
+		return sseResponse(mockDb.getAiResponse("chatDefault") as string);
 	}),
 ];

@@ -1,118 +1,21 @@
-export interface ProjectAllocation {
-	name: string;
-	april: number;
-	may: number;
-	june: number;
-	avgPct: number;
-}
+/**
+ * Wizard / UI ステート型 — フロントエンド専用
+ *
+ * これらの型は OpenAPI に含めず、手書きで管理する。
+ * API型を参照する場合は同じバレルからインポートする。
+ */
 
-export interface MemberSummary {
-	name: string;
-	folderName: string;
-	role: string;
-	team: string;
-	teamShort: string;
-	joinedAt: string;
-	projects: ProjectAllocation[];
-	mainProject: string;
-	rdPct: number;
-}
+import type {
+	ChatMessage,
+	EvaluationGrade,
+	OneOnOneRecord,
+	ReviewData,
+} from "@/api/generated/types";
 
-export interface MemberProfile {
-	name: string;
-	role: string;
-	team: string;
-	teamShort: string;
-	joinedAt: string;
-	projects: ProjectAllocation[];
-	skills: {
-		technical: string;
-		experience: string;
-		strengths: string;
-		challenges: string;
-	};
-	expectedRole: {
-		current: string;
-		longTerm: string;
-	};
-	rawMarkdown: string;
-}
+// ---------------------------------------------------------------------------
+// Goal Wizard
+// ---------------------------------------------------------------------------
 
-export interface GoalsData {
-	period: string;
-	memberName: string;
-	rawMarkdown: string;
-}
-
-export interface SingleGoal {
-	index: number;
-	label: string;
-	type: string;
-	title: string;
-	content: string;
-}
-
-export interface OneOnOneRecord {
-	filename: string;
-	date: string;
-	rawMarkdown: string;
-}
-
-export type EvaluationGrade = "S" | "A" | "B" | "C" | "D";
-
-export interface ReviewData {
-	period: string;
-	filename: string;
-	grade: string;
-	roleName: string;
-	h2Eval: string;
-	annualEval: string;
-	promotion: boolean;
-	feedbackPoints: string;
-	feedbackExpectations: string;
-	evaluatorComments: {
-		label: string;
-		evaluator: string;
-		content: string;
-	}[];
-	rawMarkdown: string;
-}
-
-export interface MemberDetail extends MemberProfile {
-	goals: GoalsData | null;
-	goalsByPeriod: Record<string, GoalsData>;
-	activePeriod: string;
-	oneOnOnes: OneOnOneRecord[];
-	reviews: ReviewData[];
-}
-
-export interface MemberPeriodStatus {
-	memberId: string;
-	memberName: string;
-	team: string;
-	hasGoal: boolean;
-	oneOnOneMonths: string[];
-	hasReview: boolean;
-}
-
-export interface TeamPeriodMatrix {
-	period: string;
-	members: MemberPeriodStatus[];
-}
-
-export interface ChatMessage {
-	role: "user" | "assistant";
-	content: string;
-}
-
-// Parsed goals
-export interface ParsedGoals {
-	header: string;
-	goals: SingleGoal[];
-	footer: string;
-}
-
-// Goal Wizard types
 export interface ManagerInput {
 	expectations: string;
 	biggestChallenge: string;
@@ -144,6 +47,7 @@ export interface GoalWizardState {
 }
 
 export interface WizardContextData {
+	memberId: string;
 	memberName: string;
 	memberProfile: string;
 	orgPolicy: string;
@@ -152,7 +56,10 @@ export interface WizardContextData {
 	targetPeriod: string;
 }
 
-// Evaluation Wizard types
+// ---------------------------------------------------------------------------
+// Evaluation Wizard
+// ---------------------------------------------------------------------------
+
 export interface SelfEvaluation {
 	score: EvaluationGrade | "";
 	achievementComment: string;
@@ -192,6 +99,7 @@ export interface EvaluationWizardState {
 }
 
 export interface EvaluationWizardContextData {
+	memberId: string;
 	memberName: string;
 	memberProfile: string;
 	orgPolicy: string;
@@ -202,7 +110,10 @@ export interface EvaluationWizardContextData {
 	previousReview: ReviewData | null;
 }
 
-// 1on1 Wizard types
+// ---------------------------------------------------------------------------
+// 1on1 Wizard
+// ---------------------------------------------------------------------------
+
 export interface ConditionScore {
 	motivation: number | null;
 	workload: number | null;
@@ -253,6 +164,7 @@ export interface OneOnOneWizardState {
 }
 
 export interface OneOnOneWizardContextData {
+	memberId: string;
 	memberName: string;
 	memberProfile: string;
 	orgPolicy: string;
@@ -264,7 +176,10 @@ export interface OneOnOneWizardContextData {
 	previousSummary: string;
 }
 
+// ---------------------------------------------------------------------------
 // Chat
+// ---------------------------------------------------------------------------
+
 export interface ChatRequest {
 	messages: ChatMessage[];
 	memberName?: string;
