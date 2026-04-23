@@ -31,7 +31,7 @@ export function Step6GoalGeneration({
 			setError("");
 			try {
 				const res = await fetch(
-					`/api/members/${context.memberName}/goals/generate`,
+					`/api/members/${context.memberId}/goals/generate`,
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },

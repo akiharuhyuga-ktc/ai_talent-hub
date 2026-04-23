@@ -9,21 +9,7 @@
  */
 import type { AxiosRequestConfig } from "axios";
 import { setMockResolver } from "@/api/custom-instance";
-import type { MemberPeriodStatus, TeamPeriodMatrix } from "@/lib/types";
-import {
-	MOCK_CRITERIA,
-	MOCK_DIAGNOSIS_TEXT,
-	MOCK_EVALUATION_COMMENT,
-	MOCK_GENERATED_GOALS,
-	MOCK_GUIDELINES,
-	MOCK_HEARING_QUESTIONS,
-	MOCK_OO_SUMMARY,
-	MOCK_ORG_POLICY,
-	MOCK_POLICY_DIRECTION,
-	MOCK_POLICY_DRAFT,
-	mockMemberDetails,
-	mockMembers,
-} from "./data";
+import { mockDb } from "./db";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -31,18 +17,6 @@ import {
 
 async function wait(ms: number) {
 	return new Promise((r) => setTimeout(r, ms));
-}
-
-function buildTeamMatrix(period: string): TeamPeriodMatrix {
-	const members: MemberPeriodStatus[] = mockMembers.map((m) => ({
-		memberId: m.folderName,
-		memberName: m.name,
-		team: m.teamShort,
-		hasGoal: Math.random() > 0.3,
-		oneOnOneMonths: ["04"],
-		hasReview: false,
-	}));
-	return { period, members };
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +35,17 @@ const axiosRoutes: MockRoute[] = [
 		pattern: /^\/api\/members$/,
 		handler: async () => {
 			await wait(300);
-			return mockMembers;
+			return mockDb.getMembers();
+		},
+	},
+	{
+		method: "post",
+		pattern: /^\/api\/members$/,
+		handler: async (config) => {
+			await wait(300);
+			const body =
+				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+			return mockDb.addMember(body);
 		},
 	},
 	{
@@ -69,7 +53,7 @@ const axiosRoutes: MockRoute[] = [
 		pattern: /^\/api\/members\/([^/]+)$/,
 		handler: async (_config, params) => {
 			await wait(200);
-			return mockMemberDetails[params[0]] ?? null;
+			return mockDb.getMemberDetail(params[0]) ?? null;
 		},
 	},
 	{
@@ -82,7 +66,7 @@ const axiosRoutes: MockRoute[] = [
 			);
 			const period = params.get("period") || "2026-h1";
 			return {
-				matrix: buildTeamMatrix(period),
+				matrix: mockDb.buildTeamMatrix(period),
 				availablePeriods: ["2026-h1", "2025-h2"],
 			};
 		},
@@ -97,17 +81,40 @@ const axiosRoutes: MockRoute[] = [
 	},
 	{
 		method: "post",
-		pattern: /^\/api\/members\/[^/]+\/goals$/,
-		handler: async () => {
+		pattern: /^\/api\/members\/([^/]+)\/goals$/,
+		handler: async (config, params) => {
 			await wait(300);
+			const body =
+				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+			if (body?.content && body?.period) {
+				mockDb.saveGoals(params[0], body.period, body.content);
+			}
 			return { ok: true };
 		},
 	},
 	{
 		method: "post",
-		pattern: /^\/api\/members\/[^/]+\/reviews$/,
-		handler: async () => {
+		pattern: /^\/api\/members\/([^/]+)\/reviews$/,
+		handler: async (config, params) => {
 			await wait(300);
+			const body =
+				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+			if (body?.content && body?.period) {
+				mockDb.saveReview(params[0], {
+					id: `rev_${params[0]}_${body.period}`,
+					memberId: params[0],
+					period: body.period,
+					grade: "",
+					roleName: "",
+					h2Eval: "",
+					annualEval: "",
+					promotion: false,
+					feedbackPoints: "",
+					feedbackExpectations: "",
+					evaluatorComments: [],
+					rawMarkdown: body.content,
+				});
+			}
 			return { ok: true };
 		},
 	},
@@ -116,14 +123,24 @@ const axiosRoutes: MockRoute[] = [
 		pattern: /^\/api\/members\/[^/]+\/one-on-one\/questions$/,
 		handler: async () => {
 			await wait(300);
-			return { questions: MOCK_HEARING_QUESTIONS };
+			return { questions: mockDb.getHearingQuestions() };
 		},
 	},
 	{
 		method: "post",
-		pattern: /^\/api\/members\/[^/]+\/one-on-one$/,
-		handler: async () => {
+		pattern: /^\/api\/members\/([^/]+)\/one-on-one$/,
+		handler: async (config, params) => {
 			await wait(300);
+			const body =
+				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+			if (body?.content && body?.yearMonth) {
+				mockDb.saveOneOnOne(params[0], {
+					id: `oo_${params[0]}_${body.yearMonth.replace("-", "")}`,
+					memberId: params[0],
+					date: body.yearMonth,
+					rawMarkdown: body.content,
+				});
+			}
 			return { ok: true };
 		},
 	},
@@ -132,11 +149,7 @@ const axiosRoutes: MockRoute[] = [
 		pattern: /^\/api\/docs$/,
 		handler: async () => {
 			await wait(200);
-			return {
-				orgPolicy: MOCK_ORG_POLICY,
-				criteria: MOCK_CRITERIA,
-				guidelines: MOCK_GUIDELINES,
-			};
+			return mockDb.getOrgDocs();
 		},
 	},
 	{
@@ -204,46 +217,49 @@ function sseResponse(text: string): Response {
 const sseRoutes: Array<{ pattern: RegExp; handler: () => Response }> = [
 	{
 		pattern: /\/api\/members\/[^/]+\/goals\/diagnosis$/,
-		handler: () => sseResponse(MOCK_DIAGNOSIS_TEXT),
+		handler: () => sseResponse(mockDb.getAiResponse("diagnosis") as string),
 	},
 	{
 		pattern: /\/api\/members\/[^/]+\/goals\/generate$/,
-		handler: () => sseResponse(MOCK_GENERATED_GOALS),
+		handler: () =>
+			sseResponse(mockDb.getAiResponse("generatedGoals") as string),
 	},
 	{
 		pattern: /\/api\/members\/[^/]+\/goals\/edit$/,
-		handler: () => sseResponse(MOCK_GENERATED_GOALS),
+		handler: () =>
+			sseResponse(mockDb.getAiResponse("generatedGoals") as string),
 	},
 	{
 		pattern: /\/api\/members\/[^/]+\/reviews\/draft$/,
-		handler: () => sseResponse(MOCK_EVALUATION_COMMENT),
+		handler: () =>
+			sseResponse(mockDb.getAiResponse("evaluationComment") as string),
 	},
 	{
 		pattern: /\/api\/members\/[^/]+\/reviews\/comment$/,
-		handler: () => sseResponse(MOCK_EVALUATION_COMMENT),
+		handler: () =>
+			sseResponse(mockDb.getAiResponse("evaluationComment") as string),
 	},
 	{
 		pattern: /\/api\/members\/[^/]+\/one-on-one\/summary$/,
-		handler: () => sseResponse(MOCK_OO_SUMMARY),
+		handler: () =>
+			sseResponse(mockDb.getAiResponse("oneOnOneSummary") as string),
 	},
 	{
 		pattern: /\/api\/docs\/policy\/direction$/,
-		handler: () => sseResponse(MOCK_POLICY_DIRECTION),
+		handler: () =>
+			sseResponse(mockDb.getAiResponse("policyDirection") as string),
 	},
 	{
 		pattern: /\/api\/docs\/policy\/draft$/,
-		handler: () => sseResponse(MOCK_POLICY_DRAFT),
+		handler: () => sseResponse(mockDb.getAiResponse("policyDraft") as string),
 	},
 	{
 		pattern: /\/api\/docs\/policy\/refine$/,
-		handler: () => sseResponse(MOCK_POLICY_DRAFT),
+		handler: () => sseResponse(mockDb.getAiResponse("policyDraft") as string),
 	},
 	{
 		pattern: /\/api\/chat$/,
-		handler: () =>
-			sseResponse(
-				"ご質問ありがとうございます。メンバーの目標設定や評価について、何でもお気軽にご相談ください。具体的な状況を教えていただければ、より適切なアドバイスが可能です。",
-			),
+		handler: () => sseResponse(mockDb.getAiResponse("chatDefault") as string),
 	},
 ];
 

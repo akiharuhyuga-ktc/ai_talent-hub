@@ -27,7 +27,7 @@ export function Step5Diagnosis({ state, context, onConfirm, onBack }: Props) {
 			setError("");
 			try {
 				const res = await fetch(
-					`/api/members/${context.memberName}/goals/diagnosis`,
+					`/api/members/${context.memberId}/goals/diagnosis`,
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },

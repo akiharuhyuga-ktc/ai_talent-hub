@@ -62,6 +62,17 @@ ktc-talent-hub/
 │   │   ├── api/
 │   │   │   ├── custom-instance.ts    # Axios 設定
 │   │   │   └── generated/            # 生成コード（hooks + 型）
+│   │   ├── lib/types/                # 型バレル（生成型 + UI 専用型）
+│   │   ├── mocks/
+│   │   │   ├── data/                 # seed data（テーブル別 JSON）
+│   │   │   │   ├── members/          #   1 ファイル = 1 メンバー
+│   │   │   │   ├── projects/         #   1 ファイル = 1 プロジェクト配分
+│   │   │   │   ├── goals/            #   1 ファイル = 1 目標
+│   │   │   │   ├── one-on-ones/      #   1 ファイル = 1 記録
+│   │   │   │   └── reviews/          #   1 ファイル = 1 評価
+│   │   │   ├── db.ts                 # MockDatabase（JSON 読込 + localStorage 永続化）
+│   │   │   ├── handlers.ts           # MSW ハンドラー（開発時）
+│   │   │   └── demo-mock.ts          # Tauri 用モック（リリース時）
 │   │   ├── routes/                   # ファイルベースルーティング
 │   │   ├── main.tsx                  # エントリーポイント
 │   │   └── index.css                 # Tailwind CSS
@@ -137,11 +148,102 @@ make quality       # lint + typecheck + test まとめて実行
 
 ## データ管理
 
-- メンバーデータは Markdown ファイル（YAML frontmatter + 本文）で管理
-- パーサーは `lib/parsers/` に配置
-- `data/.demo-mode.json` の `enabled` フラグでデモ/本番データを切替
-  - `true` → `data/demo-members`
-  - `false` → `data/members`
+### アーキテクチャ
+
+```
+第一弾（スタンドアロン）             第二弾（AWS）
+Frontend (React)                  Frontend (React)
+    ↓ /api/members                    ↓ /api/members
+MSW handlers                      実 API (Go)
+    ↓                                 ↓
+MockDatabase (JSON → in-memory)   Go backend → MySQL
+    ↓ 永続化
+localStorage
+```
+
+フロントエンドは常に `/api/members` 等の API を呼ぶ。第一弾では MSW がインターセプトしてローカルデータを返し、第二弾では MSW を外して実 API に繋ぐだけで移行できる。
+
+### データ構成（スタンドアロン版）
+
+データは MySQL テーブルと 1:1 対応するディレクトリ・ファイルで管理する。1 ファイル = 1 レコード。
+
+```
+frontend/src/mocks/data/
+├── members/                          # members テーブル
+│   ├── mbr_demo_tanaka_tanaka-taro.json
+│   ├── mbr_demo_suzuki_suzuki-hanako.json
+│   └── mbr_demo_yamamoto_yamamoto-kenta.json
+├── projects/                         # project_allocations テーブル
+│   ├── proj_tanaka_kinto.json
+│   ├── proj_tanaka_rd.json
+│   └── ...
+├── goals/                            # goals テーブル
+│   ├── goal_demo_tanaka_h1.json
+│   └── goal_demo_suzuki_h1.json
+├── one-on-ones/                      # one_on_ones テーブル
+│   ├── oo_demo_tanaka_2604.json
+│   └── oo_demo_suzuki_2604.json
+├── reviews/                          # reviews テーブル
+│   └── rev_demo_tanaka_25h2.json
+├── ai-responses.json                 # AI応答テンプレート
+└── org-docs.json                     # 組織方針・基準・ガイドライン
+```
+
+### ID 体系
+
+全エンティティに ULID ベースの接頭辞付き ID を付与する。
+
+| エンティティ | 接頭辞 | 例 |
+|---|---|---|
+| Member | `mbr_` | `mbr_demo_tanaka` |
+| Project | `proj_` | `proj_tanaka_kinto` |
+| Goal | `goal_` | `goal_demo_tanaka_h1` |
+| OneOnOne | `oo_` | `oo_demo_tanaka_2604` |
+| Review | `rev_` | `rev_demo_tanaka_25h2` |
+
+リレーションは `memberId` フィールドで紐付ける（MySQL の FK と同じ）。
+
+### 型定義の流れ
+
+```
+openapi/openapi.json          ← Single Source of Truth
+    ↓ make gen-api
+frontend/src/api/generated/   ← Orval が生成した TS 型 + React Query hooks
+    ↓ re-export
+frontend/src/lib/types/
+    ├── index.ts              ← バレル（API 生成型 + Wizard UI 型を re-export）
+    └── wizard.ts             ← UI 専用型（手書き、OpenAPI に含めない）
+```
+
+### データ構造を変更するとき
+
+1. **`openapi/openapi.json` のスキーマを編集**
+   - `components/schemas/` にあるスキーマ定義を変更
+   - テーブルレコード型: `MemberRecord`, `ProjectRecord`, `GoalsData`, `OneOnOneRecord`, `ReviewData`
+   - API レスポンス型: `MemberSummary`, `MemberDetail` 等
+
+2. **型を再生成**
+   ```bash
+   make gen-api
+   ```
+
+3. **seed data の JSON を更新**
+   - `frontend/src/mocks/data/` 内の該当 JSON ファイルを編集
+   - フィールドの追加・変更に合わせてレコードを更新
+
+4. **MockDatabase を更新**（必要な場合）
+   - `frontend/src/mocks/db.ts` の JOIN ロジックやWrite メソッドを修正
+
+5. **ビルド確認**
+   ```bash
+   make build
+   ```
+
+### 永続化
+
+- UI から追加・変更したデータは `localStorage` に保存される（ページリロードしても維持）
+- `mockDb.reset()` で seed data（JSON ファイル）の初期状態にリセット可能
+- 第二弾（AWS）移行時は localStorage → MySQL に置き換わる
 
 ## 環境変数
 

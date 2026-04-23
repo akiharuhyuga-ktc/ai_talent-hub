@@ -95,6 +95,7 @@ function MemberDetailPage() {
 	// Build wizard context objects
 	const goalWizardContext: WizardContextData | null = docs
 		? {
+				memberId: member.id,
 				memberName: member.name,
 				memberProfile: member.rawMarkdown,
 				orgPolicy: docs.orgPolicy,
@@ -106,6 +107,7 @@ function MemberDetailPage() {
 
 	const evalWizardContext: EvaluationWizardContextData | null = docs
 		? {
+				memberId: member.id,
 				memberName: member.name,
 				memberProfile: member.rawMarkdown,
 				orgPolicy: docs.orgPolicy,
@@ -132,6 +134,7 @@ function MemberDetailPage() {
 			: "";
 
 		return {
+			memberId: member.id,
 			memberName: member.name,
 			memberProfile: member.rawMarkdown,
 			orgPolicy: docs.orgPolicy,
@@ -157,8 +160,11 @@ function MemberDetailPage() {
 				<GoalsTab
 					goalsByPeriod={member.goalsByPeriod}
 					activePeriod={member.activePeriod}
+					memberId={member.id}
+					memberProfile={member.rawMarkdown}
 					onStartWizard={handleStartGoalWizard}
 					isWizardOpen={goalWizardOpen}
+					onGoalsUpdated={invalidateMember}
 				/>
 			),
 		},

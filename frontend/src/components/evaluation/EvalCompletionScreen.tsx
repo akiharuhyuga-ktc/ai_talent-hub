@@ -95,7 +95,7 @@ export function EvalCompletionScreen({ state, context, onClose }: Props) {
 			try {
 				const content = buildReviewMarkdown(state, context);
 
-				const res = await fetch(`/api/members/${context.memberName}/reviews`, {
+				const res = await fetch(`/api/members/${context.memberId}/reviews`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({

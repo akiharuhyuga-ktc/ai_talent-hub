@@ -98,7 +98,7 @@ export function Step7Refinement({
 
 		try {
 			const res = await fetch(
-				`/api/members/${context.memberName}/goals/generate`,
+				`/api/members/${context.memberId}/goals/generate`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -194,8 +194,11 @@ export function Step7Refinement({
 		setSaving(true);
 		setSaveError("");
 		try {
-			const bodyContent = mergeGoalSections(parsed.goals, parsed.footer);
-			const res = await fetch(`/api/members/${context.memberName}/goals`, {
+			const bodyContent =
+				parsed.goals.length > 0
+					? mergeGoalSections(parsed.goals, parsed.footer)
+					: currentGoals;
+			const res = await fetch(`/api/members/${context.memberId}/goals`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({

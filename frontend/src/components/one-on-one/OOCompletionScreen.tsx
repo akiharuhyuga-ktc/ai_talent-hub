@@ -31,7 +31,7 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
 			setSummaryError("");
 			try {
 				const res = await fetch(
-					`/api/members/${context.memberName}/one-on-one/summary`,
+					`/api/members/${context.memberId}/one-on-one/summary`,
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
@@ -140,17 +140,14 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
 					aiSummary: summary,
 				});
 
-				const res = await fetch(
-					`/api/members/${context.memberName}/one-on-one`,
-					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							content,
-							yearMonth: state.yearMonth,
-						}),
-					},
-				);
+				const res = await fetch(`/api/members/${context.memberId}/one-on-one`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						content,
+						yearMonth: state.yearMonth,
+					}),
+				});
 
 				if (res.ok) {
 					setSaved(true);

@@ -95,7 +95,7 @@ export function EvalStep2AIDraft({
 					.join("\n\n---\n\n");
 
 				const res = await fetch(
-					`/api/members/${context.memberName}/reviews/draft`,
+					`/api/members/${context.memberId}/reviews/draft`,
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
