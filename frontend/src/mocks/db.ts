@@ -25,12 +25,19 @@ import type {
 	ReviewData,
 	TeamPeriodMatrix,
 } from "@/lib/types";
-
-import aiResponsesJson from "./data/ai-responses.json";
-import orgDocsJson from "./data/org-docs.json";
+import {
+	type AiResponses,
+	DEFAULT_AI_RESPONSES,
+	DEFAULT_ORG_DOCS,
+	type OrgDocs,
+} from "./default-responses";
 
 // ---------------------------------------------------------------------------
 // import.meta.glob でテーブル別ディレクトリから seed data を読み込む
+//
+// data/ はローカル専用ディレクトリ（gitignore対象）で、各開発者が convert-data
+// スキルなどでローカル生成する。ファイルが未生成でも起動できるよう、全て glob
+// 経由で読み込み、存在しない場合は空として扱う。
 // ---------------------------------------------------------------------------
 
 const memberModules = import.meta.glob<MemberRecord>("./data/members/*.json", {
@@ -53,6 +60,21 @@ const reviewModules = import.meta.glob<ReviewData>("./data/reviews/*.json", {
 	eager: true,
 	import: "default",
 });
+
+// AI 応答モック・組織ドキュメントは default-responses.ts に既定値を持ち、
+// ローカルに data/ai-responses.json / data/org-docs.json があれば上書きする。
+const aiResponsesModules = import.meta.glob<AiResponses>(
+	"./data/ai-responses.json",
+	{ eager: true, import: "default" },
+);
+const orgDocsModules = import.meta.glob<OrgDocs>("./data/org-docs.json", {
+	eager: true,
+	import: "default",
+});
+
+const loadedAiResponses =
+	Object.values(aiResponsesModules)[0] ?? DEFAULT_AI_RESPONSES;
+const loadedOrgDocs = Object.values(orgDocsModules)[0] ?? DEFAULT_ORG_DOCS;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -102,8 +124,8 @@ class MockDatabase {
 	private goalRecords: GoalsData[];
 	private oneOnOneRecords: OneOnOneRecord[];
 	private reviewRecords: ReviewData[];
-	private aiResponses: typeof aiResponsesJson;
-	private orgDocs: typeof orgDocsJson;
+	private aiResponses: AiResponses;
+	private orgDocs: OrgDocs;
 
 	constructor() {
 		const saved = this.loadFromStorage();
@@ -120,8 +142,8 @@ class MockDatabase {
 			this.oneOnOneRecords = deepClone(vals(oneOnOneModules));
 			this.reviewRecords = deepClone(vals(reviewModules));
 		}
-		this.aiResponses = deepClone(aiResponsesJson);
-		this.orgDocs = deepClone(orgDocsJson);
+		this.aiResponses = deepClone(loadedAiResponses);
+		this.orgDocs = deepClone(loadedOrgDocs);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -224,7 +246,7 @@ class MockDatabase {
 		};
 	}
 
-	getAiResponse(key: keyof typeof aiResponsesJson): unknown {
+	getAiResponse(key: keyof AiResponses): unknown {
 		return this.aiResponses[key];
 	}
 
@@ -232,7 +254,7 @@ class MockDatabase {
 		return this.aiResponses.hearingQuestions;
 	}
 
-	getOrgDocs(): { orgPolicy: string; criteria: string; guidelines: string } {
+	getOrgDocs(): OrgDocs {
 		return this.orgDocs;
 	}
 
@@ -304,6 +326,26 @@ class MockDatabase {
 
 		this.persist();
 		return record;
+	}
+
+	deleteMember(memberId: string): boolean {
+		const idx = this.memberRecords.findIndex((r) => r.id === memberId);
+		if (idx < 0) return false;
+
+		this.memberRecords.splice(idx, 1);
+		this.projectRecords = this.projectRecords.filter(
+			(p) => p.memberId !== memberId,
+		);
+		this.goalRecords = this.goalRecords.filter((g) => g.memberId !== memberId);
+		this.oneOnOneRecords = this.oneOnOneRecords.filter(
+			(o) => o.memberId !== memberId,
+		);
+		this.reviewRecords = this.reviewRecords.filter(
+			(r) => r.memberId !== memberId,
+		);
+
+		this.persist();
+		return true;
 	}
 
 	saveGoals(memberId: string, period: string, content: string): void {

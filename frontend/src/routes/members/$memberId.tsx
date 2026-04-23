@@ -4,6 +4,7 @@ import { useState } from "react";
 import customInstance from "@/api/custom-instance";
 import { EvaluationWizard } from "@/components/evaluation/EvaluationWizard";
 import { GoalWizard } from "@/components/goals/GoalWizard";
+import { DeleteMemberDialog } from "@/components/member/DeleteMemberDialog";
 import { GoalsTab } from "@/components/member/GoalsTab";
 import { OneOnOneTab } from "@/components/member/OneOnOneTab";
 import { ProfileTab } from "@/components/member/ProfileTab";
@@ -41,6 +42,7 @@ function MemberDetailPage() {
 	const [goalWizardPeriod, setGoalWizardPeriod] = useState("");
 	const [evalWizardOpen, setEvalWizardOpen] = useState(false);
 	const [oneOnOneWizardOpen, setOneOnOneWizardOpen] = useState(false);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	const { data: member, isLoading } = useQuery({
 		queryKey: ["members", memberId],
@@ -195,15 +197,24 @@ function MemberDetailPage() {
 	return (
 		<div className="h-screen overflow-y-auto">
 			<div className="px-10 py-8">
-				<div className="flex items-center gap-2 mb-6 text-xl">
-					<Link
-						to="/"
-						className="text-brand-600 hover:text-brand-800 transition-colors font-medium"
+				<div className="flex items-center justify-between mb-6">
+					<div className="flex items-center gap-2 text-xl">
+						<Link
+							to="/"
+							className="text-brand-600 hover:text-brand-800 transition-colors font-medium"
+						>
+							ダッシュボード
+						</Link>
+						<span className="text-gray-300">/</span>
+						<span className="text-gray-600 font-medium">{member.name}</span>
+					</div>
+					<button
+						type="button"
+						onClick={() => setDeleteDialogOpen(true)}
+						className="px-4 py-2 text-lg text-red-500 border border-red-200 rounded-lg font-medium hover:bg-red-50 transition-colors"
 					>
-						ダッシュボード
-					</Link>
-					<span className="text-gray-300">/</span>
-					<span className="text-gray-600 font-medium">{member.name}</span>
+						メンバーを削除
+					</button>
 				</div>
 				<Tabs tabs={tabs} defaultTab="profile" />
 			</div>
@@ -237,6 +248,13 @@ function MemberDetailPage() {
 					}}
 				/>
 			)}
+
+			<DeleteMemberDialog
+				open={deleteDialogOpen}
+				memberId={member.id}
+				memberName={member.name}
+				onClose={() => setDeleteDialogOpen(false)}
+			/>
 		</div>
 	);
 }

@@ -414,7 +414,68 @@ export function useGetMemberSuspense<TData = Awaited<ReturnType<typeof getMember
 
 
 
+/**
+ * @summary メンバーを削除 (関連する目標・1on1・評価もカスケード削除)
+ */
+export const deleteMember = (
+    slug: string,
+ ) => {
+      
+      
+      return customInstance<void>(
+      {url: `/members/${slug}`, method: 'DELETE'
+    },
+      );
+    }
+  
 
+
+export const getDeleteMemberMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,{slug: string}, TContext>, }
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,{slug: string}, TContext> => {
+
+const mutationKey = ['deleteMember'];
+const {mutation: mutationOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMember>>, {slug: string}> = (props) => {
+          const {slug} = props ?? {};
+
+          return  deleteMember(slug,)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMemberMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMember>>>
+    
+    export type DeleteMemberMutationError = void
+
+    /**
+ * @summary メンバーを削除 (関連する目標・1on1・評価もカスケード削除)
+ */
+export const useDeleteMember = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,{slug: string}, TContext>, }
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMember>>,
+        TError,
+        {slug: string},
+        TContext
+      > => {
+
+      const mutationOptions = getDeleteMemberMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
 
 export const getListMembersResponseMock = (): MemberSummary[] => (Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({id: faker.string.alpha({length: {min: 10, max: 20}}), slug: faker.string.alpha({length: {min: 10, max: 20}}), name: faker.string.alpha({length: {min: 10, max: 20}}), role: faker.string.alpha({length: {min: 10, max: 20}}), team: faker.string.alpha({length: {min: 10, max: 20}}), teamShort: faker.string.alpha({length: {min: 10, max: 20}}), joinedAt: faker.string.alpha({length: {min: 10, max: 20}}), projects: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({name: faker.string.alpha({length: {min: 10, max: 20}}), april: faker.number.int({min: undefined, max: undefined}), may: faker.number.int({min: undefined, max: undefined}), june: faker.number.int({min: undefined, max: undefined}), avgPct: faker.number.int({min: undefined, max: undefined})})), mainProject: faker.string.alpha({length: {min: 10, max: 20}}), rdPct: faker.number.int({min: undefined, max: undefined})})))
 
@@ -460,8 +521,19 @@ export const getGetMemberMockHandler = (overrideResponse?: MemberDetail | ((info
       })
   }, options)
 }
+
+export const getDeleteMemberMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.delete('*/members/:slug', async (info) => {await delay(500);
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+    return new HttpResponse(null,
+      { status: 204,
+        
+      })
+  }, options)
+}
 export const getMembersMock = () => [
   getListMembersMockHandler(),
   getCreateMemberMockHandler(),
-  getGetMemberMockHandler()
+  getGetMemberMockHandler(),
+  getDeleteMemberMockHandler()
 ]

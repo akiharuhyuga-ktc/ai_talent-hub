@@ -97,6 +97,24 @@
           },
           "404": { "description": "メンバーが見つからない" }
         }
+      },
+      "delete": {
+        "tags": ["members"],
+        "operationId": "deleteMember",
+        "summary": "メンバーを削除 (関連する目標・1on1・評価もカスケード削除)",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "メンバーのslug (例: tanaka-taro)"
+          }
+        ],
+        "responses": {
+          "204": { "description": "削除成功" },
+          "404": { "description": "メンバーが見つからない" }
+        }
       }
     },
     "/members/{slug}/goals": {

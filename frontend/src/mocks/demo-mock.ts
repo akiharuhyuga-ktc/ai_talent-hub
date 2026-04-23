@@ -57,6 +57,15 @@ const axiosRoutes: MockRoute[] = [
 		},
 	},
 	{
+		method: "delete",
+		pattern: /^\/api\/members\/([^/]+)$/,
+		handler: async (_config, params) => {
+			await wait(200);
+			mockDb.deleteMember(params[0]);
+			return undefined;
+		},
+	},
+	{
 		method: "get",
 		pattern: /^\/api\/team\/matrix/,
 		handler: async (config) => {
