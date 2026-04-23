@@ -1,4 +1,5 @@
 import { delay, HttpResponse, http } from "msw";
+import { dataStore } from "@/lib/data-store";
 import { mockDb } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -47,46 +48,31 @@ export const handlers = [
 	// -----------------------------------------------------------------------
 	// Members & Team
 	// -----------------------------------------------------------------------
-	http.get("/api/members", async () => {
-		await delay(300);
-		return HttpResponse.json(mockDb.getMembers());
-	}),
-
-	http.post("/api/members", async ({ request }) => {
-		await delay(300);
-		const body = (await request.json()) as Record<string, unknown>;
-		const record = mockDb.addMember(
-			body as Parameters<typeof mockDb.addMember>[0],
-		);
-		return HttpResponse.json(record, { status: 201 });
-	}),
-
-	http.get("/api/members/:memberId", async ({ params }) => {
+	// メンバー本体（CRUD）は dataStore 経由で data/v1/members/ に永続化するため
+	// MSW ではハンドリングしない。下記 /extras は目標/1on1/評価のみを返す補助エンドポイント
+	// （これらは Phase 1 時点では localStorage に残留）。
+	http.get("/api/members/:memberId/extras", async ({ params }) => {
 		await delay(200);
 		const memberId = params.memberId as string;
-		const detail = mockDb.getMemberDetail(memberId);
-		if (!detail) {
-			return new HttpResponse(null, { status: 404 });
-		}
-		return HttpResponse.json(detail);
-	}),
-
-	http.delete("/api/members/:memberId", async ({ params }) => {
-		await delay(200);
-		const memberId = params.memberId as string;
-		const ok = mockDb.deleteMember(memberId);
-		if (!ok) {
-			return new HttpResponse(null, { status: 404 });
-		}
-		return new HttpResponse(null, { status: 204 });
+		const extras = mockDb.getMemberExtras(memberId);
+		return HttpResponse.json(extras);
 	}),
 
 	http.get("/api/team/matrix", async ({ request }) => {
 		await delay(300);
 		const url = new URL(request.url);
 		const period = url.searchParams.get("period") || "2026-h1";
+		const members = await dataStore.members.list();
+		const matrixMembers = members.map((m) => ({
+			memberId: m.id,
+			memberName: m.name,
+			team: m.teamShort,
+			hasGoal: mockDb.hasGoal(m.id, period),
+			oneOnOneMonths: mockDb.oneOnOneMonthsFor(m.id),
+			hasReview: mockDb.hasReview(m.id),
+		}));
 		return HttpResponse.json({
-			matrix: mockDb.buildTeamMatrix(period),
+			matrix: { period, members: matrixMembers },
 			availablePeriods: ["2026-h1", "2025-h2"],
 		});
 	}),

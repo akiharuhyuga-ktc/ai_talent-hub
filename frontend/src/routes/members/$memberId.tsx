@@ -11,6 +11,7 @@ import { ProfileTab } from "@/components/member/ProfileTab";
 import { ReviewsTab } from "@/components/member/ReviewsTab";
 import { OneOnOneWizard } from "@/components/one-on-one/OneOnOneWizard";
 import { Tabs } from "@/components/ui/Tabs";
+import { dataStore } from "@/lib/data-store";
 import {
 	parseActionItems,
 	parseConditionScore,
@@ -18,8 +19,11 @@ import {
 } from "@/lib/parsers/one-on-one";
 import type {
 	EvaluationWizardContextData,
+	GoalsData,
 	MemberDetail,
+	OneOnOneRecord,
 	OneOnOneWizardContextData,
+	ReviewData,
 	WizardContextData,
 } from "@/lib/types";
 import { formatPeriodLabel } from "@/lib/utils/period";
@@ -29,6 +33,18 @@ interface DocsData {
 	criteria: string;
 	guidelines: string;
 }
+
+interface MemberExtras {
+	goalsByPeriod: Record<string, GoalsData>;
+	oneOnOnes: OneOnOneRecord[];
+	reviews: ReviewData[];
+}
+
+const EMPTY_EXTRAS: MemberExtras = {
+	goalsByPeriod: {},
+	oneOnOnes: [],
+	reviews: [],
+};
 
 export const Route = createFileRoute("/members/$memberId")({
 	component: MemberDetailPage,
@@ -44,28 +60,61 @@ function MemberDetailPage() {
 	const [oneOnOneWizardOpen, setOneOnOneWizardOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-	const { data: member, isLoading } = useQuery({
-		queryKey: ["members", memberId],
-		queryFn: async () => {
-			return customInstance<MemberDetail>({
-				method: "get",
-				url: `/api/members/${memberId}`,
-			});
-		},
+	const { data: profile, isLoading: profileLoading } = useQuery({
+		queryKey: ["members", memberId, "profile"],
+		queryFn: () => dataStore.members.get(memberId),
 	});
+
+	const { data: extras = EMPTY_EXTRAS } = useQuery({
+		queryKey: ["members", memberId, "extras"],
+		queryFn: async (): Promise<MemberExtras> => {
+			try {
+				return await customInstance<MemberExtras>({
+					method: "get",
+					url: `/api/members/${memberId}/extras`,
+				});
+			} catch (err) {
+				console.warn("failed to load member extras", err);
+				return EMPTY_EXTRAS;
+			}
+		},
+		enabled: !!profile,
+	});
+
+	const member: MemberDetail | null = profile
+		? {
+				...profile,
+				projects: [],
+				goals: extras.goalsByPeriod?.[profile.activePeriod] ?? null,
+				goalsByPeriod: extras.goalsByPeriod ?? {},
+				activePeriod: profile.activePeriod,
+				oneOnOnes: extras.oneOnOnes ?? [],
+				reviews: extras.reviews ?? [],
+			}
+		: null;
 
 	const { data: docs } = useQuery({
 		queryKey: ["docs"],
 		queryFn: async () => {
-			return customInstance<DocsData>({ method: "get", url: "/api/docs" });
+			try {
+				return await customInstance<DocsData>({
+					method: "get",
+					url: "/api/docs",
+				});
+			} catch (err) {
+				console.warn("failed to load docs", err);
+				return null;
+			}
 		},
 	});
 
 	const invalidateMember = () => {
-		queryClient.invalidateQueries({ queryKey: ["members", memberId] });
+		queryClient.invalidateQueries({
+			queryKey: ["members", memberId, "extras"],
+		});
 	};
 
-	if (isLoading) {
+	if (profileLoading) {
 		return (
 			<main className="px-10 py-8">
 				<div className="text-xl text-gray-400">読み込み中...</div>
@@ -73,10 +122,18 @@ function MemberDetailPage() {
 		);
 	}
 
-	if (!member) {
+	if (!profile) {
 		return (
 			<main className="px-10 py-8">
 				<div className="text-xl text-gray-500">メンバーが見つかりません</div>
+			</main>
+		);
+	}
+
+	if (!member) {
+		return (
+			<main className="px-10 py-8">
+				<div className="text-xl text-gray-400">読み込み中...</div>
 			</main>
 		);
 	}

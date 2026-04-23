@@ -9,6 +9,7 @@
  */
 import type { AxiosRequestConfig } from "axios";
 import { setMockResolver } from "@/api/custom-instance";
+import { dataStore } from "@/lib/data-store";
 import { mockDb } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -32,37 +33,10 @@ type MockRoute = {
 const axiosRoutes: MockRoute[] = [
 	{
 		method: "get",
-		pattern: /^\/api\/members$/,
-		handler: async () => {
-			await wait(300);
-			return mockDb.getMembers();
-		},
-	},
-	{
-		method: "post",
-		pattern: /^\/api\/members$/,
-		handler: async (config) => {
-			await wait(300);
-			const body =
-				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
-			return mockDb.addMember(body);
-		},
-	},
-	{
-		method: "get",
-		pattern: /^\/api\/members\/([^/]+)$/,
+		pattern: /^\/api\/members\/([^/]+)\/extras$/,
 		handler: async (_config, params) => {
 			await wait(200);
-			return mockDb.getMemberDetail(params[0]) ?? null;
-		},
-	},
-	{
-		method: "delete",
-		pattern: /^\/api\/members\/([^/]+)$/,
-		handler: async (_config, params) => {
-			await wait(200);
-			mockDb.deleteMember(params[0]);
-			return undefined;
+			return mockDb.getMemberExtras(params[0]);
 		},
 	},
 	{
@@ -74,8 +48,17 @@ const axiosRoutes: MockRoute[] = [
 				typeof config.params === "object" ? config.params : {},
 			);
 			const period = params.get("period") || "2026-h1";
+			const members = await dataStore.members.list();
+			const matrixMembers = members.map((m) => ({
+				memberId: m.id,
+				memberName: m.name,
+				team: m.teamShort,
+				hasGoal: mockDb.hasGoal(m.id, period),
+				oneOnOneMonths: mockDb.oneOnOneMonthsFor(m.id),
+				hasReview: mockDb.hasReview(m.id),
+			}));
 			return {
-				matrix: mockDb.buildTeamMatrix(period),
+				matrix: { period, members: matrixMembers },
 				availablePeriods: ["2026-h1", "2025-h2"],
 			};
 		},
