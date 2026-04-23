@@ -1,18 +1,20 @@
 ---
 name: convert-data
 description: |
-  data/members/ のMarkdownファイルを frontend/src/mocks/data/ のJSON形式に変換するスキル。
+  data/v1/members/ のMarkdownファイルを frontend/src/mocks/data/ のJSON形式に変換するスキル。
   MANDATORY TRIGGERS: 「データ変換」「convert-data」「data変換」「MD→JSON変換」「シードデータ生成」「データを新方式にして」
 ---
 
-# データ変換スキル（data/ → frontend/src/mocks/data/）
+# データ変換スキル（data/v1/ → frontend/src/mocks/data/）
 
-`data/members/{名前}/` 以下の Markdown ファイルを読み込み、`frontend/src/mocks/data/` のテーブル別 JSON ファイルに変換する。
+`data/v1/members/{名前}/` 以下の Markdown ファイルを読み込み、`frontend/src/mocks/data/` のテーブル別 JSON ファイルに変換する。
 
-## 入力（data/ ディレクトリ構造）
+注意: 旧 frontend（`archived_frontend/`）は `data/members/` と `data/demo-members/` を参照する別系統。現 frontend の入力は必ず `data/v1/` 配下を使うこと。
+
+## 入力（data/v1/ ディレクトリ構造）
 
 ```
-data/members/
+data/v1/members/
   {名前}/
     profile.md          → members テーブル + projects テーブル
     goals/{period}.md   → goals テーブル
@@ -33,10 +35,10 @@ frontend/src/mocks/data/
 
 ## 変換手順
 
-### Step 1: data/members/ の全メンバーディレクトリを列挙
+### Step 1: data/v1/members/ の全メンバーディレクトリを列挙
 
 ```bash
-ls data/members/
+ls data/v1/members/
 ```
 
 ### Step 2: 各メンバーについて以下を実行
@@ -140,7 +142,7 @@ review の Markdown からメタデータを抽出:
 ### Step 4: 確認
 
 ```bash
-ls frontend/src/mocks/data/members/
+ls frontend/src/mocks/data/v1/members/
 ls frontend/src/mocks/data/projects/
 ls frontend/src/mocks/data/goals/
 ls frontend/src/mocks/data/one-on-ones/
@@ -158,7 +160,7 @@ cd frontend && npm run build
 
 ## 注意事項
 
-- `data/members/{名前}/` の `.gitkeep` ファイルはスキップする
+- `data/v1/members/{名前}/` の `.gitkeep` ファイルはスキップする
 - パースに失敗したフィールドは空文字列にする
 - rawMarkdown には必ずファイル全文を保持する（UI表示に使用）
 - 変換後は `cd frontend && npm run build` でビルド確認すること
