@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import customInstance from "@/api/custom-instance";
+import { AddMemberModal } from "@/components/dashboard/AddMemberModal";
 import { MemberGrid } from "@/components/dashboard/MemberGrid";
 import { StatsBar } from "@/components/dashboard/StatsBar";
 import type { MemberSummary } from "@/lib/types";
@@ -10,6 +12,8 @@ export const Route = createFileRoute("/")({
 });
 
 function DashboardPage() {
+	const [addOpen, setAddOpen] = useState(false);
+
 	const { data: members, isLoading } = useQuery({
 		queryKey: ["members"],
 		queryFn: async () => {
@@ -37,13 +41,22 @@ function DashboardPage() {
 				<div className="space-y-8">
 					<StatsBar members={members} />
 					<div>
-						<h2 className="text-2xl font-semibold text-gray-900 mb-4">
-							メンバー
-						</h2>
+						<div className="flex items-center justify-between mb-4">
+							<h2 className="text-2xl font-semibold text-gray-900">メンバー</h2>
+							<button
+								type="button"
+								onClick={() => setAddOpen(true)}
+								className="px-5 py-2 text-xl bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
+							>
+								＋ メンバー追加
+							</button>
+						</div>
 						<MemberGrid members={members} />
 					</div>
 				</div>
 			) : null}
+
+			<AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} />
 		</main>
 	);
 }

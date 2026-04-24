@@ -71,6 +71,16 @@ export const handlers = [
 		return HttpResponse.json(detail);
 	}),
 
+	http.delete("/api/members/:memberId", async ({ params }) => {
+		await delay(200);
+		const memberId = params.memberId as string;
+		const ok = mockDb.deleteMember(memberId);
+		if (!ok) {
+			return new HttpResponse(null, { status: 404 });
+		}
+		return new HttpResponse(null, { status: 204 });
+	}),
+
 	http.get("/api/team/matrix", async ({ request }) => {
 		await delay(300);
 		const url = new URL(request.url);
