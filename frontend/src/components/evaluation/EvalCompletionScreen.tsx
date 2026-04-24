@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { dataStore } from "@/lib/data-store";
 import type {
 	EvaluationWizardContextData,
 	EvaluationWizardState,
@@ -95,18 +96,10 @@ export function EvalCompletionScreen({ state, context, onClose }: Props) {
 			try {
 				const content = buildReviewMarkdown(state, context);
 
-				const res = await fetch(`/api/members/${context.memberId}/reviews`, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						content,
-						period: state.period,
-					}),
-				});
-
-				if (res.ok) {
+				try {
+					await dataStore.reviews.save(context.memberId, state.period, content);
 					setSaved(true);
-				} else {
+				} catch {
 					setSaveError("保存に失敗しました。もう一度お試しください。");
 				}
 			} catch (_err) {

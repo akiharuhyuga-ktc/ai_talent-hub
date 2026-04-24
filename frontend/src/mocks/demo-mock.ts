@@ -36,7 +36,17 @@ const axiosRoutes: MockRoute[] = [
 		pattern: /^\/api\/members\/([^/]+)\/extras$/,
 		handler: async (_config, params) => {
 			await wait(200);
-			return mockDb.getMemberExtras(params[0]);
+			const memberId = params[0];
+			const [goals, oneOnOnes, reviews] = await Promise.all([
+				dataStore.goals.listForMember(memberId),
+				dataStore.oneOnOnes.listForMember(memberId),
+				dataStore.reviews.listForMember(memberId),
+			]);
+			const goalsByPeriod: Record<string, (typeof goals)[number]> = {};
+			for (const g of goals) {
+				goalsByPeriod[g.period] = g;
+			}
+			return { goalsByPeriod, oneOnOnes, reviews };
 		},
 	},
 	{
@@ -49,14 +59,23 @@ const axiosRoutes: MockRoute[] = [
 			);
 			const period = params.get("period") || "2026-h1";
 			const members = await dataStore.members.list();
-			const matrixMembers = members.map((m) => ({
-				memberId: m.id,
-				memberName: m.name,
-				team: m.teamShort,
-				hasGoal: mockDb.hasGoal(m.id, period),
-				oneOnOneMonths: mockDb.oneOnOneMonthsFor(m.id),
-				hasReview: mockDb.hasReview(m.id),
-			}));
+			const matrixMembers = await Promise.all(
+				members.map(async (m) => {
+					const [goals, oneOnOnes, reviews] = await Promise.all([
+						dataStore.goals.listForMember(m.id),
+						dataStore.oneOnOnes.listForMember(m.id),
+						dataStore.reviews.listForMember(m.id),
+					]);
+					return {
+						memberId: m.id,
+						memberName: m.name,
+						team: m.teamShort,
+						hasGoal: goals.some((g) => g.period === period),
+						oneOnOneMonths: oneOnOnes.map((o) => o.date.split("-")[1]),
+						hasReview: reviews.length > 0,
+					};
+				}),
+			);
 			return {
 				matrix: { period, members: matrixMembers },
 				availablePeriods: ["2026-h1", "2025-h2"],
@@ -79,7 +98,7 @@ const axiosRoutes: MockRoute[] = [
 			const body =
 				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
 			if (body?.content && body?.period) {
-				mockDb.saveGoals(params[0], body.period, body.content);
+				await dataStore.goals.save(params[0], body.period, body.content);
 			}
 			return { ok: true };
 		},
@@ -92,20 +111,7 @@ const axiosRoutes: MockRoute[] = [
 			const body =
 				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
 			if (body?.content && body?.period) {
-				mockDb.saveReview(params[0], {
-					id: `rev_${params[0]}_${body.period}`,
-					memberId: params[0],
-					period: body.period,
-					grade: "",
-					roleName: "",
-					h2Eval: "",
-					annualEval: "",
-					promotion: false,
-					feedbackPoints: "",
-					feedbackExpectations: "",
-					evaluatorComments: [],
-					rawMarkdown: body.content,
-				});
+				await dataStore.reviews.save(params[0], body.period, body.content);
 			}
 			return { ok: true };
 		},
@@ -126,12 +132,7 @@ const axiosRoutes: MockRoute[] = [
 			const body =
 				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
 			if (body?.content && body?.yearMonth) {
-				mockDb.saveOneOnOne(params[0], {
-					id: `oo_${params[0]}_${body.yearMonth.replace("-", "")}`,
-					memberId: params[0],
-					date: body.yearMonth,
-					rawMarkdown: body.content,
-				});
+				await dataStore.oneOnOnes.save(params[0], body.yearMonth, body.content);
 			}
 			return { ok: true };
 		},

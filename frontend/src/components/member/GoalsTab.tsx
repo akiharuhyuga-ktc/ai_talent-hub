@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { GoalFieldContent } from "@/components/member/GoalFieldContent";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { dataStore } from "@/lib/data-store";
 import {
 	assembleGoalMarkdown,
 	parseGoalFields,
@@ -112,15 +113,7 @@ export function GoalsTab({
 		setSaving(true);
 		setSaveMsg("");
 		try {
-			const res = await fetch(
-				`/api/members/${encodeURIComponent(memberId)}/goals`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ content, period: selectedPeriod }),
-				},
-			);
-			if (!res.ok) throw new Error();
+			await dataStore.goals.save(memberId, selectedPeriod, content);
 			setSaveMsg("保存しました");
 			setEditMode(null);
 			onGoalsUpdated?.();

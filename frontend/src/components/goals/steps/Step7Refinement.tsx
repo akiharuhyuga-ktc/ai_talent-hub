@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { dataStore } from "@/lib/data-store";
 import {
 	mergeGoalSections,
 	parseGoalsToSections,
@@ -198,15 +199,11 @@ export function Step7Refinement({
 				parsed.goals.length > 0
 					? mergeGoalSections(parsed.goals, parsed.footer)
 					: currentGoals;
-			const res = await fetch(`/api/members/${context.memberId}/goals`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					content: bodyContent,
-					period: context.targetPeriod,
-				}),
-			});
-			if (!res.ok) throw new Error("保存に失敗しました");
+			await dataStore.goals.save(
+				context.memberId,
+				context.targetPeriod,
+				bodyContent,
+			);
 			setSaved(true);
 			onConfirm(currentGoals);
 		} catch (_err) {

@@ -1,20 +1,35 @@
 import type { MemberRecord, MemberSummary } from "@/api/generated/types";
+import type { OneOnOneRecord, ReviewData } from "@/lib/types";
 import {
 	generateMemberId,
 	parseProfile,
 	serializeProfile,
 	toSlug,
 } from "./markdown";
-import type { MemberCreateInput, MembersStore } from "./types";
+import type {
+	GoalsStore,
+	MemberCreateInput,
+	MembersStore,
+	OneOnOnesStore,
+	ReviewsStore,
+} from "./types";
 
-interface ListResponse {
+// ---------------------------------------------------------------------------
+// Low-level fetch helpers
+// ---------------------------------------------------------------------------
+
+interface ProfilesResponse {
 	profiles: { name: string; content: string }[];
+}
+
+interface SubDirResponse {
+	files: { name: string; content: string }[];
 }
 
 async function fetchProfiles(): Promise<{ name: string; content: string }[]> {
 	const res = await fetch("/api/fs/members");
 	if (!res.ok) throw new Error(`failed to list members: ${res.status}`);
-	const data = (await res.json()) as ListResponse;
+	const data = (await res.json()) as ProfilesResponse;
 	return data.profiles;
 }
 
@@ -38,6 +53,42 @@ async function deleteMemberDir(name: string): Promise<void> {
 	if (!res.ok) throw new Error(`failed to delete member: ${res.status}`);
 }
 
+async function listSubDir(
+	memberName: string,
+	kind: "goals" | "one-on-one" | "reviews",
+): Promise<{ name: string; content: string }[]> {
+	const res = await fetch(
+		`/api/fs/members/${encodeURIComponent(memberName)}/${kind}`,
+	);
+	if (res.status === 404) return [];
+	if (!res.ok) throw new Error(`failed to list ${kind}: ${res.status}`);
+	const data = (await res.json()) as SubDirResponse;
+	return data.files;
+}
+
+async function writeSubDirFile(
+	memberName: string,
+	kind: "goals" | "one-on-one" | "reviews",
+	key: string,
+	content: string,
+): Promise<void> {
+	const res = await fetch(
+		`/api/fs/members/${encodeURIComponent(memberName)}/${kind}/${encodeURIComponent(
+			key,
+		)}`,
+		{
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ content }),
+		},
+	);
+	if (!res.ok) throw new Error(`failed to write ${kind}/${key}: ${res.status}`);
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function toSummary(record: MemberRecord): MemberSummary {
 	return {
 		id: record.id,
@@ -53,6 +104,16 @@ function toSummary(record: MemberRecord): MemberSummary {
 	};
 }
 
+async function resolveMember(memberId: string): Promise<MemberRecord | null> {
+	const profiles = await fetchProfiles();
+	const records = profiles.map((p) => parseProfile(p.content, p.name));
+	return records.find((r) => r.id === memberId) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Members
+// ---------------------------------------------------------------------------
+
 export const devMembersStore: MembersStore = {
 	async list() {
 		const profiles = await fetchProfiles();
@@ -60,9 +121,7 @@ export const devMembersStore: MembersStore = {
 	},
 
 	async get(id: string) {
-		const profiles = await fetchProfiles();
-		const records = profiles.map((p) => parseProfile(p.content, p.name));
-		return records.find((r) => r.id === id) ?? null;
+		return await resolveMember(id);
 	},
 
 	async create(input: MemberCreateInput) {
@@ -85,15 +144,82 @@ export const devMembersStore: MembersStore = {
 	},
 
 	async remove(id: string) {
-		const profiles = await fetchProfiles();
-		const records = profiles.map((p) => parseProfile(p.content, p.name));
-		const target = records.find((r) => r.id === id);
+		const target = await resolveMember(id);
 		if (!target) return;
-		const dirName =
-			profiles.find((p) => {
-				const rec = parseProfile(p.content, p.name);
-				return rec.id === id;
-			})?.name ?? target.name;
-		await deleteMemberDir(dirName);
+		await deleteMemberDir(target.name);
+	},
+};
+
+// ---------------------------------------------------------------------------
+// Goals / 1on1 / Reviews
+// ---------------------------------------------------------------------------
+
+export const devGoalsStore: GoalsStore = {
+	async listForMember(memberId: string) {
+		const member = await resolveMember(memberId);
+		if (!member) return [];
+		const files = await listSubDir(member.name, "goals");
+		return files.map((f) => ({
+			id: `goal_${memberId}_${f.name}`,
+			memberId,
+			period: f.name,
+			memberName: member.name,
+			rawMarkdown: f.content,
+		}));
+	},
+	async save(memberId: string, period: string, content: string) {
+		const member = await resolveMember(memberId);
+		if (!member) throw new Error(`member not found: ${memberId}`);
+		await writeSubDirFile(member.name, "goals", period, content);
+	},
+};
+
+export const devOneOnOnesStore: OneOnOnesStore = {
+	async listForMember(memberId: string) {
+		const member = await resolveMember(memberId);
+		if (!member) return [];
+		const files = await listSubDir(member.name, "one-on-one");
+		return files
+			.map<OneOnOneRecord>((f) => ({
+				id: `oo_${memberId}_${f.name.replace("-", "")}`,
+				memberId,
+				date: f.name,
+				rawMarkdown: f.content,
+			}))
+			.sort((a, b) => b.date.localeCompare(a.date));
+	},
+	async save(memberId: string, yearMonth: string, content: string) {
+		const member = await resolveMember(memberId);
+		if (!member) throw new Error(`member not found: ${memberId}`);
+		await writeSubDirFile(member.name, "one-on-one", yearMonth, content);
+	},
+};
+
+export const devReviewsStore: ReviewsStore = {
+	async listForMember(memberId: string) {
+		const member = await resolveMember(memberId);
+		if (!member) return [];
+		const files = await listSubDir(member.name, "reviews");
+		return files
+			.map<ReviewData>((f) => ({
+				id: `rev_${memberId}_${f.name}`,
+				memberId,
+				period: f.name,
+				grade: "",
+				roleName: member.role,
+				h2Eval: "",
+				annualEval: "",
+				promotion: false,
+				feedbackPoints: "",
+				feedbackExpectations: "",
+				evaluatorComments: [],
+				rawMarkdown: f.content,
+			}))
+			.sort((a, b) => b.period.localeCompare(a.period));
+	},
+	async save(memberId: string, period: string, content: string) {
+		const member = await resolveMember(memberId);
+		if (!member) throw new Error(`member not found: ${memberId}`);
+		await writeSubDirFile(member.name, "reviews", period, content);
 	},
 };

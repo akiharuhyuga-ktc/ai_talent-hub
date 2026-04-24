@@ -49,13 +49,20 @@ export const handlers = [
 	// Members & Team
 	// -----------------------------------------------------------------------
 	// メンバー本体（CRUD）は dataStore 経由で data/v1/members/ に永続化するため
-	// MSW ではハンドリングしない。下記 /extras は目標/1on1/評価のみを返す補助エンドポイント
-	// （これらは Phase 1 時点では localStorage に残留）。
+	// MSW ではハンドリングしない。/extras は目標/1on1/評価を dataStore から集約して返す。
 	http.get("/api/members/:memberId/extras", async ({ params }) => {
 		await delay(200);
 		const memberId = params.memberId as string;
-		const extras = mockDb.getMemberExtras(memberId);
-		return HttpResponse.json(extras);
+		const [goals, oneOnOnes, reviews] = await Promise.all([
+			dataStore.goals.listForMember(memberId),
+			dataStore.oneOnOnes.listForMember(memberId),
+			dataStore.reviews.listForMember(memberId),
+		]);
+		const goalsByPeriod: Record<string, (typeof goals)[number]> = {};
+		for (const g of goals) {
+			goalsByPeriod[g.period] = g;
+		}
+		return HttpResponse.json({ goalsByPeriod, oneOnOnes, reviews });
 	}),
 
 	http.get("/api/team/matrix", async ({ request }) => {
@@ -63,14 +70,23 @@ export const handlers = [
 		const url = new URL(request.url);
 		const period = url.searchParams.get("period") || "2026-h1";
 		const members = await dataStore.members.list();
-		const matrixMembers = members.map((m) => ({
-			memberId: m.id,
-			memberName: m.name,
-			team: m.teamShort,
-			hasGoal: mockDb.hasGoal(m.id, period),
-			oneOnOneMonths: mockDb.oneOnOneMonthsFor(m.id),
-			hasReview: mockDb.hasReview(m.id),
-		}));
+		const matrixMembers = await Promise.all(
+			members.map(async (m) => {
+				const [goals, oneOnOnes, reviews] = await Promise.all([
+					dataStore.goals.listForMember(m.id),
+					dataStore.oneOnOnes.listForMember(m.id),
+					dataStore.reviews.listForMember(m.id),
+				]);
+				return {
+					memberId: m.id,
+					memberName: m.name,
+					team: m.teamShort,
+					hasGoal: goals.some((g) => g.period === period),
+					oneOnOneMonths: oneOnOnes.map((o) => o.date.split("-")[1]),
+					hasReview: reviews.length > 0,
+				};
+			}),
+		);
 		return HttpResponse.json({
 			matrix: { period, members: matrixMembers },
 			availablePeriods: ["2026-h1", "2025-h2"],
@@ -99,7 +115,7 @@ export const handlers = [
 		await delay(300);
 		const memberId = params.memberId as string;
 		const body = (await request.json()) as { content: string; period: string };
-		mockDb.saveGoals(memberId, body.period, body.content);
+		await dataStore.goals.save(memberId, body.period, body.content);
 		return HttpResponse.json({ ok: true });
 	}),
 
@@ -125,20 +141,7 @@ export const handlers = [
 		await delay(300);
 		const memberId = params.memberId as string;
 		const body = (await request.json()) as { content: string; period: string };
-		mockDb.saveReview(memberId, {
-			id: `rev_${memberId}_${body.period}`,
-			memberId,
-			period: body.period,
-			grade: "",
-			roleName: "",
-			h2Eval: "",
-			annualEval: "",
-			promotion: false,
-			feedbackPoints: "",
-			feedbackExpectations: "",
-			evaluatorComments: [],
-			rawMarkdown: body.content,
-		});
+		await dataStore.reviews.save(memberId, body.period, body.content);
 		return HttpResponse.json({ ok: true });
 	}),
 
@@ -166,12 +169,7 @@ export const handlers = [
 				content: string;
 				yearMonth: string;
 			};
-			mockDb.saveOneOnOne(memberId, {
-				id: `oo_${memberId}_${body.yearMonth.replace("-", "")}`,
-				memberId,
-				date: body.yearMonth,
-				rawMarkdown: body.content,
-			});
+			await dataStore.oneOnOnes.save(memberId, body.yearMonth, body.content);
 			return HttpResponse.json({ ok: true });
 		},
 	),
