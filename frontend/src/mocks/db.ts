@@ -1,12 +1,19 @@
 /**
  * MockDatabase — テーブル別JSONファイルからデータを組み立てる in-memory ストア
  *
+ * seed データの位置関係:
+ *   data/v1/members/{名前}/    → convert-data スキルの入力（Markdown）
+ *   frontend/src/mocks/data/   → convert-data の出力（JSON、本ファイルが import）
+ *
  * ファイル構成は MySQL テーブルと1:1対応:
- *   data/members/{id}_{slug}.json    → members テーブル
- *   data/projects/{id}.json          → project_allocations テーブル
- *   data/goals/{id}.json             → goals テーブル
- *   data/one-on-ones/{id}.json       → one_on_ones テーブル
- *   data/reviews/{id}.json           → reviews テーブル
+ *   frontend/src/mocks/data/members/{id}_{slug}.json → members テーブル
+ *   frontend/src/mocks/data/projects/{id}.json       → project_allocations テーブル
+ *   frontend/src/mocks/data/goals/{id}.json          → goals テーブル
+ *   frontend/src/mocks/data/one-on-ones/{id}.json    → one_on_ones テーブル
+ *   frontend/src/mocks/data/reviews/{id}.json        → reviews テーブル
+ *
+ * 旧 frontend (archived_frontend) は別系統で `data/members/` と
+ * `data/demo-members/` を直接参照する。現 frontend とはデータ領域が独立。
  *
  * 永続化: localStorage にオーバーレイとして保存。
  *   seed data (JSON files) + localStorage overlay = 実行時データ

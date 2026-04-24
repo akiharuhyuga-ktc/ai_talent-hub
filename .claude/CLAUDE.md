@@ -6,11 +6,12 @@ AI を活用したタレントマネジメントアプリケーション。メ�
 
 README.md を参照。補足:
 - `old/` は廃止済みアーカイブ。触らない。
-- `data/.demo-mode.json` の `enabled` フラグでデモ/本番データを切替（`true` → `data/demo-members`、`false` → `data/members`）
+- `archived_frontend/` は Next.js 版の旧フロントエンド。現 frontend とは独立しており、`data/members/`, `data/demo-members/`, `data/.demo-mode.json` を参照する。触らない。
+- **現 frontend（Vite + React SPA）のデータは `data/v1/` 配下**。`data/v1/.demo-mode.json` の `enabled` フラグでデモ/本番データを切替（`true` → `data/v1/demo-members`、`false` → `data/v1/members`）。
 
 ## ローカルデータの機密性（最重要）
 
-**`data/` および `frontend/src/mocks/data/` 以下は極めて機密性の高いローカル専用データを含む。絶対にコミット・push してはならない。**
+**`data/`（`data/v1/` 含む）および `frontend/src/mocks/data/` 以下は極めて機密性の高いローカル専用データを含む。絶対にコミット・push してはならない。**
 
 - これらは各開発者がローカルで持つ個人情報・評価・方針等を含むため、`.gitignore` の `data/` パターンで明示的に除外している
 - 原則として `.gitignore` の `data/` 関連ルールを緩める・除外例外（`!data/...`）を追加するような変更は行わない
