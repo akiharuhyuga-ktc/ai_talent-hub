@@ -151,57 +151,102 @@ make quality       # lint + typecheck + test まとめて実行
 ### アーキテクチャ
 
 ```
-第一弾（スタンドアロン）             第二弾（AWS）
-Frontend (React)                  Frontend (React)
-    ↓ /api/members                    ↓ /api/members
-MSW handlers                      実 API (Go)
-    ↓                                 ↓
-MockDatabase (JSON → in-memory)   Go backend → MySQL
-    ↓ 永続化
-localStorage
+第一弾（スタンドアロン / 現在）         第二弾（AWS）
+Frontend (React)                      Frontend (React)
+    ↓ dataStore (members / goals / 1on1 / reviews)
+    │                                     ↓ /api/...
+    ├─ ブラウザ dev: /api/fs/*  → fs-api  実 API (Go)
+    │  プラグイン (vite-plugins/fs-api.ts)     ↓
+    └─ Tauri: @tauri-apps/plugin-fs       Go backend → MySQL
+       ↓
+    data/v1/  (ホスト FS の Markdown ファイル)
 ```
 
-フロントエンドは常に `/api/members` 等の API を呼ぶ。第一弾では MSW がインターセプトしてローカルデータを返し、第二弾では MSW を外して実 API に繋ぐだけで移行できる。
+メンバー / 目標 / 1on1 / 評価のマスターは `data/v1/` 配下の Markdown ファイル。フロントエンドは `dataStore` 抽象（`frontend/src/lib/data-store/`）を介して読み書きし、その下で dev は HTTP fs-api、Tauri は plugin-fs に分岐する。
 
-### データ構成（スタンドアロン版）
+AI 応答モックと組織ドキュメントは `frontend/src/mocks/db.ts` の in-memory ストアが提供する（`/api/*` を MSW で傍受）。
 
-データは MySQL テーブルと 1:1 対応するディレクトリ・ファイルで管理する。1 ファイル = 1 レコード。
+### `data/v1/` の構造
 
 ```
-frontend/src/mocks/data/
-├── members/                          # members テーブル
-│   ├── mbr_demo_tanaka_tanaka-taro.json
-│   ├── mbr_demo_suzuki_suzuki-hanako.json
-│   └── mbr_demo_yamamoto_yamamoto-kenta.json
-├── projects/                         # project_allocations テーブル
-│   ├── proj_tanaka_kinto.json
-│   ├── proj_tanaka_rd.json
-│   └── ...
-├── goals/                            # goals テーブル
-│   ├── goal_demo_tanaka_h1.json
-│   └── goal_demo_suzuki_h1.json
-├── one-on-ones/                      # one_on_ones テーブル
-│   ├── oo_demo_tanaka_2604.json
-│   └── oo_demo_suzuki_2604.json
-├── reviews/                          # reviews テーブル
-│   └── rev_demo_tanaka_25h2.json
-├── ai-responses.json                 # AI応答テンプレート
-└── org-docs.json                     # 組織方針・基準・ガイドライン
+data/v1/
+├── members/                          # 本番データ
+│   └── <member-id>/                  # ディレクトリ名 = メンバー ID
+│       ├── profile.md                #   基本情報（ID コメント埋込）
+│       ├── goals/<period>.md         #   期ごとの目標（例: 2026-h1.md）
+│       ├── one-on-one/<YYYY-MM>.md   #   月ごとの 1on1
+│       └── reviews/<period>.md       #   期ごとの評価
+└── demo-members/                     # 開発時デモモード用の作業領域（後述）
+    └── <member-id>/                  # 構造は members/ と同じ
+        └── ...
 ```
+
+#### 命名規則
+
+- **メンバーディレクトリ名 = ID**（例: `mbr_mof1htgkyyyol9/`）
+  - 同姓同名・URL エンコード・FS の正規化差異（NFC/NFD）を避けるため
+  - 表示名は `profile.md` の `名前：` 行から取る
+- **goals / reviews のファイル名**: 期間キー（例: `2026-h1.md`）
+- **one-on-one のファイル名**: 年月（例: `2026-04.md`）
+
+#### `profile.md` フォーマット
+
+```markdown
+# {表示名}
+
+- 名前：{表示名}
+- 役職：{役職}
+- チーム：{チーム}
+- チーム分類：{Flutter | Backend | ...}
+- 入社年：{YYYY-MM}
+- メインプロジェクト：{プロジェクト名}
+- R&D配分：{0-100}%
+
+<!-- id: mbr_xxxxxxxxxxxx -->
+<!-- slug: {表示名から自動生成} -->
+```
+
+ディスク上のディレクトリ名がカノニカルな ID。`<!-- id: ... -->` コメントは自己記述用で、両者が食い違った場合はディレクトリ名を採用する。
 
 ### ID 体系
 
-全エンティティに ULID ベースの接頭辞付き ID を付与する。
+全エンティティに接頭辞付き ID を付与する。
 
 | エンティティ | 接頭辞 | 例 |
 |---|---|---|
-| Member | `mbr_` | `mbr_demo_tanaka` |
-| Project | `proj_` | `proj_tanaka_kinto` |
-| Goal | `goal_` | `goal_demo_tanaka_h1` |
-| OneOnOne | `oo_` | `oo_demo_tanaka_2604` |
-| Review | `rev_` | `rev_demo_tanaka_25h2` |
+| Member | `mbr_` | `mbr_mof1htgkyyyol9` |
+| Goal | `goal_` | `goal_<memberId>_<period>` |
+| OneOnOne | `oo_` | `oo_<memberId>_<YYYYMM>` |
+| Review | `rev_` | `rev_<memberId>_<period>` |
 
-リレーションは `memberId` フィールドで紐付ける（MySQL の FK と同じ）。
+Member ID は `generateMemberId()`（`frontend/src/lib/data-store/markdown.ts`）で生成（`mbr_` + base36 タイムスタンプ + base36 ランダム）。Goal / OneOnOne / Review の ID は決定論的に組み立てており、リレーションは `memberId` フィールドで紐付ける。
+
+### 機密性ルール（最重要）
+
+`data/`（`data/v1/` 含む）は個人情報・評価・方針等を含むローカル専用データ。**コミット・push しない**。
+
+- `.gitignore` の `data/` パターンで明示的に除外している。このルールは緩めない（除外例外 `!data/...` を加えない）
+- `git add .` / `git add -A` のような広域追加は避け、必要なファイルだけ個別に add する
+- seed/mock データが欠けても起動できるよう、フロント側はフォールバック実装にする（`frontend/src/mocks/db.ts` 参照）
+- サンプル共有が必要な場合は `.example` サフィックス付きの別パスにする
+
+### 開発時デモモード
+
+開発作業で実データ（`data/v1/members/`）を破壊しないための切替機構。dev ビルドでのみ有効、本番／Tauri リリースでは強制 OFF。
+
+```
+frontend/src/mocks/seeds/members/    ← commit 可。架空データの seed
+data/v1/demo-members/                ← gitignore 済。各自の作業領域
+```
+
+- サイドバーの「デモモード」トグルで切替（dev ビルドのみ表示）
+- ON にすると `dataStore` は `data/v1/demo-members/` を参照
+- `demo-members/` が空のときは起動時 / 初回アクセス時に `frontend/src/mocks/seeds/members/` から自動コピー
+- 編集はすべて `demo-members/` に書かれ、本番データには影響しない
+- リセット: `make demo-reset`（`data/v1/demo-members/` を削除 → 次回起動で再 seed）
+- AI 応答（Anthropic API）はデモモードでも実 API を呼ぶ。出力は `demo-members/` に保存されるため実データは汚染されない
+
+seed のスキーマは `profile.md` 等のフォーマット変更時に追従させる必要がある。
 
 ### 型定義の流れ
 
@@ -227,23 +272,20 @@ frontend/src/lib/types/
    make gen-api
    ```
 
-3. **seed data の JSON を更新**
-   - `frontend/src/mocks/data/` 内の該当 JSON ファイルを編集
-   - フィールドの追加・変更に合わせてレコードを更新
+3. **dataStore / fs-api の更新**（必要な場合）
+   - パース・シリアライズ: `frontend/src/lib/data-store/markdown.ts`
+   - HTTP API: `frontend/vite-plugins/fs-api.ts`
+   - dev / Tauri ストア: `frontend/src/lib/data-store/{dev-http,tauri-fs}.ts`
 
-4. **MockDatabase を更新**（必要な場合）
-   - `frontend/src/mocks/db.ts` の JOIN ロジックやWrite メソッドを修正
-
-5. **ビルド確認**
+4. **ビルド確認**
    ```bash
    make build
    ```
 
 ### 永続化
 
-- UI から追加・変更したデータは `localStorage` に保存される（ページリロードしても維持）
-- `mockDb.reset()` で seed data（JSON ファイル）の初期状態にリセット可能
-- 第二弾（AWS）移行時は localStorage → MySQL に置き換わる
+- UI から追加・変更したデータは `data/v1/` 配下に Markdown として書き戻される（dev: fs-api 経由、Tauri: plugin-fs 経由）
+- 第二弾（AWS）移行時は `dataStore` の実装を実 API クライアントに差し替えるだけで済む
 
 ## 環境変数
 

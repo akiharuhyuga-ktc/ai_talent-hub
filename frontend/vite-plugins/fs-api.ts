@@ -6,18 +6,25 @@ import type { Plugin } from "vite";
 /**
  * Dev-only Vite middleware that persists members under data/v1/ on host FS.
  *
- * Endpoints:
- *   GET    /api/fs/members                                → list member profiles
- *   GET    /api/fs/members/:name/profile                  → read profile.md
- *   PUT    /api/fs/members/:name/profile                  → write profile.md (body: { content })
- *   DELETE /api/fs/members/:name                          → recursive delete member dir
+ * URL パスのメンバー識別子は ID（例: mbr_xxx）を使う。ディスク上のディレクトリ名も
+ * 同じ ID で揃える（同姓同名対策・URL/FS 間の正規化負荷を避けるため）。
  *
- *   GET    /api/fs/members/:name/goals                    → list goals/*.md
- *   PUT    /api/fs/members/:name/goals/:period            → write goals/{period}.md
- *   GET    /api/fs/members/:name/one-on-one               → list one-on-one/*.md
- *   PUT    /api/fs/members/:name/one-on-one/:yearMonth    → write one-on-one/{YYYY-MM}.md
- *   GET    /api/fs/members/:name/reviews                  → list reviews/*.md
- *   PUT    /api/fs/members/:name/reviews/:period          → write reviews/{period}.md
+ * クエリ ?mode=demo が付くと data/v1/demo-members/ を参照する（開発時の実データ
+ * 保護）。demo-members/ が空のときは frontend/src/mocks/seeds/members/ から
+ * 自動コピーする。
+ *
+ * Endpoints (?mode=demo オプション付き):
+ *   GET    /api/fs/members                              → list member profiles
+ *   GET    /api/fs/members/:id/profile                  → read profile.md
+ *   PUT    /api/fs/members/:id/profile                  → write profile.md (body: { content })
+ *   DELETE /api/fs/members/:id                          → recursive delete member dir
+ *
+ *   GET    /api/fs/members/:id/goals                    → list goals/*.md
+ *   PUT    /api/fs/members/:id/goals/:period            → write goals/{period}.md
+ *   GET    /api/fs/members/:id/one-on-one               → list one-on-one/*.md
+ *   PUT    /api/fs/members/:id/one-on-one/:yearMonth    → write one-on-one/{YYYY-MM}.md
+ *   GET    /api/fs/members/:id/reviews                  → list reviews/*.md
+ *   PUT    /api/fs/members/:id/reviews/:period          → write reviews/{period}.md
  *
  * DATA_ROOT env (default: ../data/v1 relative to cwd):
  *   - docker compose: /workspace/data/v1 (bind-mounted)
@@ -30,6 +37,10 @@ const DATA_ROOT = process.env.DATA_ROOT
 	: DEFAULT_DATA_ROOT;
 
 const MEMBERS_DIR = path.join(DATA_ROOT, "members");
+const DEMO_MEMBERS_DIR = path.join(DATA_ROOT, "demo-members");
+
+// Vite dev server の cwd は frontend/ ディレクトリ
+const SEED_DIR = path.resolve(process.cwd(), "src", "mocks", "seeds", "members");
 
 const SUB_DIRS = ["goals", "one-on-one", "reviews"] as const;
 type SubDir = (typeof SUB_DIRS)[number];
@@ -98,6 +109,46 @@ async function readJsonContent(
 	}
 }
 
+async function isDirEmpty(dir: string): Promise<boolean> {
+	if (!existsSync(dir)) return true;
+	const entries = await fs.readdir(dir);
+	return entries.length === 0;
+}
+
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+	await fs.cp(src, dest, { recursive: true });
+}
+
+async function ensureDemoSeeded(): Promise<void> {
+	if (!existsSync(SEED_DIR)) {
+		// seed が無い場合は何もしない（dev 環境外で動かしている可能性）
+		await ensureDir(DEMO_MEMBERS_DIR);
+		return;
+	}
+	if (await isDirEmpty(DEMO_MEMBERS_DIR)) {
+		await ensureDir(path.dirname(DEMO_MEMBERS_DIR));
+		await copyDirRecursive(SEED_DIR, DEMO_MEMBERS_DIR);
+		console.log(
+			`[fs-api] seeded demo-members from ${path.relative(process.cwd(), SEED_DIR)}`,
+		);
+	}
+}
+
+function parseMode(url: string): "real" | "demo" {
+	const queryStart = url.indexOf("?");
+	if (queryStart < 0) return "real";
+	const params = new URLSearchParams(url.slice(queryStart + 1));
+	return params.get("mode") === "demo" ? "demo" : "real";
+}
+
+async function resolveMembersDir(mode: "real" | "demo"): Promise<string> {
+	if (mode === "demo") {
+		await ensureDemoSeeded();
+		return DEMO_MEMBERS_DIR;
+	}
+	return MEMBERS_DIR;
+}
+
 export function fsApiPlugin(): Plugin {
 	return {
 		name: "fs-api",
@@ -112,30 +163,32 @@ export function fsApiPlugin(): Plugin {
 				const method = (req.method ?? "GET").toUpperCase();
 				const parts = url.split("?")[0].split("/").filter(Boolean);
 				// parts: ["api", "fs", "members", ...rest]
+				const mode = parseMode(url);
 
 				try {
 					if (parts[2] !== "members") {
 						return text(res, 404, "fs-api route not found");
 					}
 
-					await ensureDir(MEMBERS_DIR);
+					const membersDir = await resolveMembersDir(mode);
+					await ensureDir(membersDir);
 
-					// GET /api/fs/members → { profiles: [{ name, content }] }
+					// GET /api/fs/members → { profiles: [{ id, content }] }
 					if (parts.length === 3 && method === "GET") {
-						const entries = await fs.readdir(MEMBERS_DIR, {
+						const entries = await fs.readdir(membersDir, {
 							withFileTypes: true,
 						});
-						const profiles: { name: string; content: string }[] = [];
+						const profiles: { id: string; content: string }[] = [];
 						for (const entry of entries) {
 							if (!entry.isDirectory()) continue;
 							const profilePath = path.join(
-								MEMBERS_DIR,
+								membersDir,
 								entry.name,
 								"profile.md",
 							);
 							if (!existsSync(profilePath)) continue;
 							const content = await fs.readFile(profilePath, "utf-8");
-							profiles.push({ name: entry.name, content });
+							profiles.push({ id: entry.name, content });
 						}
 						return json(res, 200, { profiles });
 					}
@@ -144,13 +197,13 @@ export function fsApiPlugin(): Plugin {
 						return text(res, 404, "fs-api route not found");
 					}
 
-					const memberName = safeSegment(parts[3]);
-					if (!memberName) {
-						return text(res, 400, "invalid member name");
+					const memberId = safeSegment(parts[3]);
+					if (!memberId) {
+						return text(res, 400, "invalid member id");
 					}
-					const memberDir = path.join(MEMBERS_DIR, memberName);
+					const memberDir = path.join(membersDir, memberId);
 
-					// DELETE /api/fs/members/:name
+					// DELETE /api/fs/members/:id
 					if (parts.length === 4 && method === "DELETE") {
 						if (!existsSync(memberDir)) {
 							return text(res, 404, "not found");
@@ -160,7 +213,7 @@ export function fsApiPlugin(): Plugin {
 						return res.end();
 					}
 
-					// GET /api/fs/members/:name/profile
+					// GET /api/fs/members/:id/profile
 					if (
 						parts.length === 5 &&
 						parts[4] === "profile" &&
@@ -174,7 +227,7 @@ export function fsApiPlugin(): Plugin {
 						return json(res, 200, { content });
 					}
 
-					// PUT /api/fs/members/:name/profile
+					// PUT /api/fs/members/:id/profile
 					if (
 						parts.length === 5 &&
 						parts[4] === "profile" &&
@@ -197,7 +250,7 @@ export function fsApiPlugin(): Plugin {
 					if (parts.length >= 5 && isSubDir(parts[4])) {
 						const subDir = path.join(memberDir, parts[4]);
 
-						// GET /api/fs/members/:name/:sub → { files: [{ name, content }] }
+						// GET /api/fs/members/:id/:sub → { files: [{ name, content }] }
 						if (parts.length === 5 && method === "GET") {
 							if (!existsSync(subDir)) {
 								return json(res, 200, { files: [] });
@@ -217,7 +270,7 @@ export function fsApiPlugin(): Plugin {
 							return json(res, 200, { files });
 						}
 
-						// PUT /api/fs/members/:name/:sub/:key
+						// PUT /api/fs/members/:id/:sub/:key
 						if (parts.length === 6 && method === "PUT") {
 							const key = safeSegment(parts[5]);
 							if (!key) {

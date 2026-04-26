@@ -1,6 +1,7 @@
 .PHONY: help setup dev dev-build down logs \
        install gen gen-api lint lint-api format typecheck test test-coverage build \
        desktop desktop-dev desktop-demo \
+       demo-reset \
        clean clean-volumes clean-all
 
 # ============================================================================
@@ -93,6 +94,14 @@ desktop-dev: ## デスクトップアプリを開発モードで起動（MSW モ
 
 desktop-demo: ## デスクトップアプリをデモモードでビルド（モックデータ同梱）
 	@cd frontend && VITE_DEMO_MODE=true pnpm tauri build
+
+# ============================================================================
+# Demo data
+# ============================================================================
+
+demo-reset: ## 開発時デモモードの作業領域 (data/v1/demo-members/) を削除（次回起動で seed から再生成）
+	@rm -rf data/v1/demo-members
+	@echo "✓ data/v1/demo-members を削除しました。dev サーバ再起動で seed から再生成されます。"
 
 # ============================================================================
 # Clean

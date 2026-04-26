@@ -1,5 +1,6 @@
 import type { MemberRecord, MemberSummary } from "@/api/generated/types";
 import type { OneOnOneRecord, ReviewData } from "@/lib/types";
+import { demoQuerySuffix } from "./demo-mode";
 import {
 	generateMemberId,
 	parseProfile,
@@ -19,23 +20,23 @@ import type {
 // ---------------------------------------------------------------------------
 
 interface ProfilesResponse {
-	profiles: { name: string; content: string }[];
+	profiles: { id: string; content: string }[];
 }
 
 interface SubDirResponse {
 	files: { name: string; content: string }[];
 }
 
-async function fetchProfiles(): Promise<{ name: string; content: string }[]> {
-	const res = await fetch("/api/fs/members");
+async function fetchProfiles(): Promise<{ id: string; content: string }[]> {
+	const res = await fetch(`/api/fs/members${demoQuerySuffix()}`);
 	if (!res.ok) throw new Error(`failed to list members: ${res.status}`);
 	const data = (await res.json()) as ProfilesResponse;
 	return data.profiles;
 }
 
-async function writeProfile(name: string, content: string): Promise<void> {
+async function writeProfile(id: string, content: string): Promise<void> {
 	const res = await fetch(
-		`/api/fs/members/${encodeURIComponent(name)}/profile`,
+		`/api/fs/members/${encodeURIComponent(id)}/profile${demoQuerySuffix()}`,
 		{
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
@@ -45,20 +46,21 @@ async function writeProfile(name: string, content: string): Promise<void> {
 	if (!res.ok) throw new Error(`failed to write profile: ${res.status}`);
 }
 
-async function deleteMemberDir(name: string): Promise<void> {
-	const res = await fetch(`/api/fs/members/${encodeURIComponent(name)}`, {
-		method: "DELETE",
-	});
+async function deleteMemberDir(id: string): Promise<void> {
+	const res = await fetch(
+		`/api/fs/members/${encodeURIComponent(id)}${demoQuerySuffix()}`,
+		{ method: "DELETE" },
+	);
 	if (res.status === 404) return;
 	if (!res.ok) throw new Error(`failed to delete member: ${res.status}`);
 }
 
 async function listSubDir(
-	memberName: string,
+	memberId: string,
 	kind: "goals" | "one-on-one" | "reviews",
 ): Promise<{ name: string; content: string }[]> {
 	const res = await fetch(
-		`/api/fs/members/${encodeURIComponent(memberName)}/${kind}`,
+		`/api/fs/members/${encodeURIComponent(memberId)}/${kind}${demoQuerySuffix()}`,
 	);
 	if (res.status === 404) return [];
 	if (!res.ok) throw new Error(`failed to list ${kind}: ${res.status}`);
@@ -67,15 +69,15 @@ async function listSubDir(
 }
 
 async function writeSubDirFile(
-	memberName: string,
+	memberId: string,
 	kind: "goals" | "one-on-one" | "reviews",
 	key: string,
 	content: string,
 ): Promise<void> {
 	const res = await fetch(
-		`/api/fs/members/${encodeURIComponent(memberName)}/${kind}/${encodeURIComponent(
+		`/api/fs/members/${encodeURIComponent(memberId)}/${kind}/${encodeURIComponent(
 			key,
-		)}`,
+		)}${demoQuerySuffix()}`,
 		{
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
@@ -104,10 +106,15 @@ function toSummary(record: MemberRecord): MemberSummary {
 	};
 }
 
+function profileToRecord(id: string, content: string): MemberRecord {
+	// ディレクトリ名 = ID が canonical。profile.md の id コメントより優先する。
+	return { ...parseProfile(content), id };
+}
+
 async function resolveMember(memberId: string): Promise<MemberRecord | null> {
 	const profiles = await fetchProfiles();
-	const records = profiles.map((p) => parseProfile(p.content, p.name));
-	return records.find((r) => r.id === memberId) ?? null;
+	const target = profiles.find((p) => p.id === memberId);
+	return target ? profileToRecord(target.id, target.content) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +124,7 @@ async function resolveMember(memberId: string): Promise<MemberRecord | null> {
 export const devMembersStore: MembersStore = {
 	async list() {
 		const profiles = await fetchProfiles();
-		return profiles.map((p) => parseProfile(p.content, p.name)).map(toSummary);
+		return profiles.map((p) => profileToRecord(p.id, p.content)).map(toSummary);
 	},
 
 	async get(id: string) {
@@ -139,14 +146,12 @@ export const devMembersStore: MembersStore = {
 			rdPct: input.rdPct ?? 0,
 		};
 		const content = serializeProfile(draft);
-		await writeProfile(input.name, content);
-		return parseProfile(content, input.name);
+		await writeProfile(id, content);
+		return profileToRecord(id, content);
 	},
 
 	async remove(id: string) {
-		const target = await resolveMember(id);
-		if (!target) return;
-		await deleteMemberDir(target.name);
+		await deleteMemberDir(id);
 	},
 };
 
@@ -158,7 +163,7 @@ export const devGoalsStore: GoalsStore = {
 	async listForMember(memberId: string) {
 		const member = await resolveMember(memberId);
 		if (!member) return [];
-		const files = await listSubDir(member.name, "goals");
+		const files = await listSubDir(memberId, "goals");
 		return files.map((f) => ({
 			id: `goal_${memberId}_${f.name}`,
 			memberId,
@@ -168,17 +173,13 @@ export const devGoalsStore: GoalsStore = {
 		}));
 	},
 	async save(memberId: string, period: string, content: string) {
-		const member = await resolveMember(memberId);
-		if (!member) throw new Error(`member not found: ${memberId}`);
-		await writeSubDirFile(member.name, "goals", period, content);
+		await writeSubDirFile(memberId, "goals", period, content);
 	},
 };
 
 export const devOneOnOnesStore: OneOnOnesStore = {
 	async listForMember(memberId: string) {
-		const member = await resolveMember(memberId);
-		if (!member) return [];
-		const files = await listSubDir(member.name, "one-on-one");
+		const files = await listSubDir(memberId, "one-on-one");
 		return files
 			.map<OneOnOneRecord>((f) => ({
 				id: `oo_${memberId}_${f.name.replace("-", "")}`,
@@ -189,9 +190,7 @@ export const devOneOnOnesStore: OneOnOnesStore = {
 			.sort((a, b) => b.date.localeCompare(a.date));
 	},
 	async save(memberId: string, yearMonth: string, content: string) {
-		const member = await resolveMember(memberId);
-		if (!member) throw new Error(`member not found: ${memberId}`);
-		await writeSubDirFile(member.name, "one-on-one", yearMonth, content);
+		await writeSubDirFile(memberId, "one-on-one", yearMonth, content);
 	},
 };
 
@@ -199,7 +198,7 @@ export const devReviewsStore: ReviewsStore = {
 	async listForMember(memberId: string) {
 		const member = await resolveMember(memberId);
 		if (!member) return [];
-		const files = await listSubDir(member.name, "reviews");
+		const files = await listSubDir(memberId, "reviews");
 		return files
 			.map<ReviewData>((f) => ({
 				id: `rev_${memberId}_${f.name}`,
@@ -218,8 +217,6 @@ export const devReviewsStore: ReviewsStore = {
 			.sort((a, b) => b.period.localeCompare(a.period));
 	},
 	async save(memberId: string, period: string, content: string) {
-		const member = await resolveMember(memberId);
-		if (!member) throw new Error(`member not found: ${memberId}`);
-		await writeSubDirFile(member.name, "reviews", period, content);
+		await writeSubDirFile(memberId, "reviews", period, content);
 	},
 };
