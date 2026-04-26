@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import customInstance from "@/api/custom-instance";
 import { AddMemberModal } from "@/components/dashboard/AddMemberModal";
 import { MemberGrid } from "@/components/dashboard/MemberGrid";
 import { StatsBar } from "@/components/dashboard/StatsBar";
-import type { MemberSummary } from "@/lib/types";
+import { dataStore } from "@/lib/data-store";
 
 export const Route = createFileRoute("/")({
 	component: DashboardPage,
@@ -16,12 +15,7 @@ function DashboardPage() {
 
 	const { data: members, isLoading } = useQuery({
 		queryKey: ["members"],
-		queryFn: async () => {
-			return customInstance<MemberSummary[]>({
-				method: "get",
-				url: "/api/members",
-			});
-		},
+		queryFn: () => dataStore.members.list(),
 	});
 
 	return (

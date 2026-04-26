@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { dataStore } from "@/lib/data-store";
 import { buildOneOnOneMarkdown } from "@/lib/parsers/one-on-one";
 import type {
 	OneOnOneWizardContextData,
@@ -140,20 +141,12 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
 					aiSummary: summary,
 				});
 
-				const res = await fetch(`/api/members/${context.memberId}/one-on-one`, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						content,
-						yearMonth: state.yearMonth,
-					}),
-				});
-
-				if (res.ok) {
-					setSaved(true);
-				} else {
-					setSaveError("保存に失敗しました");
-				}
+				await dataStore.oneOnOnes.save(
+					context.memberId,
+					state.yearMonth,
+					content,
+				);
+				setSaved(true);
 			} catch (_err) {
 				setSaveError("保存に失敗しました");
 			} finally {

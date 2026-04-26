@@ -1,37 +1,15 @@
 /**
- * MockDatabase — テーブル別JSONファイルからデータを組み立てる in-memory ストア
+ * MockDatabase — AI 応答モックと組織ドキュメントのみを提供する in-memory ストア
  *
- * seed データの位置関係:
- *   data/v1/members/{名前}/    → convert-data スキルの入力（Markdown）
- *   frontend/src/mocks/data/   → convert-data の出力（JSON、本ファイルが import）
+ * Phase 2 時点の役割:
+ *   - Members / Goals / OneOnOnes / Reviews は dataStore (data/v1 ファイル) が master。本クラスは触らない。
+ *   - AI 応答モックと組織ドキュメントは default-responses.ts を既定値とし、
+ *     data/ai-responses.json / data/org-docs.json があれば上書きする
+ *   - localStorage は使用しない（永続化は dataStore 側で FS に書き込む）
  *
- * ファイル構成は MySQL テーブルと1:1対応:
- *   frontend/src/mocks/data/members/{id}_{slug}.json → members テーブル
- *   frontend/src/mocks/data/projects/{id}.json       → project_allocations テーブル
- *   frontend/src/mocks/data/goals/{id}.json          → goals テーブル
- *   frontend/src/mocks/data/one-on-ones/{id}.json    → one_on_ones テーブル
- *   frontend/src/mocks/data/reviews/{id}.json        → reviews テーブル
- *
- * 旧 frontend (archived_frontend) は別系統で `data/members/` と
- * `data/demo-members/` を直接参照する。現 frontend とはデータ領域が独立。
- *
- * 永続化: localStorage にオーバーレイとして保存。
- *   seed data (JSON files) + localStorage overlay = 実行時データ
- *
- * 第一弾: MSW / demo-mock がこのクラス経由でデータを返す
- * 第二弾: Go backend → MySQL に置き換わり、このファイルは不要になる
+ * 将来: AI 応答もバックエンドに移す段階で本クラスは不要になる
  */
 
-import type { MemberRecord, ProjectRecord } from "@/api/generated/types";
-import type {
-	GoalsData,
-	MemberDetail,
-	MemberPeriodStatus,
-	MemberSummary,
-	OneOnOneRecord,
-	ReviewData,
-	TeamPeriodMatrix,
-} from "@/lib/types";
 import {
 	type AiResponses,
 	DEFAULT_AI_RESPONSES,
@@ -40,36 +18,12 @@ import {
 } from "./default-responses";
 
 // ---------------------------------------------------------------------------
-// import.meta.glob でテーブル別ディレクトリから seed data を読み込む
+// ローカル上書きファイルの読み込み
 //
-// data/ はローカル専用ディレクトリ（gitignore対象）で、各開発者が convert-data
-// スキルなどでローカル生成する。ファイルが未生成でも起動できるよう、全て glob
-// 経由で読み込み、存在しない場合は空として扱う。
+// data/ai-responses.json / data/org-docs.json があれば既定値を上書きする。
+// これらは frontend/src/mocks/data/ に置かれる想定で、無くても動作する。
 // ---------------------------------------------------------------------------
 
-const memberModules = import.meta.glob<MemberRecord>("./data/members/*.json", {
-	eager: true,
-	import: "default",
-});
-const projectModules = import.meta.glob<ProjectRecord>(
-	"./data/projects/*.json",
-	{ eager: true, import: "default" },
-);
-const goalModules = import.meta.glob<GoalsData>("./data/goals/*.json", {
-	eager: true,
-	import: "default",
-});
-const oneOnOneModules = import.meta.glob<OneOnOneRecord>(
-	"./data/one-on-ones/*.json",
-	{ eager: true, import: "default" },
-);
-const reviewModules = import.meta.glob<ReviewData>("./data/reviews/*.json", {
-	eager: true,
-	import: "default",
-});
-
-// AI 応答モック・組織ドキュメントは default-responses.ts に既定値を持ち、
-// ローカルに data/ai-responses.json / data/org-docs.json があれば上書きする。
 const aiResponsesModules = import.meta.glob<AiResponses>(
 	"./data/ai-responses.json",
 	{ eager: true, import: "default" },
@@ -83,174 +37,23 @@ const loadedAiResponses =
 	Object.values(aiResponsesModules)[0] ?? DEFAULT_AI_RESPONSES;
 const loadedOrgDocs = Object.values(orgDocsModules)[0] ?? DEFAULT_ORG_DOCS;
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function vals<T>(modules: Record<string, T>): T[] {
-	return Object.values(modules);
-}
-
 function deepClone<T>(obj: T): T {
 	return JSON.parse(JSON.stringify(obj));
 }
 
-const STORAGE_KEY = "mockDb";
-
-function generateId(prefix: string): string {
-	const ts = Date.now().toString(36);
-	const rand = Math.random().toString(36).slice(2, 8);
-	return `${prefix}_${ts}${rand}`;
-}
-
-function toSlug(name: string): string {
-	return (
-		name
-			.normalize("NFKC")
-			.replace(/\s+/g, "-")
-			.replace(/[^\w-]/g, "")
-			.toLowerCase() || `member-${Date.now()}`
-	);
-}
-
-// ---------------------------------------------------------------------------
-// MockDatabase
-// ---------------------------------------------------------------------------
-
-interface StorageSnapshot {
-	members: MemberRecord[];
-	projects: ProjectRecord[];
-	goals: GoalsData[];
-	oneOnOnes: OneOnOneRecord[];
-	reviews: ReviewData[];
-}
-
 class MockDatabase {
-	private memberRecords: MemberRecord[];
-	private projectRecords: ProjectRecord[];
-	private goalRecords: GoalsData[];
-	private oneOnOneRecords: OneOnOneRecord[];
-	private reviewRecords: ReviewData[];
 	private aiResponses: AiResponses;
 	private orgDocs: OrgDocs;
 
 	constructor() {
-		const saved = this.loadFromStorage();
-		if (saved) {
-			this.memberRecords = saved.members;
-			this.projectRecords = saved.projects;
-			this.goalRecords = saved.goals;
-			this.oneOnOneRecords = saved.oneOnOnes;
-			this.reviewRecords = saved.reviews;
-		} else {
-			this.memberRecords = deepClone(vals(memberModules));
-			this.projectRecords = deepClone(vals(projectModules));
-			this.goalRecords = deepClone(vals(goalModules));
-			this.oneOnOneRecords = deepClone(vals(oneOnOneModules));
-			this.reviewRecords = deepClone(vals(reviewModules));
-		}
 		this.aiResponses = deepClone(loadedAiResponses);
 		this.orgDocs = deepClone(loadedOrgDocs);
-	}
-
-	// ---------------------------------------------------------------------------
-	// localStorage 永続化
-	// ---------------------------------------------------------------------------
-
-	private loadFromStorage(): StorageSnapshot | null {
+		// 旧形式の localStorage が残っていたら破棄する（Phase 2 以降は不使用）
 		try {
-			const raw = localStorage.getItem(STORAGE_KEY);
-			if (!raw) return null;
-			return JSON.parse(raw) as StorageSnapshot;
+			localStorage.removeItem("mockDb");
 		} catch {
-			return null;
+			// localStorage が使えない環境 (SSR 等) では無視
 		}
-	}
-
-	private persist(): void {
-		try {
-			const snapshot: StorageSnapshot = {
-				members: this.memberRecords,
-				projects: this.projectRecords,
-				goals: this.goalRecords,
-				oneOnOnes: this.oneOnOneRecords,
-				reviews: this.reviewRecords,
-			};
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
-		} catch {
-			// localStorage full or unavailable — ignore
-		}
-	}
-
-	/** seed data にリセット（localStorage をクリア） */
-	reset(): void {
-		localStorage.removeItem(STORAGE_KEY);
-		this.memberRecords = deepClone(vals(memberModules));
-		this.projectRecords = deepClone(vals(projectModules));
-		this.goalRecords = deepClone(vals(goalModules));
-		this.oneOnOneRecords = deepClone(vals(oneOnOneModules));
-		this.reviewRecords = deepClone(vals(reviewModules));
-	}
-
-	// ---------------------------------------------------------------------------
-	// Read — テーブルを JOIN して API 型を組み立てる
-	// ---------------------------------------------------------------------------
-
-	getMembers(): MemberSummary[] {
-		return this.memberRecords.map((m) => ({
-			id: m.id,
-			slug: m.slug,
-			name: m.name,
-			role: m.role,
-			team: m.team,
-			teamShort: m.teamShort,
-			joinedAt: m.joinedAt,
-			projects: this.projectRecords
-				.filter((p) => p.memberId === m.id)
-				.map(({ id: _id, memberId: _mid, ...rest }) => rest),
-			mainProject: m.mainProject,
-			rdPct: m.rdPct,
-		}));
-	}
-
-	getMemberDetail(id: string): MemberDetail | undefined {
-		const m = this.memberRecords.find((r) => r.id === id);
-		if (!m) return undefined;
-
-		const projects = this.projectRecords
-			.filter((p) => p.memberId === m.id)
-			.map(({ id: _id, memberId: _mid, ...rest }) => rest);
-
-		const goals = this.goalRecords.filter((g) => g.memberId === m.id);
-		const activeGoal = goals.find((g) => g.period === m.activePeriod) ?? null;
-		const goalsByPeriod: Record<string, GoalsData> = {};
-		for (const g of goals) {
-			goalsByPeriod[g.period] = g;
-		}
-
-		const oneOnOnes = this.oneOnOneRecords.filter((o) => o.memberId === m.id);
-		const reviews = this.reviewRecords.filter((r) => r.memberId === m.id);
-
-		return {
-			id: m.id,
-			slug: m.slug,
-			name: m.name,
-			role: m.role,
-			team: m.team,
-			teamShort: m.teamShort,
-			joinedAt: m.joinedAt,
-			projects,
-			mainProject: m.mainProject,
-			rdPct: m.rdPct,
-			skills: m.skills,
-			expectedRole: m.expectedRole,
-			rawMarkdown: m.rawMarkdown,
-			goals: activeGoal,
-			goalsByPeriod,
-			activePeriod: m.activePeriod,
-			oneOnOnes,
-			reviews,
-		};
 	}
 
 	getAiResponse(key: keyof AiResponses): unknown {
@@ -263,144 +66,6 @@ class MockDatabase {
 
 	getOrgDocs(): OrgDocs {
 		return this.orgDocs;
-	}
-
-	buildTeamMatrix(period: string): TeamPeriodMatrix {
-		const members: MemberPeriodStatus[] = this.memberRecords.map((m) => ({
-			memberId: m.id,
-			memberName: m.name,
-			team: m.teamShort,
-			hasGoal: this.goalRecords.some(
-				(g) => g.memberId === m.id && g.period === period,
-			),
-			oneOnOneMonths: this.oneOnOneRecords
-				.filter((o) => o.memberId === m.id)
-				.map((o) => o.date.split("-")[1]),
-			hasReview: this.reviewRecords.some((r) => r.memberId === m.id),
-		}));
-		return { period, members };
-	}
-
-	// ---------------------------------------------------------------------------
-	// Write — in-memory 更新 + localStorage 永続化
-	// ---------------------------------------------------------------------------
-
-	addMember(input: {
-		name: string;
-		role: string;
-		team: string;
-		teamShort: string;
-		joinedAt: string;
-		mainProject?: string;
-		rdPct?: number;
-		projects?: {
-			name: string;
-			april: number;
-			may: number;
-			june: number;
-			avgPct: number;
-		}[];
-	}): MemberRecord {
-		const id = generateId("mbr");
-		const slug = toSlug(input.name);
-
-		const record: MemberRecord = {
-			id,
-			slug,
-			name: input.name,
-			role: input.role,
-			team: input.team,
-			teamShort: input.teamShort,
-			joinedAt: input.joinedAt,
-			mainProject: input.mainProject ?? "",
-			rdPct: input.rdPct ?? 0,
-			skills: { technical: "", experience: "", strengths: "", challenges: "" },
-			expectedRole: { current: "", longTerm: "" },
-			rawMarkdown: "",
-			activePeriod: "2026-h1",
-		};
-		this.memberRecords.push(record);
-
-		if (input.projects) {
-			for (const proj of input.projects) {
-				this.projectRecords.push({
-					id: generateId("proj"),
-					memberId: id,
-					...proj,
-				});
-			}
-		}
-
-		this.persist();
-		return record;
-	}
-
-	deleteMember(memberId: string): boolean {
-		const idx = this.memberRecords.findIndex((r) => r.id === memberId);
-		if (idx < 0) return false;
-
-		this.memberRecords.splice(idx, 1);
-		this.projectRecords = this.projectRecords.filter(
-			(p) => p.memberId !== memberId,
-		);
-		this.goalRecords = this.goalRecords.filter((g) => g.memberId !== memberId);
-		this.oneOnOneRecords = this.oneOnOneRecords.filter(
-			(o) => o.memberId !== memberId,
-		);
-		this.reviewRecords = this.reviewRecords.filter(
-			(r) => r.memberId !== memberId,
-		);
-
-		this.persist();
-		return true;
-	}
-
-	saveGoals(memberId: string, period: string, content: string): void {
-		const m = this.memberRecords.find((r) => r.id === memberId);
-		if (!m) return;
-		const existing = this.goalRecords.find(
-			(g) => g.memberId === m.id && g.period === period,
-		);
-		if (existing) {
-			existing.rawMarkdown = content;
-		} else {
-			this.goalRecords.push({
-				id: generateId("goal"),
-				memberId: m.id,
-				period,
-				memberName: m.name,
-				rawMarkdown: content,
-			});
-		}
-		this.persist();
-	}
-
-	saveOneOnOne(memberId: string, record: OneOnOneRecord): void {
-		const m = this.memberRecords.find((r) => r.id === memberId);
-		if (!m) return;
-		const idx = this.oneOnOneRecords.findIndex(
-			(o) => o.memberId === m.id && o.date === record.date,
-		);
-		if (idx >= 0) {
-			this.oneOnOneRecords[idx] = record;
-		} else {
-			this.oneOnOneRecords.unshift(record);
-		}
-		this.persist();
-	}
-
-	saveReview(memberId: string, review: ReviewData): void {
-		const m = this.memberRecords.find((r) => r.id === memberId);
-		if (!m) return;
-		const idx = this.reviewRecords.findIndex(
-			(r) => r.memberId === m.id && r.period === review.period,
-		);
-		if (idx >= 0) {
-			this.reviewRecords[idx] = review;
-		} else {
-			this.reviewRecords.unshift(review);
-		}
-		this.persist();
 	}
 }
 

@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vite";
+import { fsApiPlugin } from "./vite-plugins/fs-api";
 
 const isTauri = !!process.env.TAURI_ENV_PLATFORM;
 
@@ -14,6 +15,7 @@ export default defineConfig({
 		}),
 		react(),
 		tailwindcss(),
+		fsApiPlugin(),
 	],
 	clearScreen: false,
 	server: {
@@ -33,7 +35,8 @@ export default defineConfig({
 	},
 	envPrefix: ["VITE_", "TAURI_ENV_*"],
 	build: {
-		target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari15",
+		target:
+			process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari15",
 		minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
 		sourcemap: !!process.env.TAURI_ENV_DEBUG,
 	},

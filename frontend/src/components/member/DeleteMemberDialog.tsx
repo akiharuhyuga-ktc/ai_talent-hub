@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import customInstance from "@/api/custom-instance";
+import { dataStore } from "@/lib/data-store";
 
 interface DeleteMemberDialogProps {
 	open: boolean;
@@ -19,12 +19,7 @@ export function DeleteMemberDialog({
 	const navigate = useNavigate();
 
 	const mutation = useMutation({
-		mutationFn: async () => {
-			return customInstance<void>({
-				method: "delete",
-				url: `/api/members/${memberId}`,
-			});
-		},
+		mutationFn: () => dataStore.members.remove(memberId),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["members"] });
 			queryClient.removeQueries({ queryKey: ["members", memberId] });

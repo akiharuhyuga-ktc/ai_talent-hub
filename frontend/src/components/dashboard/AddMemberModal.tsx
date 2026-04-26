@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import customInstance from "@/api/custom-instance";
-import type { MemberRecord } from "@/api/generated/types";
+import { dataStore } from "@/lib/data-store";
 
 interface AddMemberModalProps {
 	open: boolean;
@@ -11,12 +10,22 @@ interface AddMemberModalProps {
 const TEAM_SHORT_OPTIONS = ["Flutter", "KMP", "Producer", "Manager"] as const;
 type TeamShort = (typeof TEAM_SHORT_OPTIONS)[number];
 
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from(
+	{ length: 41 },
+	(_, i) => CURRENT_YEAR + 2 - i, // 未来2年〜過去38年（現在が 2026 なら 2028〜1988）
+);
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) =>
+	String(i + 1).padStart(2, "0"),
+);
+
 interface FormState {
 	name: string;
 	role: string;
 	team: string;
 	teamShort: TeamShort;
-	joinedAt: string;
+	joinedYear: string;
+	joinedMonth: string;
 	mainProject: string;
 	rdPct: string;
 }
@@ -26,7 +35,8 @@ const INITIAL_FORM: FormState = {
 	role: "",
 	team: "",
 	teamShort: "Flutter",
-	joinedAt: "",
+	joinedYear: String(CURRENT_YEAR),
+	joinedMonth: "04",
 	mainProject: "",
 	rdPct: "",
 };
@@ -36,14 +46,8 @@ export function AddMemberModal({ open, onClose }: AddMemberModalProps) {
 	const [form, setForm] = useState<FormState>(INITIAL_FORM);
 
 	const mutation = useMutation({
-		mutationFn: async (payload: Record<string, unknown>) => {
-			return customInstance<MemberRecord>({
-				method: "post",
-				url: "/api/members",
-				data: payload,
-				headers: { "Content-Type": "application/json" },
-			});
-		},
+		mutationFn: (input: Parameters<typeof dataStore.members.create>[0]) =>
+			dataStore.members.create(input),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["members"] });
 			setForm(INITIAL_FORM);
@@ -57,13 +61,13 @@ export function AddMemberModal({ open, onClose }: AddMemberModalProps) {
 		name: form.name.trim(),
 		role: form.role.trim(),
 		team: form.team.trim(),
-		joinedAt: form.joinedAt.trim(),
 	};
+	const joinedAt = `${form.joinedYear}-${form.joinedMonth}`;
 	const canSubmit =
 		trimmed.name !== "" &&
 		trimmed.role !== "" &&
 		trimmed.team !== "" &&
-		/^\d{4}-\d{2}$/.test(trimmed.joinedAt);
+		/^\d{4}-\d{2}$/.test(joinedAt);
 
 	return (
 		<div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center">
@@ -77,7 +81,7 @@ export function AddMemberModal({ open, onClose }: AddMemberModalProps) {
 						role: trimmed.role,
 						team: trimmed.team,
 						teamShort: form.teamShort,
-						joinedAt: trimmed.joinedAt,
+						joinedAt,
 						mainProject: form.mainProject.trim() || undefined,
 						rdPct: Number.isFinite(rdPctNum) ? rdPctNum : undefined,
 					});
@@ -140,13 +144,35 @@ export function AddMemberModal({ open, onClose }: AddMemberModalProps) {
 						</Field>
 					</div>
 
-					<Field label="入社年月 (YYYY-MM)" required>
-						<input
-							type="month"
-							value={form.joinedAt}
-							onChange={(e) => setForm({ ...form, joinedAt: e.target.value })}
-							className="w-full px-4 py-2 text-lg border border-gray-200 rounded-lg focus:border-brand-500 focus:outline-none"
-						/>
+					<Field label="入社年月" required>
+						<div className="grid grid-cols-2 gap-2">
+							<select
+								value={form.joinedYear}
+								onChange={(e) =>
+									setForm({ ...form, joinedYear: e.target.value })
+								}
+								className="w-full px-4 py-2 text-lg border border-gray-200 rounded-lg focus:border-brand-500 focus:outline-none bg-white"
+							>
+								{YEAR_OPTIONS.map((y) => (
+									<option key={y} value={String(y)}>
+										{y}年
+									</option>
+								))}
+							</select>
+							<select
+								value={form.joinedMonth}
+								onChange={(e) =>
+									setForm({ ...form, joinedMonth: e.target.value })
+								}
+								className="w-full px-4 py-2 text-lg border border-gray-200 rounded-lg focus:border-brand-500 focus:outline-none bg-white"
+							>
+								{MONTH_OPTIONS.map((m) => (
+									<option key={m} value={m}>
+										{Number.parseInt(m, 10)}月
+									</option>
+								))}
+							</select>
+						</div>
 					</Field>
 
 					<div className="grid grid-cols-2 gap-4">
