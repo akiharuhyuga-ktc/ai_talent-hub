@@ -1,4 +1,7 @@
-// bizport `/api/me` を叩いて Entra JWT を検証するモジュール
+// bizport `/api/v1/users/me` を叩いて Entra JWT 検証を委譲するモジュール
+//
+// Lambda 自身は JWT 鍵を持たず、bizport が JWT 署名・iss・aud・exp を厳格検証している前提で
+// パススルー検証する (probe で確認済: 改竄署名・期限切れ・alg=none・iss/aud 改竄 全て 401)。
 
 export class AuthError extends Error {
   constructor(message) {
@@ -9,15 +12,16 @@ export class AuthError extends Error {
 
 const BIZPORT_API_BASE_URL = process.env.BizportApiBaseUrl;
 const BIZPORT_API_TIMEOUT_MS = Number(process.env.BizportApiTimeoutMs ?? "10000");
+const BIZPORT_API_PATH = "/api/v1/users/me";
 
 /**
- * Authorization ヘッダを bizport `/api/me` に転送してユーザー情報を取得する。
+ * Authorization ヘッダを bizport `/api/v1/users/me` に転送してユーザー情報を取得する。
  *
  * @param {string|undefined} authorizationHeader
- * @returns {Promise<object>} bizport `/api/me` のレスポンス JSON
- * @throws {AuthError} ヘッダ欠落 / `/api/me` が 200 以外を返した場合
+ * @returns {Promise<object>} bizport `/api/v1/users/me` のレスポンス JSON
+ * @throws {AuthError} ヘッダ欠落 / 2xx 以外 / タイムアウト
  */
-export async function verifyJwt(authorizationHeader) {
+export async function validateViaBizport(authorizationHeader) {
   if (!authorizationHeader) {
     throw new AuthError("Authorization header missing");
   }
@@ -26,9 +30,7 @@ export async function verifyJwt(authorizationHeader) {
     throw new AuthError("BizportApiBaseUrl env var is not set");
   }
 
-  // bizport の認証検証エンドポイント。JWT を Authorization ヘッダで送ると user 情報を JSON で返す
-  // (Missing/Invalid 時は 401 JSON `{"error":"..."}`)
-  const url = `${BIZPORT_API_BASE_URL.replace(/\/$/, "")}/api/v1/users/me`;
+  const url = `${BIZPORT_API_BASE_URL.replace(/\/$/, "")}${BIZPORT_API_PATH}`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BIZPORT_API_TIMEOUT_MS);
@@ -39,15 +41,15 @@ export async function verifyJwt(authorizationHeader) {
       signal: controller.signal,
     });
     if (!resp.ok) {
-      throw new AuthError(`bizport /api/me returned ${resp.status}`);
+      throw new AuthError(`bizport ${BIZPORT_API_PATH} returned ${resp.status}`);
     }
     return await resp.json();
   } catch (e) {
     if (e instanceof AuthError) throw e;
     if (e.name === "AbortError") {
-      throw new AuthError("bizport /api/me timed out");
+      throw new AuthError(`bizport ${BIZPORT_API_PATH} timed out`);
     }
-    throw new AuthError(`bizport /api/me failed: ${e.message}`);
+    throw new AuthError(`bizport ${BIZPORT_API_PATH} failed: ${e.message}`);
   } finally {
     clearTimeout(timer);
   }

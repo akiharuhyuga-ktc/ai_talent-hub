@@ -2,14 +2,13 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: SAM Template for bizport-talenthub-ai (Bedrock streaming proxy with bizport JWT auth)
 
+# Globals は他の関数を増やしたとき汚染源になるので Runtime / Environment のみ。
+# Timeout / MemorySize は関数単位で個別指定する。
 Globals:
   Function:
     Runtime: nodejs24.x
-    Timeout: 900
-    MemorySize: 512
     Environment:
       Variables:
-        Region: !Ref AWS::Region
         Stage: !Ref Stage
         BizportApiBaseUrl: !Ref BizportApiBaseUrl
         BedrockModelId: !Ref BedrockModelId
@@ -28,13 +27,13 @@ Parameters:
     Type: String
   BizportApiBaseUrl:
     Type: String
-    Description: bizport API のベース URL (`/api/me` を叩く先)
+    Description: bizport API のベース URL (`/api/v1/users/me` を叩く先)
   BedrockModelId:
     Type: String
     Description: 使用する Bedrock モデルの ID (ap-northeast-1 は Global cross-region inference のみ対応のため `global.anthropic.claude-sonnet-4-6` 等の inference profile ID を指定する)
   VpcId:
     Type: AWS::EC2::VPC::Id
-    Description: bizport VPC ID。Lambda を bizport の VPC 内に配置して bizport NAT Gateway 経由で `/api/me` を叩く構成。
+    Description: bizport VPC ID。Lambda を bizport の VPC 内に配置して bizport NAT Gateway 経由で `/api/v1/users/me` を叩く構成。
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
     Description: bizport の private application subnet IDs (複数 AZ)。Lambda はここに ENI を作成する。
@@ -66,6 +65,8 @@ Resources:
       FunctionName: !Sub "${Env}-${Sid}-talenthub-ai-function"
       Description: !Sub "Version:${ReleaseVersion}-${ShaShort}"
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${Env}-${Sid}-talenthub-ai-lambda-execution-role"
+      Timeout: 120  # AI 推論ユースケース。900 は slow-loris DoS 面が広いので圧縮 (max_tokens 上限 + Lambda timeout で stuck 抑制)
+      MemorySize: 1024  # CPU は memory 比例。SDK 起動 / SSE proxy / fetch のベース性能向上目的
       VpcConfig:
         SubnetIds: !Ref SubnetIds
         SecurityGroupIds:
@@ -76,19 +77,12 @@ Resources:
 
   # CloudFront OAC (SigV4) が Function URL を呼び出すための resource-based policy。
   # AWS docs: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-lambda.html
+  # OAC for Lambda Function URL では `lambda:InvokeFunctionUrl` のみで成立する (`lambda:InvokeFunction` 側は不要なので削除)。
   TalenthubAiFunctionUrlInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref TalenthubAiFunction
       Action: lambda:InvokeFunctionUrl
-      Principal: cloudfront.amazonaws.com
-      SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistributionId}"
-
-  TalenthubAiFunctionInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref TalenthubAiFunction
-      Action: lambda:InvokeFunction
       Principal: cloudfront.amazonaws.com
       SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistributionId}"
 
