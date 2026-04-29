@@ -26,7 +26,9 @@ export async function verifyJwt(authorizationHeader) {
     throw new AuthError("BizportApiBaseUrl env var is not set");
   }
 
-  const url = `${BIZPORT_API_BASE_URL.replace(/\/$/, "")}/api/me`;
+  // bizport の認証検証エンドポイント。JWT を Authorization ヘッダで送ると user 情報を JSON で返す
+  // (Missing/Invalid 時は 401 JSON `{"error":"..."}`)
+  const url = `${BIZPORT_API_BASE_URL.replace(/\/$/, "")}/api/v1/users/me`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BIZPORT_API_TIMEOUT_MS);
