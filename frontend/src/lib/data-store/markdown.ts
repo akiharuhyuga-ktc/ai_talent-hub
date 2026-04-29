@@ -62,11 +62,8 @@ function extractHtmlMeta(markdown: string, key: string): string {
 	return match ? match[1].trim() : "";
 }
 
-export function parseProfile(
-	markdown: string,
-	fallbackName: string,
-): MemberRecord {
-	const name = extractField(markdown, "名前") || fallbackName;
+export function parseProfile(markdown: string): MemberRecord {
+	const name = extractField(markdown, "名前");
 	const role = extractField(markdown, "役職");
 	const team = extractField(markdown, "チーム");
 	const teamShort = extractField(markdown, "チーム分類") || "Flutter";

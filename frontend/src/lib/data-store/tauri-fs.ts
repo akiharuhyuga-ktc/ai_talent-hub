@@ -1,5 +1,6 @@
 import type { MemberRecord, MemberSummary } from "@/api/generated/types";
 import type { GoalsData, OneOnOneRecord, ReviewData } from "@/lib/types";
+import { demoMembersSubdir } from "./demo-mode";
 import {
 	generateMemberId,
 	parseProfile,
@@ -44,7 +45,7 @@ async function getTauriFs(): Promise<TauriFsModule> {
 async function membersDir(): Promise<string> {
 	const { appDataDir, join } = await getTauriPath();
 	const root = await appDataDir();
-	return await join(root, "data", "v1", "members");
+	return await join(root, "data", "v1", demoMembersSubdir());
 }
 
 async function ensureMembersDir(): Promise<string> {
@@ -57,12 +58,12 @@ async function ensureMembersDir(): Promise<string> {
 }
 
 async function memberSubDir(
-	memberName: string,
+	memberId: string,
 	kind: "goals" | "one-on-one" | "reviews",
 ): Promise<string> {
 	const { join } = await getTauriPath();
 	const root = await ensureMembersDir();
-	const dir = await join(root, memberName, kind);
+	const dir = await join(root, memberId, kind);
 	const { exists, mkdir } = await getTauriFs();
 	if (!(await exists(dir))) {
 		await mkdir(dir, { recursive: true });
@@ -70,35 +71,40 @@ async function memberSubDir(
 	return dir;
 }
 
-async function readAllProfiles(): Promise<{ name: string; content: string }[]> {
+async function readAllProfiles(): Promise<{ id: string; content: string }[]> {
 	const { join } = await getTauriPath();
 	const { exists, readDir, readTextFile } = await getTauriFs();
 	const dir = await ensureMembersDir();
 	const entries = await readDir(dir);
-	const profiles: { name: string; content: string }[] = [];
+	const profiles: { id: string; content: string }[] = [];
 	for (const entry of entries) {
 		if (!entry.isDirectory) continue;
 		const profilePath = await join(dir, entry.name, "profile.md");
 		if (!(await exists(profilePath))) continue;
 		const content = await readTextFile(profilePath);
-		profiles.push({ name: entry.name, content });
+		profiles.push({ id: entry.name, content });
 	}
 	return profiles;
 }
 
+function profileToRecord(id: string, content: string): MemberRecord {
+	// ディレクトリ名 = ID が canonical。profile.md の id コメントより優先する。
+	return { ...parseProfile(content), id };
+}
+
 async function resolveMember(memberId: string): Promise<MemberRecord | null> {
 	const profiles = await readAllProfiles();
-	const records = profiles.map((p) => parseProfile(p.content, p.name));
-	return records.find((r) => r.id === memberId) ?? null;
+	const target = profiles.find((p) => p.id === memberId);
+	return target ? profileToRecord(target.id, target.content) : null;
 }
 
 async function listSubDirFiles(
-	memberName: string,
+	memberId: string,
 	kind: "goals" | "one-on-one" | "reviews",
 ): Promise<{ name: string; content: string }[]> {
 	const { join } = await getTauriPath();
 	const { exists, readDir, readTextFile } = await getTauriFs();
-	const dir = await memberSubDir(memberName, kind);
+	const dir = await memberSubDir(memberId, kind);
 	if (!(await exists(dir))) return [];
 	const entries = await readDir(dir);
 	const files: { name: string; content: string }[] = [];
@@ -113,14 +119,14 @@ async function listSubDirFiles(
 }
 
 async function writeSubDirFile(
-	memberName: string,
+	memberId: string,
 	kind: "goals" | "one-on-one" | "reviews",
 	key: string,
 	content: string,
 ): Promise<void> {
 	const { join } = await getTauriPath();
 	const { writeTextFile } = await getTauriFs();
-	const dir = await memberSubDir(memberName, kind);
+	const dir = await memberSubDir(memberId, kind);
 	await writeTextFile(await join(dir, `${key}.md`), content);
 }
 
@@ -146,7 +152,7 @@ function toSummary(record: MemberRecord): MemberSummary {
 export const tauriMembersStore: MembersStore = {
 	async list() {
 		const profiles = await readAllProfiles();
-		return profiles.map((p) => parseProfile(p.content, p.name)).map(toSummary);
+		return profiles.map((p) => profileToRecord(p.id, p.content)).map(toSummary);
 	},
 
 	async get(id: string) {
@@ -171,21 +177,19 @@ export const tauriMembersStore: MembersStore = {
 		};
 		const content = serializeProfile(draft);
 		const dir = await ensureMembersDir();
-		const memberDir = await join(dir, input.name);
+		const memberDir = await join(dir, id);
 		if (!(await exists(memberDir))) {
 			await mkdir(memberDir, { recursive: true });
 		}
 		await writeTextFile(await join(memberDir, "profile.md"), content);
-		return parseProfile(content, input.name);
+		return profileToRecord(id, content);
 	},
 
 	async remove(id: string) {
 		const { join } = await getTauriPath();
 		const { exists, remove } = await getTauriFs();
-		const target = await resolveMember(id);
-		if (!target) return;
 		const dir = await ensureMembersDir();
-		const memberDir = await join(dir, target.name);
+		const memberDir = await join(dir, id);
 		if (await exists(memberDir)) {
 			await remove(memberDir, { recursive: true });
 		}
@@ -200,7 +204,7 @@ export const tauriGoalsStore: GoalsStore = {
 	async listForMember(memberId: string) {
 		const member = await resolveMember(memberId);
 		if (!member) return [];
-		const files = await listSubDirFiles(member.name, "goals");
+		const files = await listSubDirFiles(memberId, "goals");
 		return files.map<GoalsData>((f) => ({
 			id: `goal_${memberId}_${f.name}`,
 			memberId,
@@ -210,17 +214,13 @@ export const tauriGoalsStore: GoalsStore = {
 		}));
 	},
 	async save(memberId: string, period: string, content: string) {
-		const member = await resolveMember(memberId);
-		if (!member) throw new Error(`member not found: ${memberId}`);
-		await writeSubDirFile(member.name, "goals", period, content);
+		await writeSubDirFile(memberId, "goals", period, content);
 	},
 };
 
 export const tauriOneOnOnesStore: OneOnOnesStore = {
 	async listForMember(memberId: string) {
-		const member = await resolveMember(memberId);
-		if (!member) return [];
-		const files = await listSubDirFiles(member.name, "one-on-one");
+		const files = await listSubDirFiles(memberId, "one-on-one");
 		return files
 			.map<OneOnOneRecord>((f) => ({
 				id: `oo_${memberId}_${f.name.replace("-", "")}`,
@@ -231,9 +231,7 @@ export const tauriOneOnOnesStore: OneOnOnesStore = {
 			.sort((a, b) => b.date.localeCompare(a.date));
 	},
 	async save(memberId: string, yearMonth: string, content: string) {
-		const member = await resolveMember(memberId);
-		if (!member) throw new Error(`member not found: ${memberId}`);
-		await writeSubDirFile(member.name, "one-on-one", yearMonth, content);
+		await writeSubDirFile(memberId, "one-on-one", yearMonth, content);
 	},
 };
 
@@ -241,7 +239,7 @@ export const tauriReviewsStore: ReviewsStore = {
 	async listForMember(memberId: string) {
 		const member = await resolveMember(memberId);
 		if (!member) return [];
-		const files = await listSubDirFiles(member.name, "reviews");
+		const files = await listSubDirFiles(memberId, "reviews");
 		return files
 			.map<ReviewData>((f) => ({
 				id: `rev_${memberId}_${f.name}`,
@@ -260,8 +258,6 @@ export const tauriReviewsStore: ReviewsStore = {
 			.sort((a, b) => b.period.localeCompare(a.period));
 	},
 	async save(memberId: string, period: string, content: string) {
-		const member = await resolveMember(memberId);
-		if (!member) throw new Error(`member not found: ${memberId}`);
-		await writeSubDirFile(member.name, "reviews", period, content);
+		await writeSubDirFile(memberId, "reviews", period, content);
 	},
 };
