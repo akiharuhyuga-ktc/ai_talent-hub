@@ -1,0 +1,108 @@
+# bizport-talenthub-ai (SAM)
+
+タレントハブ向け Bedrock streaming proxy Lambda。
+
+bizport の `/api/me` で Entra JWT を検証 → Bedrock `invoke_model_with_response_stream` を SSE で返す Lambda Function URL。
+
+## 構成
+
+```
+lambda/sam/
+├── template.yml               # SAM テンプレート (Function URL, RESPONSE_STREAM)
+├── samconfig.toml             # 環境別 deploy 設定 + parameter_overrides 集約 (現状 DEV のみ)
+├── requirements.txt           # 実行時依存
+├── requirements-dev.txt       # 開発・テスト依存
+├── app/
+│   ├── settings.py
+│   ├── functions/
+│   │   └── talenthub_ai_proxy.py   # ハンドラ
+│   └── libs/
+│       └── bizport_auth.py         # /api/me JWT 検証
+└── tests/
+    └── functions/
+        └── test_talenthub_ai_proxy.py
+```
+
+## 関連リポジトリ / インフラ前提
+
+| 項目 | 場所 | 役割 |
+| --- | --- | --- |
+| CloudFront / OAC / IAM 実行ロール / Edge Lambda | [`kinto-dev/kinto-infrastructure`](https://github.com/kinto-dev/kinto-infrastructure) `kinto-iac/terraform/v1-platform/common-service/bizport/envs/dev/` | terraform で管理 |
+| Lambda 関数本体 + Function URL | 本リポ `lambda/sam/` | SAM で管理 |
+
+Lambda 実行ロール `${env}-bizport-talenthub-ai-lambda-execution-role` は terraform 側 (`pack.lambda.function.talenthub-ai`) で作成済みであることが前提。
+IAM 権限 (`bedrock:InvokeModel*`, `bedrock:InvokeModelWithResponseStream`, `ssm:GetParameter`, `secretsmanager:GetSecretValue`, `lambda:InvokeFunction`) も terraform 側で付与済み。
+
+## パラメータ運用方針
+
+| パラメータ | 配置 | 備考 |
+| --- | --- | --- |
+| `Env` / `Stage` / `Sid` / `BizportApiBaseUrl` / `BedrockModelId` | `samconfig.toml` の `[<env>.deploy.parameters].parameter_overrides` に集約 | 環境固有値、コード変更なしに切り替えられる |
+| `ReleaseVersion` / `ShaShort` | samconfig にデフォルト (`dev` / `local`) を入れ、CI で `--parameter-overrides` 上書き | ビルドメタ |
+
+## デプロイ手順 (dev)
+
+事前: `dev-bizport-cicd` AWS profile (`role: dev-bizport-cicd-role`, source: SSO 済 dev-test) が ~/.aws/config に存在。
+
+```bash
+# 1. SSO ログイン
+aws sso login --profile dev-test
+
+# 2. SAM build
+cd lambda/sam
+sam build --use-container       # ローカルに Python 3.12 がある場合は --use-container 不要
+
+# 3. SAM deploy (DEV)
+#    samconfig.toml の parameter_overrides で大半は埋まっているのでコマンドは短い
+sam deploy --config-env DEV --profile dev-bizport-cicd
+
+# CI などビルドメタを実値で埋めたい場合は --parameter-overrides で上書き
+sam deploy --config-env DEV --profile dev-bizport-cicd --no-confirm-changeset \
+  --parameter-overrides \
+    "ReleaseVersion=$(git describe --tags --always 2>/dev/null || echo dev)" \
+    "ShaShort=$(git rev-parse --short HEAD)"
+```
+
+`samconfig.toml` の `confirm_changeset = true` で初回は changeset 確認プロンプトが出る → 内容を見て `y`。
+
+## デプロイ後
+
+`Outputs.TalenthubAiFunctionUrl` で出力される Lambda Function URL のホスト名を取得:
+
+```bash
+aws cloudformation describe-stacks \
+  --profile dev-bizport-cicd --region ap-northeast-1 \
+  --stack-name dev-bizport-talenthub-ai-serverless-resources \
+  --query 'Stacks[0].Outputs' --output table
+```
+
+そのホスト名 (例: `xxx.lambda-url.ap-northeast-1.on.aws`) を kinto-infrastructure 側の以下に反映 → 2nd `terraform apply`:
+
+- `kinto-iac/terraform/v1-platform/common-service/bizport/envs/dev/locals.tf`
+  - `pack.cloudfront.frontend.origin.lambda.domain_name` (コメントアウト解除 + 実値)
+  - `pack.cloudfront.frontend.origin.lambda.origin_access_control_id` (OAC ID 実値、コメントアウト解除)
+  - `pack.cloudfront.frontend.cache_behaviors` の `/api/ai/*` behavior (コメントアウト解除)
+
+完了後 `https://dev-bizport.kinto-mobility.jp/api/ai/*` 経由で疎通可能。
+
+## Bedrock モデルについて
+
+ap-northeast-1 (Tokyo) は **Global cross-region inference のみ対応** のリージョン。`samconfig.toml` の `BedrockModelId` には Global inference profile ID (`global.anthropic.claude-sonnet-4-6`) を指定している。
+
+In-Region / Geo の inference は Tokyo では使えないので、別モデルに切り替えるときも **Global inference profile ID** を指定すること。
+
+## ローカルテスト
+
+```bash
+cd lambda/sam
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest tests
+```
+
+## 参考
+
+- Jira: [INFRA-10810](https://kinto-dev.atlassian.net/browse/INFRA-10810)
+- 参考実装: [`kinto-dev/goku-lambda`](https://github.com/kinto-dev/goku-lambda)
+- 参考インフラ構成: kinto-infrastructure の `kinto-iac/terraform/v1-platform/kinto/unlimited/envs/dev` (CloudFront + Lambda Function URL + Edge Lambda OAC SigV4)
+- Bedrock Sonnet 4.6 model card: <https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-4-6.html>

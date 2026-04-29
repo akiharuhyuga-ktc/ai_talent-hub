@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Template for bizport-talenthub-ai (Bedrock streaming proxy with bizport JWT auth)
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 900
+    MemorySize: 512
+    Environment:
+      Variables:
+        Region: !Ref AWS::Region
+        Stage: !Ref Stage
+        BizportApiBaseUrl: !Ref BizportApiBaseUrl
+        BedrockModelId: !Ref BedrockModelId
+
+Parameters:
+  Env:
+    Type: String
+  Stage:
+    Type: String
+  Sid:
+    Type: String
+    Default: bizport
+  ReleaseVersion:
+    Type: String
+  ShaShort:
+    Type: String
+  BizportApiBaseUrl:
+    Type: String
+    Description: bizport API のベース URL (`/api/me` を叩く先)
+  BedrockModelId:
+    Type: String
+    Description: 使用する Bedrock モデルの ID (ap-northeast-1 は Global cross-region inference のみ対応のため `global.anthropic.claude-sonnet-4-6` 等の inference profile ID を指定する)
+
+Resources:
+  TalenthubAiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app/functions/talenthub_ai_proxy.handler
+      FunctionName: !Sub "${Env}-${Sid}-talenthub-ai-function"
+      Description: !Sub "Version:${ReleaseVersion}-${ShaShort}"
+      Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${Env}-${Sid}-talenthub-ai-lambda-execution-role"
+      FunctionUrlConfig:
+        AuthType: AWS_IAM
+        InvokeMode: RESPONSE_STREAM
+
+Outputs:
+  TalenthubAiFunctionUrl:
+    Description: "Lambda Function URL (set this hostname into terraform `pack.cloudfront.frontend.origin.lambda.domain_name`)"
+    Value: !GetAtt TalenthubAiFunctionUrl.FunctionUrl
+  TalenthubAiFunctionArn:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt TalenthubAiFunction.Arn

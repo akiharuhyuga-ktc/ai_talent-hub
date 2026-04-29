@@ -1,0 +1,25 @@
+version = 0.1
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+region = "ap-northeast-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+disable_rollback = true
+
+# パラメータ運用方針:
+# - 環境固有の値（Env/Stage/Sid/BizportApiBaseUrl/BedrockModelId）は samconfig.toml に集約する。
+# - ビルドメタ（ReleaseVersion/ShaShort）はデフォルト値を入れておき、CI で `--parameter-overrides` で上書きする。
+
+[DEV]
+[DEV.deploy]
+[DEV.deploy.parameters]
+stack_name = "dev-bizport-talenthub-ai-serverless-resources"
+s3_bucket = "dev-application-resource-ap-northeast-1"
+s3_prefix = "lambda/bizport/dev/s3"
+tags = "SID=\"bizport\" Environment=\"dev\""
+parameter_overrides = "Env=\"dev\" Stage=\"dev\" Sid=\"bizport\" BizportApiBaseUrl=\"https://dev-bizport.kinto-mobility.jp\" BedrockModelId=\"global.anthropic.claude-sonnet-4-6\" ReleaseVersion=\"dev\" ShaShort=\"local\""
