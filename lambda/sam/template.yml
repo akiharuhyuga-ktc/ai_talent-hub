@@ -49,7 +49,7 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: "-1"
           CidrIp: 0.0.0.0/0
-          Description: allow all egress (NAT 経由で bizport CloudFront / Bedrock VPC endpoint へ)
+          Description: allow all egress via bizport NAT Gateway (to bizport CloudFront and Bedrock)
       Tags:
         - Key: SID
           Value: !Ref Sid
