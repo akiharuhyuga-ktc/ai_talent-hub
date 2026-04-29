@@ -28,11 +28,17 @@ lambda/sam/
 
 | 項目 | 場所 | 役割 |
 | --- | --- | --- |
-| CloudFront / OAC / IAM 実行ロール / Edge Lambda | [`kinto-dev/kinto-infrastructure`](https://github.com/kinto-dev/kinto-infrastructure) `kinto-iac/terraform/v1-platform/common-service/bizport/envs/dev/` | terraform で管理 |
-| Lambda 関数本体 + Function URL | 本リポ `lambda/sam/` | SAM で管理 |
+| CloudFront / OAC / IAM 実行ロール / Edge Lambda / WAF (NAT EIP allow) | [`kinto-dev/kinto-infrastructure`](https://github.com/kinto-dev/kinto-infrastructure) `kinto-iac/terraform/v1-platform/common-service/bizport/envs/dev/` | terraform で管理 |
+| Lambda 関数本体 + Function URL + Lambda 専用 SG + VpcConfig | 本リポ `lambda/sam/` | SAM で管理 |
 
 Lambda 実行ロール `${env}-bizport-talenthub-ai-lambda-execution-role` は terraform 側 (`pack.lambda.function.talenthub-ai`) で作成済みであることが前提。
-IAM 権限 (`bedrock:InvokeModel*`, `ssm:GetParameter`, `secretsmanager:GetSecretValue`, `lambda:InvokeFunction`) も terraform 側で付与済み。
+IAM 権限 (`bedrock:InvokeModel*`, `ssm:GetParameter`, `secretsmanager:GetSecretValue`, `lambda:InvokeFunction`, ENI 操作) も terraform 側で付与済み。
+
+### VPC 配置と NAT 経路
+
+Lambda は bizport の VPC private subnet に配置する (samconfig.toml の `VpcId` / `SubnetIds`)。Outbound は bizport NAT Gateway を経由 → 固定 EIP 2 件 (1a/1c) から bizport CloudFront `dev-bizport.kinto-mobility.jp/api/me` に到達する。
+
+bizport CloudFront WAF は `default_action = block` + 社内 IP allow 設定のため、上記 NAT EIP を allow rule に登録する terraform 変更を kinto-infrastructure 側で並行適用すること。
 
 ## パラメータ運用方針
 

@@ -32,8 +32,30 @@ Parameters:
   BedrockModelId:
     Type: String
     Description: 使用する Bedrock モデルの ID (ap-northeast-1 は Global cross-region inference のみ対応のため `global.anthropic.claude-sonnet-4-6` 等の inference profile ID を指定する)
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: bizport VPC ID。Lambda を bizport の VPC 内に配置して bizport NAT Gateway 経由で `/api/me` を叩く構成。
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: bizport の private application subnet IDs (複数 AZ)。Lambda はここに ENI を作成する。
 
 Resources:
+  TalenthubAiSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${Env}-${Sid}-talenthub-ai-lambda-sg"
+      GroupDescription: !Sub "${Env}-${Sid}-talenthub-ai Lambda (egress only; routes outbound traffic via bizport NAT Gateway)"
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+          Description: allow all egress (NAT 経由で bizport CloudFront / Bedrock VPC endpoint へ)
+      Tags:
+        - Key: SID
+          Value: !Ref Sid
+        - Key: Environment
+          Value: !Ref Env
+
   TalenthubAiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -41,6 +63,10 @@ Resources:
       FunctionName: !Sub "${Env}-${Sid}-talenthub-ai-function"
       Description: !Sub "Version:${ReleaseVersion}-${ShaShort}"
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${Env}-${Sid}-talenthub-ai-lambda-execution-role"
+      VpcConfig:
+        SubnetIds: !Ref SubnetIds
+        SecurityGroupIds:
+          - !GetAtt TalenthubAiSecurityGroup.GroupId
       FunctionUrlConfig:
         AuthType: AWS_IAM
         InvokeMode: RESPONSE_STREAM
