@@ -3,9 +3,10 @@
 // Lambda Function URL の RESPONSE_STREAM (`awslambda.streamifyResponse`) で SSE を返す。
 //
 // リクエスト:
-//   POST /api/ai/<path>
+//   POST /api/ai/invoke   (固定エンドポイント)
 //   Authorization: Bearer <Entra JWT>
 //   Content-Type: application/json
+//   x-amz-content-sha256: <hex-sha256-of-body>   (CloudFront OAC SigV4 のためクライアント責務)
 //   Body: Bedrock InvokeModel に渡す JSON (modelId 以外)
 //
 // レスポンス:
@@ -22,7 +23,13 @@ import { verifyJwt, AuthError } from "../libs/bizportAuth.mjs";
 const REGION = process.env.Region;
 const BEDROCK_MODEL_ID = process.env.BedrockModelId;
 
+const ALLOWED_PATH = "/api/ai/invoke";
+
 const bedrock = new BedrockRuntimeClient({ region: REGION });
+
+function getRequestPath(event) {
+  return event.rawPath ?? event.requestContext?.http?.path ?? "";
+}
 
 function getAuthorizationHeader(event) {
   const headers = event.headers ?? {};
@@ -48,6 +55,17 @@ async function writeJson(responseStream, statusCode, payload) {
 
 export const handler = awslambda.streamifyResponse(
   async (event, responseStream, _context) => {
+    // 0. path 検証 (defense in depth: CloudFront `/api/ai/*` から来た任意 path を Lambda 側で固定する)
+    const reqPath = getRequestPath(event);
+    if (reqPath !== ALLOWED_PATH) {
+      console.warn("path not allowed:", reqPath);
+      await writeJson(responseStream, 404, {
+        error: "not_found",
+        message: `Path '${reqPath}' is not supported. Use '${ALLOWED_PATH}'.`,
+      });
+      return;
+    }
+
     // 1. 認証
     let user;
     try {
