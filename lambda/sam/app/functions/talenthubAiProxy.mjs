@@ -4,7 +4,7 @@
 //
 // リクエスト:
 //   POST /api/ai/invoke   (固定エンドポイント)
-//   Authorization: Bearer <Entra JWT>
+//   X-Bizport-Authorization: Bearer <Entra JWT>   ← CloudFront OAC が標準 Authorization を SigV4 値で上書きするため別 header で運ぶ
 //   Content-Type: application/json
 //   x-amz-content-sha256: <hex-sha256-of-body>   (CloudFront OAC SigV4 のためクライアント責務)
 //   Body: Bedrock InvokeModel に渡す JSON (modelId 以外)
@@ -33,7 +33,11 @@ function getRequestPath(event) {
 
 function getAuthorizationHeader(event) {
   const headers = event.headers ?? {};
-  return headers.authorization ?? headers.Authorization ?? "";
+  // CloudFront OAC が標準 `Authorization` を SigV4 値で上書きするため、
+  // クライアントは `X-Bizport-Authorization` カスタムヘッダで JWT を運ぶ前提。
+  return (
+    headers["x-bizport-authorization"] ?? headers["X-Bizport-Authorization"] ?? ""
+  );
 }
 
 function decodeBody(event) {
@@ -56,11 +60,13 @@ async function writeJson(responseStream, statusCode, payload) {
 export const handler = awslambda.streamifyResponse(
   async (event, responseStream, _context) => {
     // 0. path 検証 (defense in depth: CloudFront `/api/ai/*` から来た任意 path を Lambda 側で固定する)
+    //    bizport CloudFront の `custom_error_responses` が 404 を `/index.html` (200) に変換してしまうため、
+    //    Lambda 側からは 400 Bad Request として返す (400 は変換対象外、viewer に素直に届く)。
     const reqPath = getRequestPath(event);
     if (reqPath !== ALLOWED_PATH) {
       console.warn("path not allowed:", reqPath);
-      await writeJson(responseStream, 404, {
-        error: "not_found",
+      await writeJson(responseStream, 400, {
+        error: "invalid_path",
         message: `Path '${reqPath}' is not supported. Use '${ALLOWED_PATH}'.`,
       });
       return;

@@ -2,7 +2,17 @@
 
 タレントハブ向け Bedrock streaming proxy Lambda。
 
-bizport の `/api/me` で Entra JWT を検証 → Bedrock `InvokeModelWithResponseStreamCommand` を SSE で返す Lambda Function URL。
+bizport の `/api/v1/users/me` で Entra JWT を検証 → Bedrock `InvokeModelWithResponseStreamCommand` を SSE で返す Lambda Function URL。
+
+## クライアント呼び出し方 (要点のみ)
+
+```
+POST https://dev-bizport.kinto-mobility.jp/api/ai/invoke    ← 受付パスは固定
+X-Bizport-Authorization: Bearer <Entra JWT>                  ← CloudFront OAC が標準 Authorization を SigV4 で上書きするため別ヘッダ
+Content-Type: application/json
+x-amz-content-sha256: <body の SHA256 hex>                    ← OAC SigV4 のためクライアント責務
+Body: Bedrock InvokeModel の Anthropic Claude messages 形式
+```
 
 > [!NOTE]
 > Lambda Function URL の `RESPONSE_STREAM` (native SSE) は **Node.js ランタイム専用** のため Node.js 24 で実装している ([AWS Lambda response streaming docs](https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html))。

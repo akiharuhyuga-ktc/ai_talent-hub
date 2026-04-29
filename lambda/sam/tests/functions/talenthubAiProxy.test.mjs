@@ -41,19 +41,27 @@ function eventWith({ path = "/api/ai/invoke", headers = {}, body = "{}" } = {}) 
   return { rawPath: path, headers, body };
 }
 
-test("returns 404 when path is not /api/ai/invoke", async () => {
+test("returns 400 when path is not /api/ai/invoke", async () => {
   const stream = new FakeStream();
   await handler(eventWith({ path: "/api/ai/something" }), stream);
-  assert.equal(stream.statusCode, 404);
-  assert.match(stream.body(), /not_found/);
+  assert.equal(stream.statusCode, 400);
+  assert.match(stream.body(), /invalid_path/);
 });
 
-test("returns 401 when Authorization header missing", async () => {
+test("returns 401 when X-Bizport-Authorization header missing", async () => {
   const stream = new FakeStream();
   await handler(eventWith(), stream);
   assert.equal(stream.statusCode, 401);
   assert.match(stream.body(), /unauthorized/);
   assert.equal(stream.ended, true);
+});
+
+test("standard Authorization header is ignored (must use X-Bizport-Authorization)", async () => {
+  const stream = new FakeStream();
+  // 標準 Authorization は CloudFront OAC で消されるため Lambda 側でも無視する
+  await handler(eventWith({ headers: { Authorization: "Bearer should-be-ignored" } }), stream);
+  assert.equal(stream.statusCode, 401);
+  assert.match(stream.body(), /Authorization header missing/);
 });
 
 // NOTE: 400 (invalid body) ケースは認証成功後にしか到達しないため、verifyJwt を mock 必須。
