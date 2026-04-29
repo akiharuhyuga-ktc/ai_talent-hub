@@ -4,7 +4,7 @@ Description: SAM Template for bizport-talenthub-ai (Bedrock streaming proxy with
 
 Globals:
   Function:
-    Runtime: python3.12
+    Runtime: nodejs24.x
     Timeout: 900
     MemorySize: 512
     Environment:
@@ -37,7 +37,7 @@ Resources:
   TalenthubAiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: app/functions/talenthub_ai_proxy.handler
+      Handler: app/functions/talenthubAiProxy.handler
       FunctionName: !Sub "${Env}-${Sid}-talenthub-ai-function"
       Description: !Sub "Version:${ReleaseVersion}-${ShaShort}"
       Role: !Sub "arn:aws:iam::${AWS::AccountId}:role/${Env}-${Sid}-talenthub-ai-lambda-execution-role"

@@ -1,5 +1,4 @@
 .aws-sam/
-__pycache__/
-*.pyc
-.pytest_cache/
-.venv/
+node_modules/
+npm-debug.log
+.npmrc.local

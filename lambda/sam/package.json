@@ -1,0 +1,16 @@
+{
+  "name": "bizport-talenthub-ai",
+  "version": "0.1.0",
+  "description": "Bedrock streaming proxy Lambda for talent-hub via bizport JWT auth",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=spec tests"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.679.0"
+  }
+}
