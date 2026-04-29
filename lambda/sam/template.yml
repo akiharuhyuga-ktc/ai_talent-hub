@@ -38,6 +38,9 @@ Parameters:
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
     Description: bizport の private application subnet IDs (複数 AZ)。Lambda はここに ENI を作成する。
+  CloudFrontDistributionId:
+    Type: String
+    Description: bizport CloudFront distribution ID (terraform 管理)。OAC が Function URL を SigV4 で叩くための resource-based policy で参照する。
 
 Resources:
   TalenthubAiSecurityGroup:
@@ -70,6 +73,24 @@ Resources:
       FunctionUrlConfig:
         AuthType: AWS_IAM
         InvokeMode: RESPONSE_STREAM
+
+  # CloudFront OAC (SigV4) が Function URL を呼び出すための resource-based policy。
+  # AWS docs: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-lambda.html
+  TalenthubAiFunctionUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TalenthubAiFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistributionId}"
+
+  TalenthubAiFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TalenthubAiFunction
+      Action: lambda:InvokeFunction
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistributionId}"
 
 Outputs:
   TalenthubAiFunctionUrl:
