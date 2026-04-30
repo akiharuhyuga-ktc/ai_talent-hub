@@ -24,7 +24,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-	const { user, deviceCode, login } = useAuth();
+	const { user, flow, login } = useAuth();
 	const navigate = useNavigate();
 	const search = Route.useSearch();
 	const configured = isAuthConfigured();
@@ -68,7 +68,7 @@ function LoginPage() {
 					</div>
 				)}
 
-				{deviceCode.phase === "waiting" ? (
+				{flow.phase === "device-code" ? (
 					<div className="space-y-4">
 						<p className="text-sm text-gray-600">
 							下記のコードをコピーし、別ブラウザで Microsoft
@@ -79,11 +79,11 @@ function LoginPage() {
 								<div className="text-xs text-gray-500 mb-1">確認コード</div>
 								<div className="flex items-center gap-3">
 									<code className="text-2xl font-mono font-bold tracking-widest text-gray-900">
-										{deviceCode.userCode}
+										{flow.userCode}
 									</code>
 									<button
 										type="button"
-										onClick={() => handleCopy(deviceCode.userCode)}
+										onClick={() => handleCopy(flow.userCode)}
 										className="ml-auto text-xs text-brand-600 hover:text-brand-700"
 									>
 										コピー
@@ -93,12 +93,12 @@ function LoginPage() {
 							<div>
 								<div className="text-xs text-gray-500 mb-1">認証 URL</div>
 								<a
-									href={deviceCode.verificationUri}
+									href={flow.verificationUri}
 									target="_blank"
 									rel="noreferrer noopener"
 									className="text-sm text-brand-600 hover:underline break-all"
 								>
-									{deviceCode.verificationUri}
+									{flow.verificationUri}
 								</a>
 							</div>
 						</div>
@@ -106,22 +106,29 @@ function LoginPage() {
 							認証が完了するまでこのページでお待ちください…
 						</p>
 					</div>
+				) : flow.phase === "waiting-browser" ? (
+					<div className="space-y-3 text-center">
+						<p className="text-sm text-gray-600">
+							ブラウザでサインインを完了してください。
+						</p>
+						<p className="text-xs text-gray-500">
+							このページは認証完了まで待機します…
+						</p>
+					</div>
 				) : (
 					<button
 						type="button"
-						disabled={!configured || deviceCode.phase === "starting"}
+						disabled={!configured || flow.phase === "starting"}
 						onClick={() => login()}
 						className="w-full bg-brand-600 text-white rounded-lg px-4 py-3 font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 					>
-						{deviceCode.phase === "starting"
-							? "準備中…"
-							: "Microsoft でログイン"}
+						{flow.phase === "starting" ? "準備中…" : "Microsoft でログイン"}
 					</button>
 				)}
 
-				{deviceCode.phase === "error" && (
+				{flow.phase === "error" && (
 					<div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-						{deviceCode.message}
+						{flow.message}
 					</div>
 				)}
 			</div>
