@@ -1,4 +1,4 @@
-import { refreshAccessToken } from "./refresh";
+import { getAuthStrategy } from "./strategy";
 import {
 	clearTokens,
 	getTokens,
@@ -20,7 +20,8 @@ export async function getValidAccessToken(): Promise<string | null> {
 	if (!isExpired(current)) return current.accessToken;
 
 	if (!inflightRefresh) {
-		inflightRefresh = refreshAccessToken(current)
+		inflightRefresh = getAuthStrategy()
+			.then((strategy) => strategy.refresh(current))
 			.then((next) => {
 				saveTokens(next);
 				return next;

@@ -7,13 +7,13 @@ import {
 	useRef,
 	useState,
 } from "react";
-import {
-	DeviceCodeError,
-	type DeviceCodeResponse,
-	pollForToken,
-	startDeviceCodeFlow,
-} from "@/lib/auth/deviceCode";
+import { DeviceCodeError } from "@/lib/auth/deviceCode";
 import { AUTH_EXPIRED_EVENT } from "@/lib/auth/events";
+import {
+	type AuthFlowState,
+	type AuthStrategy,
+	getAuthStrategy,
+} from "@/lib/auth/strategy";
 import {
 	type AuthUser,
 	clearTokens,
@@ -22,20 +22,9 @@ import {
 	saveTokens,
 } from "@/lib/auth/tokenStore";
 
-export type DeviceCodeState =
-	| { phase: "idle" }
-	| { phase: "starting" }
-	| {
-			phase: "waiting";
-			userCode: string;
-			verificationUri: string;
-			message: string;
-	  }
-	| { phase: "error"; message: string };
-
 export interface AuthContextValue {
 	user: AuthUser | null;
-	deviceCode: DeviceCodeState;
+	flow: AuthFlowState;
 	login: () => Promise<void>;
 	logout: () => void;
 }
@@ -48,13 +37,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const tokens = getTokens();
 		return tokens ? decodeIdToken(tokens.idToken) : null;
 	});
-	const [deviceCode, setDeviceCode] = useState<DeviceCodeState>({
-		phase: "idle",
-	});
+	const [flow, setFlow] = useState<AuthFlowState>({ phase: "idle" });
 	const abortRef = useRef<AbortController | null>(null);
+	const strategyRef = useRef<AuthStrategy | null>(null);
 
 	useEffect(() => {
+		let cancelled = false;
+		getAuthStrategy().then((s) => {
+			if (!cancelled) strategyRef.current = s;
+		});
 		return () => {
+			cancelled = true;
 			abortRef.current?.abort();
 		};
 	}, []);
@@ -63,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const onExpired = () => {
 			abortRef.current?.abort();
 			setUser(null);
-			setDeviceCode({ phase: "idle" });
+			setFlow({ phase: "idle" });
 		};
 		window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
 		return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
@@ -74,30 +67,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const controller = new AbortController();
 		abortRef.current = controller;
 
-		setDeviceCode({ phase: "starting" });
-		let device: DeviceCodeResponse;
+		setFlow({ phase: "starting" });
 		try {
-			device = await startDeviceCodeFlow();
-		} catch (err) {
-			setDeviceCode({
-				phase: "error",
-				message:
-					err instanceof Error ? err.message : "ログインに失敗しました。",
+			const strategy = strategyRef.current ?? (await getAuthStrategy());
+			strategyRef.current = strategy;
+			const tokens = await strategy.login({
+				onState: (s) => setFlow(s),
+				signal: controller.signal,
 			});
-			return;
-		}
-		setDeviceCode({
-			phase: "waiting",
-			userCode: device.userCode,
-			verificationUri: device.verificationUri,
-			message: device.message,
-		});
-
-		try {
-			const tokens = await pollForToken(device, { signal: controller.signal });
 			saveTokens(tokens);
 			setUser(decodeIdToken(tokens.idToken));
-			setDeviceCode({ phase: "idle" });
+			setFlow({ phase: "idle" });
 		} catch (err) {
 			if (controller.signal.aborted) return;
 			const message =
@@ -106,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					: err instanceof Error
 						? err.message
 						: "ログインに失敗しました。";
-			setDeviceCode({ phase: "error", message });
+			setFlow({ phase: "error", message });
 		}
 	}, []);
 
@@ -114,13 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		abortRef.current?.abort();
 		clearTokens();
 		setUser(null);
-		setDeviceCode({ phase: "idle" });
+		setFlow({ phase: "idle" });
 		queryClient.clear();
 	}, [queryClient]);
 
 	return (
-		<AuthContext value={{ user, deviceCode, login, logout }}>
-			{children}
-		</AuthContext>
+		<AuthContext value={{ user, flow, login, logout }}>{children}</AuthContext>
 	);
 }
