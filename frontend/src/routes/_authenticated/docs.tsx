@@ -11,7 +11,7 @@ interface DocsResponse {
 	availableYears?: number[];
 }
 
-export const Route = createFileRoute("/docs")({
+export const Route = createFileRoute("/_authenticated/docs")({
 	component: DocsPage,
 });
 

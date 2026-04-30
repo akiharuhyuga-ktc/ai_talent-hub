@@ -1,11 +1,33 @@
 import type { AxiosRequestConfig } from "axios";
 import Axios from "axios";
+import { AUTH_EXPIRED_EVENT } from "@/lib/auth/events";
+import { getValidAccessToken } from "@/lib/auth/getValidAccessToken";
+import { clearTokens } from "@/lib/auth/tokenStore";
 
 const AXIOS_INSTANCE = Axios.create({
 	baseURL: import.meta.env.VITE_API_BASE_URL || "",
 	timeout: 30_000,
 	withCredentials: true,
 });
+
+AXIOS_INSTANCE.interceptors.request.use(async (config) => {
+	const token = await getValidAccessToken();
+	if (token) {
+		config.headers.set("Authorization", `Bearer ${token}`);
+	}
+	return config;
+});
+
+AXIOS_INSTANCE.interceptors.response.use(
+	(response) => response,
+	(error) => {
+		if (error?.response?.status === 401) {
+			clearTokens();
+			window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+		}
+		return Promise.reject(error);
+	},
+);
 
 // デモモード用: この関数が設定されていると Axios を経由せずモックデータを返す
 let _mockResolver:

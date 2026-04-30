@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { AuthProvider } from "./contexts/AuthContext";
 import { isTauri } from "./lib/data-store/detect";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
@@ -37,7 +38,9 @@ async function bootstrap() {
 	createRoot(document.getElementById("root") as HTMLElement).render(
 		<StrictMode>
 			<QueryClientProvider client={queryClient}>
-				<RouterProvider router={router} />
+				<AuthProvider>
+					<RouterProvider router={router} />
+				</AuthProvider>
 			</QueryClientProvider>
 		</StrictMode>,
 	);

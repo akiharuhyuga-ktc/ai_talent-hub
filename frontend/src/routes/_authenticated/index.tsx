@@ -6,7 +6,7 @@ import { MemberGrid } from "@/components/dashboard/MemberGrid";
 import { StatsBar } from "@/components/dashboard/StatsBar";
 import { dataStore } from "@/lib/data-store";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
 	component: DashboardPage,
 });
 

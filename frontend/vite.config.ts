@@ -28,6 +28,20 @@ export default defineConfig({
 				target: "http://backend:8080",
 				changeOrigin: true,
 			},
+			// Microsoft の /devicecode は CORS を許可していないため、dev では Vite proxy を経由する。
+			// 本番（Tauri）では別途 Rust 側 or バックエンドプロキシで対応すること。
+			// Origin/Referer を落とさないと /token で AADSTS9002326（クロスオリジン token 交換は SPA 専用）に弾かれる。
+			"/auth/ms": {
+				target: "https://login.microsoftonline.com",
+				changeOrigin: true,
+				rewrite: (p) => p.replace(/^\/auth\/ms/, ""),
+				configure: (proxy) => {
+					proxy.on("proxyReq", (proxyReq) => {
+						proxyReq.removeHeader("origin");
+						proxyReq.removeHeader("referer");
+					});
+				},
+			},
 		},
 		watch: {
 			ignored: ["**/src-tauri/**"],

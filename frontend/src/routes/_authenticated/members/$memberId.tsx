@@ -46,7 +46,7 @@ const EMPTY_EXTRAS: MemberExtras = {
 	reviews: [],
 };
 
-export const Route = createFileRoute("/members/$memberId")({
+export const Route = createFileRoute("/_authenticated/members/$memberId")({
 	component: MemberDetailPage,
 });
 

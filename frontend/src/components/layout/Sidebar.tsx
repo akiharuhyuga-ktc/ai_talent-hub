@@ -5,9 +5,12 @@ import {
 	FileText,
 	Grid3X3,
 	LayoutDashboard,
+	LogOut,
 	Power,
+	UserCircle,
 } from "lucide-react";
 import { useDemoMode } from "@/contexts/DemoModeContext";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
 	{ href: "/", label: "ダッシュボード", icon: LayoutDashboard },
@@ -19,12 +22,18 @@ export function Sidebar() {
 	const { pathname } = useLocation();
 	const navigate = useNavigate();
 	const { enabled: demoMode, toggle: toggleDemoMode } = useDemoMode();
+	const { user, logout } = useAuth();
 
 	const handleToggle = () => {
 		toggleDemoMode();
 		if (pathname !== "/") {
 			navigate({ to: "/" });
 		}
+	};
+
+	const handleLogout = () => {
+		logout();
+		navigate({ to: "/login" });
 	};
 
 	return (
@@ -109,6 +118,26 @@ export function Sidebar() {
 					<Calendar size={18} className="text-brand-400" />
 					<span className="text-base text-brand-300">2026年上期</span>
 				</div>
+
+				{/* User + Logout */}
+				{user && (
+					<div className="border-t border-brand-700 pt-4 space-y-2">
+						<div className="flex items-center gap-2 px-2 text-brand-200">
+							<UserCircle size={20} />
+							<span className="text-base truncate" title={user.username}>
+								{user.name}
+							</span>
+						</div>
+						<button
+							type="button"
+							onClick={handleLogout}
+							className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-base font-medium text-brand-300 hover:bg-brand-700 hover:text-white transition-colors"
+						>
+							<LogOut size={18} />
+							<span>ログアウト</span>
+						</button>
+					</div>
+				)}
 			</div>
 		</aside>
 	);

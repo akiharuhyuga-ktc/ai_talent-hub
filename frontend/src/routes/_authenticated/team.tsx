@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { TeamMatrixView } from "@/components/dashboard/TeamMatrixView";
 import { getActivePeriod } from "@/lib/utils/period";
 
-export const Route = createFileRoute("/team")({
+export const Route = createFileRoute("/_authenticated/team")({
 	component: TeamPage,
 });
 
