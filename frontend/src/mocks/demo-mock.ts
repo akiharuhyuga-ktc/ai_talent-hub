@@ -10,6 +10,7 @@
 import type { AxiosRequestConfig } from "axios";
 import { setMockResolver } from "@/api/custom-instance";
 import { dataStore } from "@/lib/data-store";
+import { lookupDemoText, sseResponse } from "./aiResponseStub";
 import { mockDb } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -162,71 +163,8 @@ function mockResolver(config: AxiosRequestConfig): Promise<unknown> | null {
 }
 
 // ---------------------------------------------------------------------------
-// SSE helper (for fetch-based streaming endpoints)
+// AI proxy (fetch-based) — /api/ai/invoke を window.fetch で傍受
 // ---------------------------------------------------------------------------
-
-function createSSEStream(
-	text: string,
-	chunkSize = 20,
-	delayMs = 50,
-): ReadableStream<Uint8Array> {
-	const encoder = new TextEncoder();
-	let offset = 0;
-	return new ReadableStream<Uint8Array>({
-		async pull(controller) {
-			if (offset >= text.length) {
-				controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-				controller.close();
-				return;
-			}
-			const chunk = text.slice(offset, offset + chunkSize);
-			offset += chunkSize;
-			controller.enqueue(
-				encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`),
-			);
-			await new Promise((r) => setTimeout(r, delayMs));
-		},
-	});
-}
-
-function sseResponse(text: string): Response {
-	return new Response(createSSEStream(text), {
-		status: 200,
-		headers: {
-			"Content-Type": "text/event-stream",
-			"Cache-Control": "no-cache",
-		},
-	});
-}
-
-/**
- * デモモード用: クライアントが付与する `x-demo-use-case` ヘッダから
- * ユースケース別の固定応答を返す。
- */
-function lookupDemoText(useCase: string | null): string {
-	switch (useCase) {
-		case "diagnosis":
-			return mockDb.getAiResponse("diagnosis") as string;
-		case "goalGeneration":
-		case "goalRefinement":
-		case "goalEdit":
-			return mockDb.getAiResponse("generatedGoals") as string;
-		case "evalDraft":
-		case "evalComment":
-			return mockDb.getAiResponse("evaluationComment") as string;
-		case "oneOnOneSummary":
-			return mockDb.getAiResponse("oneOnOneSummary") as string;
-		case "oneOnOneQuestions":
-			return JSON.stringify(mockDb.getHearingQuestions());
-		case "policyDirection":
-			return mockDb.getAiResponse("policyDirection") as string;
-		case "policyDraft":
-		case "policyRefine":
-			return mockDb.getAiResponse("policyDraft") as string;
-		default:
-			return mockDb.getAiResponse("chatDefault") as string;
-	}
-}
 
 function installFetchMock() {
 	const originalFetch = window.fetch.bind(window);
