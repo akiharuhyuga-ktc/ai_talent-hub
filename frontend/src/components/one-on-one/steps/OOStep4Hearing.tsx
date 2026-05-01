@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { requestOneOnOneQuestions } from "@/lib/ai/client";
 import type {
 	HearingQuestion,
 	OneOnOneWizardContextData,
@@ -39,25 +40,17 @@ export function OOStep4Hearing({
 			setLoading(true);
 			setError("");
 			try {
-				const res = await fetch(
-					`/api/members/${context.memberId}/one-on-one/questions`,
-					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							goalProgress: state.goalProgress,
-							actionReviews: state.actionReviews,
-							condition: state.condition,
-							previousCondition: context.previousCondition,
-							previousSummary: context.previousSummary,
-							orgPolicy: context.orgPolicy,
-						}),
-					},
-				);
-				const data = await res.json();
-				if (data.questions && Array.isArray(data.questions)) {
+				const items = await requestOneOnOneQuestions({
+					goalProgress: state.goalProgress,
+					actionReviews: state.actionReviews,
+					condition: state.condition,
+					previousCondition: context.previousCondition,
+					previousSummary: context.previousSummary,
+					orgPolicy: context.orgPolicy,
+				});
+				if (items.length > 0) {
 					setQuestions(
-						data.questions.map((q: { question: string; intent: string }) => ({
+						items.map((q) => ({
 							question: q.question,
 							intent: q.intent,
 							memo: "",

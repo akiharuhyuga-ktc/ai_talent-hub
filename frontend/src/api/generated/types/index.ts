@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
+export * from './anthropicInvokeRequest';
+export * from './anthropicMessage';
+export * from './anthropicMessageRole';
 export * from './chatMessage';
 export * from './chatMessageRole';
 export * from './chatRequest';
@@ -40,6 +43,9 @@ export * from './previousPeriodPayload';
 export * from './previousPeriodPayloadAchievementLevel';
 export * from './projectAllocation';
 export * from './projectRecord';
+export * from './promptBundle';
+export * from './promptBundleTemplates';
+export * from './promptTemplate';
 export * from './reviewData';
 export * from './saveGoalsRequest';
 export * from './saveReviewRequest';

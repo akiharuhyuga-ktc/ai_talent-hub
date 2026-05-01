@@ -118,14 +118,6 @@ const axiosRoutes: MockRoute[] = [
 	},
 	{
 		method: "post",
-		pattern: /^\/api\/members\/[^/]+\/one-on-one\/questions$/,
-		handler: async () => {
-			await wait(300);
-			return { questions: mockDb.getHearingQuestions() };
-		},
-	},
-	{
-		method: "post",
 		pattern: /^\/api\/members\/([^/]+)\/one-on-one$/,
 		handler: async (config, params) => {
 			await wait(300);
@@ -207,54 +199,34 @@ function sseResponse(text: string): Response {
 	});
 }
 
-const sseRoutes: Array<{ pattern: RegExp; handler: () => Response }> = [
-	{
-		pattern: /\/api\/members\/[^/]+\/goals\/diagnosis$/,
-		handler: () => sseResponse(mockDb.getAiResponse("diagnosis") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/goals\/generate$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("generatedGoals") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/goals\/edit$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("generatedGoals") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/reviews\/draft$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("evaluationComment") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/reviews\/comment$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("evaluationComment") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/one-on-one\/summary$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("oneOnOneSummary") as string),
-	},
-	{
-		pattern: /\/api\/docs\/policy\/direction$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("policyDirection") as string),
-	},
-	{
-		pattern: /\/api\/docs\/policy\/draft$/,
-		handler: () => sseResponse(mockDb.getAiResponse("policyDraft") as string),
-	},
-	{
-		pattern: /\/api\/docs\/policy\/refine$/,
-		handler: () => sseResponse(mockDb.getAiResponse("policyDraft") as string),
-	},
-	{
-		pattern: /\/api\/chat$/,
-		handler: () => sseResponse(mockDb.getAiResponse("chatDefault") as string),
-	},
-];
+/**
+ * デモモード用: クライアントが付与する `x-demo-use-case` ヘッダから
+ * ユースケース別の固定応答を返す。
+ */
+function lookupDemoText(useCase: string | null): string {
+	switch (useCase) {
+		case "diagnosis":
+			return mockDb.getAiResponse("diagnosis") as string;
+		case "goalGeneration":
+		case "goalRefinement":
+		case "goalEdit":
+			return mockDb.getAiResponse("generatedGoals") as string;
+		case "evalDraft":
+		case "evalComment":
+			return mockDb.getAiResponse("evaluationComment") as string;
+		case "oneOnOneSummary":
+			return mockDb.getAiResponse("oneOnOneSummary") as string;
+		case "oneOnOneQuestions":
+			return JSON.stringify(mockDb.getHearingQuestions());
+		case "policyDirection":
+			return mockDb.getAiResponse("policyDirection") as string;
+		case "policyDraft":
+		case "policyRefine":
+			return mockDb.getAiResponse("policyDraft") as string;
+		default:
+			return mockDb.getAiResponse("chatDefault") as string;
+	}
+}
 
 function installFetchMock() {
 	const originalFetch = window.fetch.bind(window);
@@ -269,15 +241,37 @@ function installFetchMock() {
 						? input.url
 						: String(input);
 
-		for (const route of sseRoutes) {
-			if (route.pattern.test(url)) {
-				await wait(200);
-				return route.handler();
-			}
+		// AI proxy (Bedrock streaming) を傍受。本番では Lambda に流れるが、
+		// demo モードではユースケース別の固定応答をストリームで返す。
+		if (/\/api\/ai\/invoke$/.test(url)) {
+			await wait(200);
+			const useCase =
+				init?.headers instanceof Headers
+					? init.headers.get("x-demo-use-case")
+					: (getHeaderFromInit(init?.headers, "x-demo-use-case") ?? null);
+			return sseResponse(lookupDemoText(useCase));
 		}
 
 		return originalFetch(input, init);
 	};
+}
+
+function getHeaderFromInit(
+	headers: HeadersInit | undefined,
+	name: string,
+): string | null {
+	if (!headers) return null;
+	const lower = name.toLowerCase();
+	if (Array.isArray(headers)) {
+		for (const [k, v] of headers) {
+			if (k.toLowerCase() === lower) return v;
+		}
+		return null;
+	}
+	for (const [k, v] of Object.entries(headers)) {
+		if (k.toLowerCase() === lower) return v;
+	}
+	return null;
 }
 
 // ---------------------------------------------------------------------------

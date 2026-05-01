@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { requestPolicyDirection } from "@/lib/ai/client";
 import type { PolicyWizardState } from "../PolicyWizard";
 
 const MAX_REGENERATIONS = 3;
@@ -32,70 +33,32 @@ export function PolicyStep4Direction({
 		setError("");
 
 		try {
-			const body: Record<string, unknown> = { mode: state.flowMode };
-
+			const input: Record<string, unknown> = {};
 			if (state.flowMode === "continuous") {
-				body.prevContent = state.baseContent;
-				body.whatWorked = state.review.whatWorked;
-				body.whatDidntWork = state.review.whatDidntWork;
-				body.leftBehind = state.review.leftBehind;
-				body.envChanges = state.continuousThemes.envChanges;
-				body.techChanges = state.continuousThemes.techChanges;
-				body.focusThemes = state.continuousThemes.focusThemes;
+				input.prevContent = state.baseContent;
+				input.whatWorked = state.review.whatWorked;
+				input.whatDidntWork = state.review.whatDidntWork;
+				input.leftBehind = state.review.leftBehind;
+				input.envChanges = state.continuousThemes.envChanges;
+				input.techChanges = state.continuousThemes.techChanges;
+				input.focusThemes = state.continuousThemes.focusThemes;
 			} else {
-				body.teamInfo = state.currentState.teamInfo;
-				body.techDomains = state.currentState.techDomains;
-				body.challenges = state.currentState.challenges;
-				body.strengths = state.currentState.strengths;
-				body.mission = state.currentState.mission;
-				body.themes = state.currentState.themes;
-				body.upperOrgPolicy = state.upperPolicy;
+				input.teamInfo = state.currentState.teamInfo;
+				input.techDomains = state.currentState.techDomains;
+				input.challenges = state.currentState.challenges;
+				input.strengths = state.currentState.strengths;
+				input.mission = state.currentState.mission;
+				input.themes = state.currentState.themes;
+				input.upperOrgPolicy = state.upperPolicy;
 			}
 
-			const res = await fetch("/api/docs/policy/direction", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-				signal: controller.signal,
-			});
-
-			if (
-				!res.ok ||
-				!res.headers.get("content-type")?.includes("text/event-stream")
-			) {
-				const data = await res.json().catch(() => ({}));
-				throw new Error(
-					(data as { error?: string }).error || "AI方向性の生成に失敗しました",
-				);
-			}
-
-			const reader = res.body?.getReader();
-			if (!reader) return;
-			const decoder = new TextDecoder();
-			let buffer = "";
-			let fullText = "";
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split("\n");
-				buffer = lines.pop() || "";
-				for (const line of lines) {
-					if (!line.startsWith("data: ")) continue;
-					const data = line.slice(6).trim();
-					if (data === "[DONE]") continue;
-					try {
-						const parsed = JSON.parse(data);
-						if (parsed.text) {
-							fullText += parsed.text;
-							setDirection(fullText);
-						}
-					} catch (_err) {
-						/* ignore parse errors */
-					}
-				}
-			}
+			const fullText = await requestPolicyDirection(
+				{ mode: state.flowMode ?? "", input },
+				{
+					onText: setDirection,
+					signal: controller.signal,
+				},
+			);
 
 			if (fullText) {
 				setEditText(fullText);

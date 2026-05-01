@@ -2,6 +2,7 @@ import { clsx } from "clsx";
 import { MessageCircle, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { requestPolicyRefine } from "@/lib/ai/client";
 import type { ChatMessage } from "@/lib/types";
 import type { PolicyWizardState } from "../PolicyWizard";
 
@@ -55,63 +56,29 @@ export function PolicyStep6Refine({
 		setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
 		try {
-			const res = await fetch("/api/docs/policy/refine", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
+			const fullText = await requestPolicyRefine(
+				{
 					currentContent: editorContent,
 					messages: newMessages,
-				}),
-				signal: controller.signal,
-			});
+				},
+				{
+					signal: controller.signal,
+					onText: (cumulative) => {
+						setMessages((prev) => {
+							const updated = [...prev];
+							updated[updated.length - 1] = {
+								role: "assistant",
+								content: cumulative,
+							};
+							return updated;
+						});
+					},
+				},
+			);
 
-			if (
-				!res.ok ||
-				!res.headers.get("content-type")?.includes("text/event-stream")
-			) {
-				const data = await res.json().catch(() => ({}));
-				throw new Error(
-					(data as { error?: string }).error || "壁打ちに失敗しました",
-				);
-			}
-
-			const reader = res.body?.getReader();
-			if (!reader) return;
-			const decoder = new TextDecoder();
-			let buffer = "";
-			let fullText = "";
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split("\n");
-				buffer = lines.pop() || "";
-				for (const line of lines) {
-					if (!line.startsWith("data: ")) continue;
-					const data = line.slice(6).trim();
-					if (data === "[DONE]") continue;
-					try {
-						const parsed = JSON.parse(data);
-						if (parsed.text) {
-							fullText += parsed.text;
-							setMessages((prev) => {
-								const updated = [...prev];
-								updated[updated.length - 1] = {
-									role: "assistant",
-									content: fullText,
-								};
-								return updated;
-							});
-						}
-						if (parsed.updatedPolicy) {
-							setEditorContent(parsed.updatedPolicy);
-							onContentUpdate(parsed.updatedPolicy);
-						}
-					} catch (_err) {
-						/* ignore parse errors */
-					}
-				}
+			if (fullText) {
+				setEditorContent(fullText);
+				onContentUpdate(fullText);
 			}
 
 			setRoundCount((prev) => prev + 1);

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { requestEvalComment } from "@/lib/ai/client";
 import type {
 	EvaluationWizardContextData,
 	EvaluationWizardState,
@@ -36,74 +37,19 @@ export function EvalStep4Comment({
 			setIsStreaming(true);
 			setError("");
 			try {
-				const res = await fetch(
-					`/api/members/${context.memberId}/reviews/comment`,
+				const fullText = await requestEvalComment(
 					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							goalEvaluations: state.confirmedDraft?.goalEvaluations ?? [],
-							overallGrade: state.confirmedDraft?.overallGrade ?? "",
-							overallRationale: state.confirmedDraft?.overallRationale ?? "",
-							selfEvalGap: state.confirmedDraft?.selfEvalGap ?? "",
-							selfEvaluation: state.selfEvaluation,
-						}),
+						goalEvaluations: state.confirmedDraft?.goalEvaluations ?? [],
+						overallGrade: state.confirmedDraft?.overallGrade ?? "",
+						overallRationale: state.confirmedDraft?.overallRationale ?? "",
+						selfEvalGap: state.confirmedDraft?.selfEvalGap ?? "",
+						selfEvaluation: state.selfEvaluation,
+					},
+					{
 						signal: controller.signal,
+						onText: setComment,
 					},
 				);
-
-				if (res.status === 503) {
-					setError(
-						"API未設定のためコメント生成ができません。手動で入力してください。",
-					);
-					setComment("");
-					setIsStreaming(false);
-					return;
-				}
-
-				if (
-					!res.ok ||
-					!res.headers.get("content-type")?.includes("text/event-stream")
-				) {
-					setError("コメントの生成に失敗しました。手動で入力してください。");
-					setComment("");
-					setIsStreaming(false);
-					return;
-				}
-
-				const reader = res.body?.getReader();
-				if (!reader) {
-					setError("コメントの生成に失敗しました。手動で入力してください。");
-					setComment("");
-					setIsStreaming(false);
-					return;
-				}
-				const decoder = new TextDecoder();
-				let buffer = "";
-				let fullText = "";
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					buffer += decoder.decode(value, { stream: true });
-					const lines = buffer.split("\n");
-					buffer = lines.pop() || "";
-					for (const line of lines) {
-						if (!line.startsWith("data: ")) continue;
-						const data = line.slice(6).trim();
-						if (data === "[DONE]") continue;
-						try {
-							const parsed = JSON.parse(data);
-							if (parsed.text) {
-								fullText += parsed.text;
-								setComment(fullText);
-							}
-						} catch (_err) {
-							/* ignore parse errors */
-						}
-					}
-				}
-
 				if (!fullText) {
 					setError("コメントの生成に失敗しました。手動で入力してください。");
 					setComment("");

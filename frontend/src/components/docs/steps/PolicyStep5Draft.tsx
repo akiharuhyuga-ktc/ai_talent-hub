@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { requestPolicyDraft } from "@/lib/ai/client";
 import type { PolicyWizardState } from "../PolicyWizard";
 
 interface PolicyStep5DraftProps {
@@ -28,15 +29,10 @@ export function PolicyStep5Draft({
 			setIsStreaming(true);
 			setError("");
 			try {
-				const body: Record<string, unknown> = {
-					mode: state.flowMode,
-					targetYear: state.targetYear,
-					confirmedDirection: state.direction,
-				};
-
+				let extra: string;
 				if (state.flowMode === "continuous") {
-					body.prevContent = state.baseContent;
-					body.allInputs = [
+					extra = [
+						`前期内容:\n${state.baseContent ?? ""}`,
 						`【うまくいったこと】\n${state.review.whatWorked}`,
 						`【うまくいかなかったこと】\n${state.review.whatDidntWork}`,
 						state.review.leftBehind
@@ -49,7 +45,7 @@ export function PolicyStep5Draft({
 						.filter(Boolean)
 						.join("\n\n");
 				} else {
-					body.orgInfo = [
+					extra = [
 						`【チーム構成・規模】\n${state.currentState.teamInfo}`,
 						`【技術領域・担当プロダクト】\n${state.currentState.techDomains}`,
 						`【現在の課題】\n${state.currentState.challenges}`,
@@ -64,50 +60,18 @@ export function PolicyStep5Draft({
 						.join("\n\n");
 				}
 
-				const res = await fetch("/api/docs/policy/draft", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(body),
-					signal: controller.signal,
-				});
-
-				if (
-					!res.ok ||
-					!res.headers.get("content-type")?.includes("text/event-stream")
-				) {
-					const data = await res.json().catch(() => ({}));
-					throw new Error(
-						(data as { error?: string }).error || "AI草案の生成に失敗しました",
-					);
-				}
-
-				const reader = res.body?.getReader();
-				if (!reader) return;
-				const decoder = new TextDecoder();
-				let buffer = "";
-				let fullText = "";
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					buffer += decoder.decode(value, { stream: true });
-					const lines = buffer.split("\n");
-					buffer = lines.pop() || "";
-					for (const line of lines) {
-						if (!line.startsWith("data: ")) continue;
-						const data = line.slice(6).trim();
-						if (data === "[DONE]") continue;
-						try {
-							const parsed = JSON.parse(data);
-							if (parsed.text) {
-								fullText += parsed.text;
-								setDraft(fullText);
-							}
-						} catch (_err) {
-							/* ignore parse errors */
-						}
-					}
-				}
+				await requestPolicyDraft(
+					{
+						mode: state.flowMode ?? "",
+						targetYear: String(state.targetYear),
+						confirmedDirection: state.direction ?? "",
+						extra,
+					},
+					{
+						onText: setDraft,
+						signal: controller.signal,
+					},
+				);
 			} catch (err) {
 				if ((err as Error).name !== "AbortError") {
 					setError(

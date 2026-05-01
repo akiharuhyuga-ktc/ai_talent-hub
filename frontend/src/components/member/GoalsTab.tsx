@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { GoalFieldContent } from "@/components/member/GoalFieldContent";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { requestGoalEdit } from "@/lib/ai/client";
 import { dataStore } from "@/lib/data-store";
 import {
 	assembleGoalMarkdown,
@@ -204,73 +205,22 @@ export function GoalsTab({
 		});
 
 		try {
-			const res = await fetch(
-				`/api/members/${encodeURIComponent(memberId)}/goals/edit`,
+			const fullText = await requestGoalEdit(
 				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						goal,
-						instruction,
-						memberContext: memberProfile,
-						allGoals: mergeGoalSections(parsed.goals, parsed.footer),
-					}),
+					goal,
+					instruction,
+					memberContext: memberProfile,
+					allGoals: mergeGoalSections(parsed.goals, parsed.footer),
+				},
+				{
 					signal: controller.signal,
+					onText: (cumulative) => {
+						setEditMode((prev) =>
+							prev?.type === "ai" ? { ...prev, preview: cumulative } : prev,
+						);
+					},
 				},
 			);
-
-			if (
-				!res.ok ||
-				!res.headers.get("content-type")?.includes("text/event-stream")
-			) {
-				setEditMode({
-					type: "ai",
-					label,
-					instruction,
-					preview: null,
-					streaming: false,
-				});
-				return;
-			}
-
-			const reader = res.body?.getReader();
-			if (!reader) {
-				setEditMode({
-					type: "ai",
-					label,
-					instruction,
-					preview: null,
-					streaming: false,
-				});
-				return;
-			}
-			const decoder = new TextDecoder();
-			let buffer = "";
-			let fullText = "";
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split("\n");
-				buffer = lines.pop() || "";
-				for (const line of lines) {
-					if (!line.startsWith("data: ")) continue;
-					const data = line.slice(6).trim();
-					if (data === "[DONE]") continue;
-					try {
-						const j = JSON.parse(data);
-						if (j.text) {
-							fullText += j.text;
-							setEditMode((prev) =>
-								prev?.type === "ai" ? { ...prev, preview: fullText } : prev,
-							);
-						}
-					} catch {
-						/* ignore parse errors */
-					}
-				}
-			}
 
 			setEditMode((prev) =>
 				prev?.type === "ai"
@@ -333,85 +283,32 @@ export function GoalsTab({
 		});
 
 		try {
-			const res = await fetch(
-				`/api/members/${encodeURIComponent(memberId)}/goals/edit`,
+			const fullText = await requestGoalEdit(
 				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						goal: {
-							index: field === "shortTerm" ? 1 : 2,
-							label: field === "shortTerm" ? "①" : "②",
-							type: field === "shortTerm" ? "短期成果評価" : "発揮能力評価",
-							title:
-								field === "shortTerm"
-									? "短期成果評価_目標"
-									: "発揮能力評価_目標",
-							content: fieldContent,
-						},
-						instruction,
-						memberContext: memberProfile,
-						allGoals: assembleGoalMarkdown(
-							parsedFields.shortTerm,
-							parsedFields.capability,
-						),
-					}),
+					goal: {
+						index: field === "shortTerm" ? 1 : 2,
+						label: field === "shortTerm" ? "①" : "②",
+						type: field === "shortTerm" ? "短期成果評価" : "発揮能力評価",
+						title:
+							field === "shortTerm" ? "短期成果評価_目標" : "発揮能力評価_目標",
+						content: fieldContent,
+					},
+					instruction,
+					memberContext: memberProfile,
+					allGoals: assembleGoalMarkdown(
+						parsedFields.shortTerm,
+						parsedFields.capability,
+					),
+				},
+				{
 					signal: controller.signal,
+					onText: (cumulative) => {
+						setEditMode((prev) =>
+							prev?.type === "ai" ? { ...prev, preview: cumulative } : prev,
+						);
+					},
 				},
 			);
-
-			if (
-				!res.ok ||
-				!res.headers.get("content-type")?.includes("text/event-stream")
-			) {
-				setEditMode({
-					type: "ai",
-					label: field,
-					instruction,
-					preview: null,
-					streaming: false,
-				});
-				return;
-			}
-
-			const reader = res.body?.getReader();
-			if (!reader) {
-				setEditMode({
-					type: "ai",
-					label: field,
-					instruction,
-					preview: null,
-					streaming: false,
-				});
-				return;
-			}
-			const decoder = new TextDecoder();
-			let buffer = "";
-			let fullText = "";
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split("\n");
-				buffer = lines.pop() || "";
-				for (const line of lines) {
-					if (!line.startsWith("data: ")) continue;
-					const data = line.slice(6).trim();
-					if (data === "[DONE]") continue;
-					try {
-						const j = JSON.parse(data);
-						if (j.text) {
-							fullText += j.text;
-							setEditMode((prev) =>
-								prev?.type === "ai" ? { ...prev, preview: fullText } : prev,
-							);
-						}
-					} catch {
-						/* ignore parse errors */
-					}
-				}
-			}
 
 			setEditMode((prev) =>
 				prev?.type === "ai"
