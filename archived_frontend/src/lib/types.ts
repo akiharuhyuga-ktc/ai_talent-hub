@@ -203,6 +203,7 @@ export interface ActionItem {
   content: string
   assignee: 'manager' | 'member' | 'both'
   deadline: string  // YYYY-MM-DD
+  reason?: string   // AI生成の根拠（表示のみ）
 }
 
 export interface ActionItemReview {
