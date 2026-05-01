@@ -8,7 +8,7 @@
  *
  * fetch 失敗時はバンドルされた DEFAULT_PROMPTS で動作継続する。
  */
-import { getValidAccessToken } from "@/lib/auth/getValidAccessToken";
+import { getApiBase, getBearerAuth } from "@/lib/api/config";
 import type {
 	PromptBundle,
 	PromptDictionary,
@@ -37,15 +37,15 @@ export function getPrompt(key: PromptKey): PromptTemplate {
 }
 
 export async function refreshPrompts(): Promise<void> {
-	const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+	const base = getApiBase();
 	if (!base) return;
 
-	const token = await getValidAccessToken();
-	if (!token) return;
+	const auth = await getBearerAuth();
+	if (!auth) return;
 
 	try {
 		const res = await fetch(`${base}/api/ai/prompts`, {
-			headers: { "X-Bizport-Authorization": `Bearer ${token}` },
+			headers: { "X-Bizport-Authorization": auth },
 		});
 		if (!res.ok) return;
 		const json = (await res.json()) as PromptBundle;

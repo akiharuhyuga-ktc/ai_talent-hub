@@ -7,7 +7,7 @@
  * - 必須ヘッダ: x-amz-content-sha256 (POST では client が body の SHA256 を付与必須)
  * - レスポンス: Anthropic Messages streaming format の SSE
  */
-import { getValidAccessToken } from "@/lib/auth/getValidAccessToken";
+import { getApiBase, getBearerAuth } from "@/lib/api/config";
 import type {
 	AnthropicInvokeRequest,
 	AnthropicMessage,
@@ -136,9 +136,9 @@ async function buildHeaders(
 		"Content-Type": "application/json",
 		"x-amz-content-sha256": await sha256Hex(body),
 	};
-	const token = await getValidAccessToken();
-	if (token) {
-		headers["X-Bizport-Authorization"] = `Bearer ${token}`;
+	const auth = await getBearerAuth();
+	if (auth) {
+		headers["X-Bizport-Authorization"] = auth;
 	}
 	if (demoKey && import.meta.env.VITE_DEMO_MODE === "true") {
 		headers["x-demo-use-case"] = demoKey;
@@ -152,10 +152,6 @@ async function sha256Hex(input: string): Promise<string> {
 	return Array.from(new Uint8Array(buf))
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
-}
-
-function getApiBase(): string {
-	return (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
 }
 
 async function safeReadText(res: Response): Promise<string> {
