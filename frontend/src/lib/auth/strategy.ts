@@ -39,7 +39,10 @@ export function getAuthStrategy(): Promise<AuthStrategy> {
 }
 
 async function loadStrategy(): Promise<AuthStrategy> {
-	// 後続 PR で Tauri 環境向けに loopback strategy をここに追加する。
+	if (import.meta.env.TAURI_ENV_PLATFORM) {
+		const mod = await import("./strategies/tauriLoopback");
+		return new mod.TauriLoopbackStrategy();
+	}
 	const mod = await import("./strategies/deviceCode");
 	return new mod.DeviceCodeStrategy();
 }
