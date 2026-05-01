@@ -5,6 +5,7 @@
  * `aiSseRun` で proxy に投げる、という薄いラッパ。フロント側コンポーネントは
  * これを呼ぶだけで AI ストリーミングを使えるようにする。
  */
+import type { HearingQuestionItem } from "@/api/generated/types";
 import { getPrompt, renderTemplate } from "./prompts/loader";
 import { aiSseRun } from "./sseFetch";
 import type { AnthropicMessage, PromptKey } from "./types";
@@ -180,15 +181,10 @@ export interface OneOnOneQuestionsArgs {
 	orgPolicy: string;
 }
 
-export interface HearingQuestion {
-	question: string;
-	intent: string;
-}
-
 export async function requestOneOnOneQuestions(
 	args: OneOnOneQuestionsArgs,
 	opts?: Omit<BaseOpts, "onText">,
-): Promise<HearingQuestion[]> {
+): Promise<HearingQuestionItem[]> {
 	const fullText = await runSinglePrompt(
 		"oneOnOneQuestions",
 		{ signal: opts?.signal },
@@ -355,7 +351,7 @@ function formatPreviousPeriod(p: {
 	return lines.join("\n");
 }
 
-function parseHearingQuestions(text: string): HearingQuestion[] {
+function parseHearingQuestions(text: string): HearingQuestionItem[] {
 	const trimmed = stripCodeFence(text).trim();
 	const start = trimmed.indexOf("[");
 	const end = trimmed.lastIndexOf("]");
@@ -364,7 +360,7 @@ function parseHearingQuestions(text: string): HearingQuestion[] {
 		const arr = JSON.parse(trimmed.slice(start, end + 1)) as unknown;
 		if (!Array.isArray(arr)) return [];
 		return arr
-			.filter((x): x is HearingQuestion => {
+			.filter((x): x is HearingQuestionItem => {
 				if (!x || typeof x !== "object") return false;
 				const obj = x as Record<string, unknown>;
 				return (
