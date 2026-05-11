@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { requestGoalRefinement } from "@/lib/ai/client";
 import { dataStore } from "@/lib/data-store";
 import {
 	mergeGoalSections,
@@ -98,68 +99,16 @@ export function Step7Refinement({
 		const isPartial = selectedArray.length < parsed.goals.length;
 
 		try {
-			const res = await fetch(
-				`/api/members/${context.memberId}/goals/generate`,
+			const fullText = await requestGoalRefinement(
 				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						memberContext: context.memberProfile,
-						managerInput: state.managerInput,
-						memberInput: state.memberInput,
-						previousPeriod: state.previousPeriod.previousGoals
-							? state.previousPeriod
-							: undefined,
-						diagnosis: state.diagnosis,
-						refinementMessages: newMessages,
-						...(isPartial
-							? {
-									targetGoalLabels: selectedArray,
-									allGoalsMarkdown: currentGoals,
-								}
-							: {}),
-					}),
-					signal: controller.signal,
+					diagnosis: state.diagnosis ?? "",
+					memberContext: context.memberProfile,
+					allGoalsMarkdown: currentGoals,
+					targetGoalLabels: isPartial ? selectedArray : undefined,
+					refinementMessages: newMessages,
 				},
+				{ signal: controller.signal },
 			);
-
-			if (
-				!res.ok ||
-				!res.headers.get("content-type")?.includes("text/event-stream")
-			) {
-				setIsStreaming(false);
-				setStreamingLabels(new Set());
-				return;
-			}
-
-			const reader = res.body?.getReader();
-			if (!reader) {
-				setIsStreaming(false);
-				setStreamingLabels(new Set());
-				return;
-			}
-			const decoder = new TextDecoder();
-			let buffer = "";
-			let fullText = "";
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split("\n");
-				buffer = lines.pop() || "";
-				for (const line of lines) {
-					if (!line.startsWith("data: ")) continue;
-					const data = line.slice(6).trim();
-					if (data === "[DONE]") continue;
-					try {
-						const j = JSON.parse(data);
-						if (j.text) fullText += j.text;
-					} catch (_err) {
-						/* ignore parse errors */
-					}
-				}
-			}
 
 			if (fullText) {
 				let mergedGoals: string;

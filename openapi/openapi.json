@@ -463,6 +463,71 @@
           }
         }
       }
+    },
+    "/ai/invoke": {
+      "post": {
+        "tags": ["ai"],
+        "operationId": "invokeAi",
+        "summary": "AI proxy (Bedrock streaming) を呼び出す",
+        "description": "Anthropic Messages 互換の body を Lambda Function URL 経由で Bedrock に転送し、レスポンス SSE をそのまま中継する。CloudFront OAC が標準 Authorization を SigV4 で上書きするため、JWT は X-Bizport-Authorization に乗せる。POST body の SHA256 hex を x-amz-content-sha256 に付与する必要がある (Lambda Function URL OAC 要件)。",
+        "parameters": [
+          {
+            "name": "X-Bizport-Authorization",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Bearer <Entra JWT>"
+          },
+          {
+            "name": "x-amz-content-sha256",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "リクエスト body の SHA256 (hex)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AnthropicInvokeRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bedrock SSE stream を中継",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/ai/prompts": {
+      "get": {
+        "tags": ["ai"],
+        "operationId": "getAiPrompts",
+        "summary": "プロンプトテンプレ一覧を取得",
+        "description": "Lambda パッケージに同梱されたテンプレ群をインメモリ保持で返す。クライアントは localStorage にキャッシュして使用する。失敗時はクライアント側にバンドルされた既定値で動作継続。",
+        "parameters": [
+          {
+            "name": "X-Bizport-Authorization",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Bearer <Entra JWT>"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PromptBundle" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -876,6 +941,46 @@
             "enum": ["achieved", "mostly-achieved", "not-achieved", ""]
           },
           "reasonIfNotAchieved": { "type": "string" }
+        }
+      },
+      "AnthropicMessage": {
+        "type": "object",
+        "required": ["role", "content"],
+        "properties": {
+          "role": { "type": "string", "enum": ["user", "assistant"] },
+          "content": { "type": "string" }
+        }
+      },
+      "AnthropicInvokeRequest": {
+        "type": "object",
+        "required": ["anthropic_version", "max_tokens", "messages"],
+        "properties": {
+          "anthropic_version": { "type": "string", "example": "bedrock-2023-05-31" },
+          "max_tokens": { "type": "integer", "minimum": 1 },
+          "system": { "type": "string" },
+          "messages": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AnthropicMessage" }
+          }
+        }
+      },
+      "PromptTemplate": {
+        "type": "object",
+        "required": ["system", "user"],
+        "properties": {
+          "system": { "type": "string" },
+          "user": { "type": "string" }
+        }
+      },
+      "PromptBundle": {
+        "type": "object",
+        "required": ["version", "templates"],
+        "properties": {
+          "version": { "type": "string" },
+          "templates": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/PromptTemplate" }
+          }
         }
       }
     }

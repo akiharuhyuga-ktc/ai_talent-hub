@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { requestGoalGeneration } from "@/lib/ai/client";
 import type { GoalWizardState, WizardContextData } from "@/lib/types";
 
 interface Props {
@@ -30,64 +31,21 @@ export function Step6GoalGeneration({
 			setIsStreaming(true);
 			setError("");
 			try {
-				const res = await fetch(
-					`/api/members/${context.memberId}/goals/generate`,
+				await requestGoalGeneration(
 					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							memberContext: context.memberProfile,
-							managerInput: state.managerInput,
-							memberInput: state.memberInput,
-							previousPeriod: state.previousPeriod.previousGoals
-								? state.previousPeriod
-								: undefined,
-							diagnosis: state.diagnosis,
-						}),
+						memberContext: context.memberProfile,
+						managerInput: state.managerInput,
+						memberInput: state.memberInput,
+						previousPeriod: state.previousPeriod.previousGoals
+							? state.previousPeriod
+							: undefined,
+						diagnosis: state.diagnosis ?? "",
+					},
+					{
+						onText: setGoals,
 						signal: controller.signal,
 					},
 				);
-
-				if (
-					!res.ok ||
-					!res.headers.get("content-type")?.includes("text/event-stream")
-				) {
-					setError("目標の生成に失敗しました");
-					setIsStreaming(false);
-					return;
-				}
-
-				const reader = res.body?.getReader();
-				if (!reader) {
-					setError("目標の生成に失敗しました");
-					setIsStreaming(false);
-					return;
-				}
-				const decoder = new TextDecoder();
-				let buffer = "";
-				let fullText = "";
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					buffer += decoder.decode(value, { stream: true });
-					const lines = buffer.split("\n");
-					buffer = lines.pop() || "";
-					for (const line of lines) {
-						if (!line.startsWith("data: ")) continue;
-						const data = line.slice(6).trim();
-						if (data === "[DONE]") continue;
-						try {
-							const parsed = JSON.parse(data);
-							if (parsed.text) {
-								fullText += parsed.text;
-								setGoals(fullText);
-							}
-						} catch (_err) {
-							/* ignore parse errors */
-						}
-					}
-				}
 			} catch (err) {
 				if ((err as Error).name !== "AbortError") {
 					setError("目標の生成に失敗しました");

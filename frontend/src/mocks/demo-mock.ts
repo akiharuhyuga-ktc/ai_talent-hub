@@ -10,6 +10,7 @@
 import type { AxiosRequestConfig } from "axios";
 import { setMockResolver } from "@/api/custom-instance";
 import { dataStore } from "@/lib/data-store";
+import { lookupDemoText, sseResponse } from "./aiResponseStub";
 import { mockDb } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -118,14 +119,6 @@ const axiosRoutes: MockRoute[] = [
 	},
 	{
 		method: "post",
-		pattern: /^\/api\/members\/[^/]+\/one-on-one\/questions$/,
-		handler: async () => {
-			await wait(300);
-			return { questions: mockDb.getHearingQuestions() };
-		},
-	},
-	{
-		method: "post",
 		pattern: /^\/api\/members\/([^/]+)\/one-on-one$/,
 		handler: async (config, params) => {
 			await wait(300);
@@ -170,91 +163,8 @@ function mockResolver(config: AxiosRequestConfig): Promise<unknown> | null {
 }
 
 // ---------------------------------------------------------------------------
-// SSE helper (for fetch-based streaming endpoints)
+// AI proxy (fetch-based) — /api/ai/invoke を window.fetch で傍受
 // ---------------------------------------------------------------------------
-
-function createSSEStream(
-	text: string,
-	chunkSize = 20,
-	delayMs = 50,
-): ReadableStream<Uint8Array> {
-	const encoder = new TextEncoder();
-	let offset = 0;
-	return new ReadableStream<Uint8Array>({
-		async pull(controller) {
-			if (offset >= text.length) {
-				controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-				controller.close();
-				return;
-			}
-			const chunk = text.slice(offset, offset + chunkSize);
-			offset += chunkSize;
-			controller.enqueue(
-				encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`),
-			);
-			await new Promise((r) => setTimeout(r, delayMs));
-		},
-	});
-}
-
-function sseResponse(text: string): Response {
-	return new Response(createSSEStream(text), {
-		status: 200,
-		headers: {
-			"Content-Type": "text/event-stream",
-			"Cache-Control": "no-cache",
-		},
-	});
-}
-
-const sseRoutes: Array<{ pattern: RegExp; handler: () => Response }> = [
-	{
-		pattern: /\/api\/members\/[^/]+\/goals\/diagnosis$/,
-		handler: () => sseResponse(mockDb.getAiResponse("diagnosis") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/goals\/generate$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("generatedGoals") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/goals\/edit$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("generatedGoals") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/reviews\/draft$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("evaluationComment") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/reviews\/comment$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("evaluationComment") as string),
-	},
-	{
-		pattern: /\/api\/members\/[^/]+\/one-on-one\/summary$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("oneOnOneSummary") as string),
-	},
-	{
-		pattern: /\/api\/docs\/policy\/direction$/,
-		handler: () =>
-			sseResponse(mockDb.getAiResponse("policyDirection") as string),
-	},
-	{
-		pattern: /\/api\/docs\/policy\/draft$/,
-		handler: () => sseResponse(mockDb.getAiResponse("policyDraft") as string),
-	},
-	{
-		pattern: /\/api\/docs\/policy\/refine$/,
-		handler: () => sseResponse(mockDb.getAiResponse("policyDraft") as string),
-	},
-	{
-		pattern: /\/api\/chat$/,
-		handler: () => sseResponse(mockDb.getAiResponse("chatDefault") as string),
-	},
-];
 
 function installFetchMock() {
 	const originalFetch = window.fetch.bind(window);
@@ -269,15 +179,37 @@ function installFetchMock() {
 						? input.url
 						: String(input);
 
-		for (const route of sseRoutes) {
-			if (route.pattern.test(url)) {
-				await wait(200);
-				return route.handler();
-			}
+		// AI proxy (Bedrock streaming) を傍受。本番では Lambda に流れるが、
+		// demo モードではユースケース別の固定応答をストリームで返す。
+		if (/\/api\/ai\/invoke$/.test(url)) {
+			await wait(200);
+			const useCase =
+				init?.headers instanceof Headers
+					? init.headers.get("x-demo-use-case")
+					: (getHeaderFromInit(init?.headers, "x-demo-use-case") ?? null);
+			return sseResponse(lookupDemoText(useCase));
 		}
 
 		return originalFetch(input, init);
 	};
+}
+
+function getHeaderFromInit(
+	headers: HeadersInit | undefined,
+	name: string,
+): string | null {
+	if (!headers) return null;
+	const lower = name.toLowerCase();
+	if (Array.isArray(headers)) {
+		for (const [k, v] of headers) {
+			if (k.toLowerCase() === lower) return v;
+		}
+		return null;
+	}
+	for (const [k, v] of Object.entries(headers)) {
+		if (k.toLowerCase() === lower) return v;
+	}
+	return null;
 }
 
 // ---------------------------------------------------------------------------

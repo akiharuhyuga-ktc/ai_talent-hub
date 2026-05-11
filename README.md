@@ -43,7 +43,7 @@ AI を活用したタレントマネジメントアプリケーション。メ�
 | コンテナ | Docker Compose |
 | Frontend コンテナ | node:24-alpine |
 | Backend コンテナ | golang:1.26-alpine + Air |
-| AI SDK | Anthropic Claude SDK (`@anthropic-ai/sdk`) |
+| AI 経路 | AWS Lambda Function URL (Bedrock streaming) 経由 ※ API キーは Lambda 側のみ保持 |
 
 ## リポジトリ構成
 
@@ -244,7 +244,7 @@ data/v1/demo-members/                ← gitignore 済。各自の作業領域
 - `demo-members/` が空のときは起動時 / 初回アクセス時に `frontend/src/mocks/seeds/members/` から自動コピー
 - 編集はすべて `demo-members/` に書かれ、本番データには影響しない
 - リセット: `make demo-reset`（`data/v1/demo-members/` を削除 → 次回起動で再 seed）
-- AI 応答（Anthropic API）はデモモードでも実 API を呼ぶ。出力は `demo-members/` に保存されるため実データは汚染されない
+- AI 応答はデモモードでもモック固定応答 (MSW / window.fetch ラッパ) で返り、実 proxy には出ない。出力は `demo-members/` に保存されるため実データは汚染されない（AI 経路の詳細は「AI 統合」セクション参照）
 
 seed のスキーマは `profile.md` 等のフォーマット変更時に追従させる必要がある。
 
@@ -287,17 +287,80 @@ frontend/src/lib/types/
 - UI から追加・変更したデータは `data/v1/` 配下に Markdown として書き戻される（dev: fs-api 経由、Tauri: plugin-fs 経由）
 - 第二弾（AWS）移行時は `dataStore` の実装を実 API クライアントに差し替えるだけで済む
 
+## AI 統合
+
+メンバー目標の診断・生成、評価コメント、1on1 サマリー、組織方針生成等の AI 機能は、専用の **AWS Lambda Function URL (Bedrock streaming proxy)** 経由で呼び出す。Anthropic / AWS の API キーは Lambda 側 env のみが保持し、クライアント (フロント / Tauri) には配布しない。
+
+### 経路
+
+```
+Frontend (React / Tauri WebView)
+    ↓ POST /api/ai/invoke  (Anthropic Messages 形式の JSON / SSE 受信)
+    ↓ Headers:
+    │   X-Bizport-Authorization: Bearer <Entra JWT>
+    │   x-amz-content-sha256: <body の SHA256 hex>
+CloudFront (OAC SigV4 で Lambda Function URL を署名)
+    ↓
+Lambda (talenthubAiProxy)  ※ bizport /api/v1/users/me で JWT 検証
+    ↓ Bedrock InvokeModel (streaming)
+Bedrock (global.anthropic.claude-sonnet-4-6)
+```
+
+- 認証ヘッダが標準の `Authorization` ではなく `X-Bizport-Authorization` なのは、CloudFront OAC for Lambda が viewer の `Authorization` を SigV4 値で上書きする仕様のため
+- `x-amz-content-sha256` は Lambda Function URL OAC が POST に対して必須要求する (クライアントが body の SHA256 を計算して付与)
+- レスポンスは Anthropic Messages 形式 SSE (`content_block_delta` の `delta.text` を逐次配信)
+
+実装は `frontend/src/lib/ai/sseFetch.ts` に集約し、各ウィザード step は `frontend/src/lib/ai/client.ts` の用途別関数 (`requestDiagnosis` / `requestGoalGeneration` / `requestGoalRefinement` / `requestGoalEdit` / `requestEvalComment` / `requestOneOnOneQuestions` / `requestOneOnOneSummary` / `requestPolicyDirection` / `requestPolicyDraft` / `requestPolicyRefine` / `requestChat`) を呼ぶ。
+
+### プロンプトテンプレート
+
+Lambda 同梱 → クライアントキャッシュの **stale-while-revalidate** 方式。
+
+- バンドル既定値: `frontend/src/lib/ai/prompts/defaults.ts` (オフライン / 初回起動でも動く fallback)
+- サーバ取得: 起動時に `GET /api/ai/prompts` で最新版を取得し、`localStorage` (キー: `talent-hub.prompts.v1`) にキャッシュ
+- 起動時はキャッシュを即時利用、裏で更新 → 次回呼び出しから新版が反映
+- 取得失敗 / オフライン時はバンドル既定値で動作継続 (黙ってフォールバック)
+
+Lambda パッケージにテンプレファイル群を同梱し、handler が module top-level で読み込んでメモリ保持。プロンプト更新 = Lambda 再デプロイ。
+
+### 動作モード切替
+
+`frontend/.env.example` の `VITE_DEMO_MODE` と `VITE_API_BASE_URL` の組み合わせで切替する。
+
+| モード | `VITE_DEMO_MODE` | `VITE_API_BASE_URL` | 挙動 |
+|---|---|---|---|
+| dev デフォルト | 未設定 | 不要 | MSW Service Worker が `/api/ai/invoke` を傍受し固定応答 SSE を返す |
+| 強制モック | `true` | 不要 | ブラウザは MSW、Tauri は `window.fetch` ラッパでモック |
+| 実 proxy 接続 | `false` | `https://dev-bizport.kinto-mobility.jp` | 実 Lambda proxy へ POST (Lambda 側 CORS 対応が前提) |
+
+クライアント送信時、demo モードでは `x-demo-use-case` ヘッダ (例: `diagnosis`, `goalGeneration`) を付与し、モック側で用途別の固定応答に分岐する。本番 proxy には届かないヘッダ。
+
+### SSE パーサ
+
+`frontend/src/lib/ai/sseFetch.ts` の `parseSseBlock` は **Anthropic Messages 形式** と **旧モック形式** の両方を受け付ける互換実装:
+
+- Anthropic Messages: `data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}`
+- 旧モック互換: `data: {"text":"..."}`
+
+これにより、本番 proxy / モック / ローカル proxy のいずれでもクライアント側コードを分岐させずに済む。
+
 ## 環境変数
 
-`.env.local.example` を参照。主な設定:
+主要な設定 (詳細は `.env.local.example` および `frontend/.env.example` を参照):
+
+### Frontend (`frontend/.env.local`)
 
 ```env
-# Anthropic API（直接）
-ANTHROPIC_API_KEY=sk-ant-xxxxx
+# Entra ID (Azure AD) — クライアント側の OAuth ログインに使用
+VITE_AZURE_CLIENT_ID=
+VITE_AZURE_TENANT_ID=
+VITE_API_SCOPE=               # 自前 API のカスタムスコープ。Phase 1 では空可
 
-# Azure Foundry 経由
-ANTHROPIC_FOUNDRY_API_KEY=your-foundry-api-key
-ANTHROPIC_FOUNDRY_RESOURCE=your-resource-name
-ANTHROPIC_FOUNDRY_BASE_URL=https://your-resource.services.ai.azure.com/anthropic
-DEPLOYMENT_NAME=your-deployment-name
+# AI proxy 接続設定
+VITE_API_BASE_URL=            # Lambda proxy のベース URL。空ならモック (相対パス /api/...)
+VITE_DEMO_MODE=               # "true" で強制モック / "false" で実 proxy / 未設定なら dev はモック・本番は実 proxy
 ```
+
+### Lambda / Backend 側
+
+API キーは **Lambda の env のみ**が保持し、クライアントには配布しない。クライアントから AI を直接叩く構成は廃止済み。Lambda 側の env (Bedrock 用 IAM / Anthropic キー等) はインフラ側 (`lambda/sam/samconfig.toml`) で管理。

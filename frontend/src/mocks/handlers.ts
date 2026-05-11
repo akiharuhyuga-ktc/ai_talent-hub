@@ -1,44 +1,7 @@
 import { delay, HttpResponse, http } from "msw";
 import { dataStore } from "@/lib/data-store";
+import { lookupDemoText, sseResponse } from "./aiResponseStub";
 import { mockDb } from "./db";
-
-// ---------------------------------------------------------------------------
-// SSE streaming helper
-// ---------------------------------------------------------------------------
-
-function createSSEStream(
-	text: string,
-	chunkSize = 20,
-	delayMs = 50,
-): ReadableStream<Uint8Array> {
-	const encoder = new TextEncoder();
-	let offset = 0;
-
-	return new ReadableStream<Uint8Array>({
-		async pull(controller) {
-			if (offset >= text.length) {
-				controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-				controller.close();
-				return;
-			}
-			const chunk = text.slice(offset, offset + chunkSize);
-			offset += chunkSize;
-			const payload = JSON.stringify({ text: chunk });
-			controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
-			await new Promise((r) => setTimeout(r, delayMs));
-		},
-	});
-}
-
-function sseResponse(text: string) {
-	return new HttpResponse(createSSEStream(text), {
-		headers: {
-			"Content-Type": "text/event-stream",
-			"Cache-Control": "no-cache",
-			Connection: "keep-alive",
-		},
-	});
-}
 
 // ---------------------------------------------------------------------------
 // Handlers
@@ -99,18 +62,8 @@ export const handlers = [
 	}),
 
 	// -----------------------------------------------------------------------
-	// Goal Wizard
+	// 永続化 (保存系)
 	// -----------------------------------------------------------------------
-	http.post("/api/members/:memberId/goals/diagnosis", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("diagnosis") as string);
-	}),
-
-	http.post("/api/members/:memberId/goals/generate", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("generatedGoals") as string);
-	}),
-
 	http.post("/api/members/:memberId/goals", async ({ params, request }) => {
 		await delay(300);
 		const memberId = params.memberId as string;
@@ -119,45 +72,12 @@ export const handlers = [
 		return HttpResponse.json({ ok: true });
 	}),
 
-	http.post("/api/members/:memberId/goals/edit", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("generatedGoals") as string);
-	}),
-
-	// -----------------------------------------------------------------------
-	// Evaluation Wizard
-	// -----------------------------------------------------------------------
-	http.post("/api/members/:memberId/reviews/draft", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("evaluationComment") as string);
-	}),
-
-	http.post("/api/members/:memberId/reviews/comment", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("evaluationComment") as string);
-	}),
-
 	http.post("/api/members/:memberId/reviews", async ({ params, request }) => {
 		await delay(300);
 		const memberId = params.memberId as string;
 		const body = (await request.json()) as { content: string; period: string };
 		await dataStore.reviews.save(memberId, body.period, body.content);
 		return HttpResponse.json({ ok: true });
-	}),
-
-	// -----------------------------------------------------------------------
-	// 1on1 Wizard
-	// -----------------------------------------------------------------------
-	http.post("/api/members/:memberId/one-on-one/questions", async () => {
-		await delay(300);
-		return HttpResponse.json({
-			questions: mockDb.getHearingQuestions(),
-		});
-	}),
-
-	http.post("/api/members/:memberId/one-on-one/summary", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("oneOnOneSummary") as string);
 	}),
 
 	http.post(
@@ -182,31 +102,18 @@ export const handlers = [
 		return HttpResponse.json(mockDb.getOrgDocs());
 	}),
 
-	http.post("/api/docs/policy/direction", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("policyDirection") as string);
-	}),
-
-	http.post("/api/docs/policy/draft", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("policyDraft") as string);
-	}),
-
-	http.post("/api/docs/policy/refine", async () => {
-		await delay(200);
-		return sseResponse(mockDb.getAiResponse("policyDraft") as string);
-	}),
-
 	http.post("/api/docs/policy", async () => {
 		await delay(300);
 		return HttpResponse.json({ ok: true });
 	}),
 
 	// -----------------------------------------------------------------------
-	// Chat
+	// AI proxy (Bedrock streaming) — 本番では Lambda Function URL に流れる。
+	// dev/demo では x-demo-use-case ヘッダで分岐して固定応答をストリーム。
 	// -----------------------------------------------------------------------
-	http.post("/api/chat", async () => {
+	http.post("/api/ai/invoke", async ({ request }) => {
 		await delay(200);
-		return sseResponse(mockDb.getAiResponse("chatDefault") as string);
+		const useCase = request.headers.get("x-demo-use-case");
+		return sseResponse(lookupDemoText(useCase));
 	}),
 ];

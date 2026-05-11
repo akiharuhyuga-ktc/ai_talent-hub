@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { requestOneOnOneSummary } from "@/lib/ai/client";
 import { dataStore } from "@/lib/data-store";
 import { buildOneOnOneMarkdown } from "@/lib/parsers/one-on-one";
 import type {
@@ -31,70 +32,31 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
 			setIsStreaming(true);
 			setSummaryError("");
 			try {
-				const res = await fetch(
-					`/api/members/${context.memberId}/one-on-one/summary`,
+				const fullText = await requestOneOnOneSummary(
 					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							yearMonth: state.yearMonth,
-							actionReviews: state.actionReviews.map((r) => ({
-								content: r.content,
-								status: r.status,
-								comment: r.comment,
-							})),
-							goalProgress: state.goalProgress.map((g) => ({
-								goalLabel: g.goalLabel,
-								status: g.status,
-								progressComment: g.progressComment,
-							})),
-							condition: state.condition,
-							previousCondition: context.previousCondition,
-							hearingMemos: state.hearingQuestions
-								.filter((q) => q.memo)
-								.map((q) => ({ question: q.question, memo: q.memo })),
-							nextActions: state.nextActions,
-						}),
+						yearMonth: state.yearMonth,
+						actionReviews: state.actionReviews.map((r) => ({
+							content: r.content,
+							status: r.status,
+							comment: r.comment,
+						})),
+						goalProgress: state.goalProgress.map((g) => ({
+							goalLabel: g.goalLabel,
+							status: g.status,
+							progressComment: g.progressComment,
+						})),
+						condition: state.condition,
+						previousCondition: context.previousCondition,
+						hearingMemos: state.hearingQuestions
+							.filter((q) => q.memo)
+							.map((q) => ({ question: q.question, memo: q.memo })),
+						nextActions: state.nextActions,
+					},
+					{
 						signal: controller.signal,
+						onText: setSummary,
 					},
 				);
-
-				if (
-					!res.ok ||
-					!res.headers.get("content-type")?.includes("text/event-stream")
-				) {
-					setSummaryError("サマリーの生成に失敗しました");
-					setIsStreaming(false);
-					return;
-				}
-
-				const reader = res.body?.getReader();
-				if (!reader) return;
-				const decoder = new TextDecoder();
-				let buffer = "";
-				let fullText = "";
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					buffer += decoder.decode(value, { stream: true });
-					const lines = buffer.split("\n");
-					buffer = lines.pop() || "";
-					for (const line of lines) {
-						if (!line.startsWith("data: ")) continue;
-						const data = line.slice(6).trim();
-						if (data === "[DONE]") continue;
-						try {
-							const parsed = JSON.parse(data);
-							if (parsed.text) {
-								fullText += parsed.text;
-								setSummary(fullText);
-							}
-						} catch (_err) {
-							// Ignore JSON parse errors from partial chunks
-						}
-					}
-				}
 
 				if (!fullText) {
 					setSummaryError("サマリーの生成に失敗しました");

@@ -1,19 +1,19 @@
 import type { AxiosRequestConfig } from "axios";
 import Axios from "axios";
+import { getApiBase, getBearerAuth } from "@/lib/api/config";
 import { AUTH_EXPIRED_EVENT } from "@/lib/auth/events";
-import { getValidAccessToken } from "@/lib/auth/getValidAccessToken";
 import { clearTokens } from "@/lib/auth/tokenStore";
 
 const AXIOS_INSTANCE = Axios.create({
-	baseURL: import.meta.env.VITE_API_BASE_URL || "",
+	baseURL: getApiBase(),
 	timeout: 30_000,
 	withCredentials: true,
 });
 
 AXIOS_INSTANCE.interceptors.request.use(async (config) => {
-	const token = await getValidAccessToken();
-	if (token) {
-		config.headers.set("Authorization", `Bearer ${token}`);
+	const auth = await getBearerAuth();
+	if (auth) {
+		config.headers.set("Authorization", auth);
 	}
 	return config;
 });

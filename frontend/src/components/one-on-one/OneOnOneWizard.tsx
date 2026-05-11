@@ -1,4 +1,5 @@
 import { useCallback, useReducer } from "react";
+import { requestOneOnOneQuestions } from "@/lib/ai/client";
 import { parseGoalEntries } from "@/lib/parsers/goals-entries";
 import type {
 	ActionItem,
@@ -124,30 +125,20 @@ export function OneOnOneWizard({ context, onClose }: OneOnOneWizardProps) {
 	const prefetchQuestions = useCallback(
 		async (condition: ConditionScore) => {
 			try {
-				const res = await fetch(
-					`/api/members/${context.memberId}/one-on-one/questions`,
-					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							goalProgress: state.goalProgress,
-							actionReviews: state.actionReviews,
-							condition,
-							previousCondition: context.previousCondition,
-							previousSummary: context.previousSummary,
-							orgPolicy: context.orgPolicy,
-						}),
-					},
-				);
-				const data = await res.json();
-				if (data.questions && Array.isArray(data.questions)) {
-					const questions: HearingQuestion[] = data.questions.map(
-						(q: { question: string; intent: string }) => ({
-							question: q.question,
-							intent: q.intent,
-							memo: "",
-						}),
-					);
+				const items = await requestOneOnOneQuestions({
+					goalProgress: state.goalProgress,
+					actionReviews: state.actionReviews,
+					condition,
+					previousCondition: context.previousCondition,
+					previousSummary: context.previousSummary,
+					orgPolicy: context.orgPolicy,
+				});
+				if (items.length > 0) {
+					const questions: HearingQuestion[] = items.map((q) => ({
+						question: q.question,
+						intent: q.intent,
+						memo: "",
+					}));
 					dispatch({
 						type: "SET_PREFETCHED_QUESTIONS",
 						payload: questions,
