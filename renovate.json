@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "description": [
+    "現状は lambda/sam/ 配下の npm 依存のみを対象にする。",
+    "AWS SDK は minor で sub-dependency のメンテナを意図せず引き込むことがあるため、",
+    "公開後 30 日未満の version は PR を作らず、minor / major は自動マージしない方針。",
+    "他ディレクトリ (frontend / backend / archived_frontend など) は本設定の対象外。"
+  ],
+  "enabledManagers": ["npm"],
+  "includePaths": ["lambda/sam/**"],
+  "packageRules": [
+    {
+      "description": "公開後 30 日未満の version は PR を作らない (Socket-style age gate)。新興・単一メンテナの自動引き込み防止。",
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "minimumReleaseAge": "30 days"
+    },
+    {
+      "description": "AWS SDK は重要依存なので minor / major を自動マージしない (人間レビュー必須)",
+      "matchPackagePrefixes": ["@aws-sdk/"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false
+    },
+    {
+      "description": "patch は age gate を通過した上で自動マージ可",
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    }
+  ]
+}

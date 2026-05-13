@@ -1,0 +1,21 @@
+{
+  "name": "bizport-talenthub-ai",
+  "version": "0.1.0",
+  "description": "Bedrock streaming proxy Lambda for talent-hub via bizport JWT auth",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "test": "node --test --experimental-test-module-mocks --test-reporter=spec 'tests/**/*.test.mjs'"
+  },
+  "//": [
+    "依存レンジは tilde (~) で patch のみ許容する。",
+    "@aws-sdk は minor で sub-dependency のメンテナを意図せず引き込むことがあるため、",
+    "minor 上げは Renovate の age gate (30 日) を通したうえで手動マージで反映する方針。"
+  ],
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "~3.679.0"
+  }
+}
