@@ -45,6 +45,8 @@ export function parseActionItems(rawMarkdown: string): ActionItem[] {
       current.assignee = ASSIGNEE_MAP[raw] || 'member'
     } else if (line.startsWith('- 期限：') || line.startsWith('- 期限:')) {
       current.deadline = line.replace(/^- 期限[：:]/, '').trim()
+    } else if (line.startsWith('- 根拠：') || line.startsWith('- 根拠:')) {
+      current.reason = line.replace(/^- 根拠[：:]/, '').trim()
     }
   }
 
@@ -223,6 +225,7 @@ export function buildOneOnOneMarkdown(data: {
       lines.push(`- 内容：${a.content}`)
       lines.push(`- 担当：${ASSIGNEE_REVERSE[a.assignee] || a.assignee}`)
       lines.push(`- 期限：${a.deadline}`)
+      if (a.reason) lines.push(`- 根拠：${a.reason}`)
       lines.push('')
     })
   }
@@ -240,5 +243,6 @@ function fillActionDefaults(partial: Partial<ActionItem>): ActionItem {
     content: partial.content || '',
     assignee: partial.assignee || 'member',
     deadline: partial.deadline || '',
+    ...(partial.reason ? { reason: partial.reason } : {}),
   }
 }

@@ -93,7 +93,11 @@ export function OOCompletionScreen({ state, context, onClose }: Props) {
           setSummaryError('サマリーの生成に失敗しました')
         }
       } finally {
-        setIsStreaming(false)
+        // Strict Mode でクリーンアップによる abort の場合は isStreaming を下げない
+        // → 保存 effect が部分テキストで走るのを防ぐ
+        if (!controller.signal.aborted) {
+          setIsStreaming(false)
+        }
       }
     })()
 

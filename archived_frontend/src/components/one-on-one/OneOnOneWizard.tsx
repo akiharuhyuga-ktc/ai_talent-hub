@@ -26,12 +26,14 @@ type Action =
   | { type: 'SET_HEARING'; payload: { questions: HearingQuestion[]; additionalMemo: string } }
   | { type: 'SET_NEXT_ACTIONS'; payload: ActionItem[] }
   | { type: 'SET_PREFETCHED_QUESTIONS'; payload: HearingQuestion[] }
+  | { type: 'SET_PREFETCHED_NEXT_ACTIONS'; payload: ActionItem[] }
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
   | { type: 'GO_TO_STEP'; payload: number }
 
 interface WizardInternalState extends OneOnOneWizardState {
   prefetchedQuestions: HearingQuestion[] | null
+  prefetchedNextActions: ActionItem[] | null
 }
 
 function createInitialState(context: OneOnOneWizardContextData): WizardInternalState {
@@ -49,13 +51,14 @@ function createInitialState(context: OneOnOneWizardContextData): WizardInternalS
     yearMonth: new Date().toISOString().slice(0, 7),
     actionReviews,
     goalProgress: [],
-    condition: { motivation: null, workload: null, teamRelations: null, comment: '' },
+    condition: { motivation: 3, workload: 3, teamRelations: 3, comment: '' },
     hearingQuestions: [],
     additionalMemo: '',
     nextActions: [],
     aiSummary: null,
     isFirstTime,
     prefetchedQuestions: null,
+    prefetchedNextActions: null,
   }
 }
 
@@ -73,6 +76,8 @@ function reducer(state: WizardInternalState, action: Action): WizardInternalStat
       return { ...state, nextActions: action.payload, currentStep: 6 }
     case 'SET_PREFETCHED_QUESTIONS':
       return { ...state, prefetchedQuestions: action.payload }
+    case 'SET_PREFETCHED_NEXT_ACTIONS':
+      return { ...state, prefetchedNextActions: action.payload }
     case 'NEXT_STEP':
       return { ...state, currentStep: state.currentStep + 1 }
     case 'PREV_STEP':
@@ -136,6 +141,33 @@ export function OneOnOneWizard({ context, onClose }: OneOnOneWizardProps) {
     prefetchQuestions(condition)
   }
 
+  const prefetchNextActions = useCallback(async (hearingQuestions: HearingQuestion[]) => {
+    try {
+      const res = await fetch(`/api/members/${encodeURIComponent(context.memberName)}/one-on-one/next-actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goalProgress: state.goalProgress.map(g => ({ goalLabel: g.goalLabel, status: g.status, progressComment: g.progressComment })),
+          actionReviews: state.actionReviews.map(a => ({ content: a.content, status: a.status, comment: a.comment })),
+          condition: state.condition,
+          hearingMemos: hearingQuestions.map(q => ({ question: q.question, memo: q.memo })),
+          previousSummary: context.previousSummary,
+        }),
+      })
+      const data = await res.json()
+      if (data.actions && Array.isArray(data.actions)) {
+        dispatch({ type: 'SET_PREFETCHED_NEXT_ACTIONS', payload: data.actions })
+      }
+    } catch {
+      // Prefetch failure is non-critical; Step5 will fall back to fetching its own
+    }
+  }, [context, state.goalProgress, state.actionReviews, state.condition])
+
+  const handleHearingNext = (questions: HearingQuestion[], additionalMemo: string) => {
+    dispatch({ type: 'SET_HEARING', payload: { questions, additionalMemo } })
+    prefetchNextActions(questions)
+  }
+
   const renderStep = () => {
     switch (state.currentStep) {
       case 1:
@@ -169,7 +201,7 @@ export function OneOnOneWizard({ context, onClose }: OneOnOneWizardProps) {
           <OOStep4Hearing
             state={state}
             context={context}
-            onNext={(questions, additionalMemo) => dispatch({ type: 'SET_HEARING', payload: { questions, additionalMemo } })}
+            onNext={handleHearingNext}
             onBack={() => dispatch({ type: 'PREV_STEP' })}
             prefetchedQuestions={state.prefetchedQuestions}
           />
@@ -179,6 +211,9 @@ export function OneOnOneWizard({ context, onClose }: OneOnOneWizardProps) {
           <OOStep5NextActions
             onComplete={actions => dispatch({ type: 'SET_NEXT_ACTIONS', payload: actions })}
             onBack={() => dispatch({ type: 'PREV_STEP' })}
+            prefetchedNextActions={state.prefetchedNextActions}
+            state={state}
+            context={context}
           />
         )
       case 6:
