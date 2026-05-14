@@ -5,51 +5,46 @@ AI を活用したタレントマネジメントアプリケーション。メ�
 ## リポジトリ構成
 
 README.md を参照。補足:
-- `archived_frontend/` — ローカル運用中の Next.js アプリ（現在使用中）
-- `frontend/` — 新アプリ（Vite + Go バックエンド + Tauri デスクトップ対応、開発中）
-- `web-demo/` — リポジトリに含まれる旧デモ用ソース。現在は `archived_frontend/` を使うため触らない
-- `data/.demo-mode.json` の `enabled` フラグでデモ/本番データを切替（`true` → `data/demo-members`、`false` → `data/members`）
+- `old/` は廃止済みアーカイブ。触らない。
+- `archived_frontend/` は Next.js 版の旧フロントエンド。現 frontend とは独立しており、`data/members/`, `data/demo-members/`, `data/.demo-mode.json` を参照する。触らない。
+- **現 frontend（Vite + React SPA）のデータは `data/v1/` 配下**。`data/v1/.demo-mode.json` の `enabled` フラグでデモ/本番データを切替（`true` → `data/v1/demo-members`、`false` → `data/v1/members`）。
 
-## タレントハブ起動手順（archived_frontend）
+## ローカルデータの機密性（最重要）
+
+**`data/`（`data/v1/` 含む）および `frontend/src/mocks/data/` 以下は極めて機密性の高いローカル専用データを含む。絶対にコミット・push してはならない。**
+
+- これらは各開発者がローカルで持つ個人情報・評価・方針等を含むため、`.gitignore` の `data/` パターンで明示的に除外している
+- 原則として `.gitignore` の `data/` 関連ルールを緩める・除外例外（`!data/...`）を追加するような変更は行わない
+- `git add` 時に `data/` 配下のファイルが含まれないことを必ず確認する。`git add .` や `git add -A` のような広域追加はこの領域では避ける
+- seed/mock データが欠けていても起動できるようアプリ側（例: `frontend/src/mocks/db.ts`）はフォールバック実装にする。commit して埋める方向で解決しない
+- サンプル共有が必要な場合は、実データとは別のサンプル用パス（例: `.example` サフィックス付き）を検討し、ユーザーに確認してから進める
+
+## 開発コマンド
 
 ```bash
-# 1. ポート確認（すでに起動中なら不要）
-lsof -ti :3000
-
-# 2. 起動
-cd archived_frontend
+cd frontend
+npm install
 npm run dev      # http://localhost:3000
-
-# クリーンビルドが必要な場合（実装変更後など）
-rm -rf .next && npm run dev
+npm run build    # 本番ビルド
+npm run lint     # ESLint
 ```
 
-ブラウザは自動で開かないので `open http://localhost:3000` で開く。
+## 指摘事項の管理
 
-## その他の開発コマンド（archived_frontend）
+### セッション開始時
+- `tmp/feedback.md`が存在する場合、**必ず読み込んでから作業を開始する**
+- 「過去の指摘事項を読み込みました」と報告する
 
-```bash
-cd archived_frontend
-npm run build    # 本番ビルド確認
-```
-
-## GitHub 認証
-
-git push / PR 作成は `akiharuhyuga-ktc` アカウントで行う。
-
-```bash
-gh auth switch --user akiharuhyuga-ktc
-```
-
-## 作業前チェックルール（必須）
-
-### すべての作業共通
-1. **CLAUDE.md とメモリを最初に確認する** — 起動手順・認証方法・既知の注意点はここに書いてある。推測で動かない。
-2. **わからなければ推測せず質問する** — 間違った方向に進んでから気づくより、先に確認する。
-
-### データ更新時（メンバー目標・プロフィール等）
-1. **他のメンバーの同種ファイルを必ず先に確認する** — フォーマット・構造・項目名を揃える。
-2. **提供されたテキストをそのまま貼り付けない** — 既存のフォーマットに合わせて差分のみ適用する。
+### 指摘を受けた時
+- ユーザーから指摘・修正依頼を受けたら、`tmp/feedback.md`に以下の形式で追記する:
+  ```
+  ### YYYY-MM-DD: 指摘の要約
+  - **状況**: 何をしていた時に発生したか
+  - **問題**: 何が間違っていたか
+  - **原因**: なぜ間違えたか
+  - **対策**: 次回どうすべきか
+  ```
+- 既存の内容は削除せず、末尾に追記する
 
 ## プロジェクト固有の注意点
 
