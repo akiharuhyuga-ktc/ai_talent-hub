@@ -15,6 +15,8 @@ bizport の `/api/v1/auth/me` で Entra JWT を検証 → Amazon Bedrock `Invoke
 - [VPC 配置と NAT 経路](#vpc-配置と-nat-経路)
 - [パラメータ運用方針](#パラメータ運用方針)
 - [デプロイ手順 (dev)](#デプロイ手順-dev)
+  - [TL;DR: コード更新](#tldr-コード更新既存-dev-スタックへの再デプロイ)
+  - [必要な AWS 権限](#必要な-aws-権限-dev-bizport-cicd-role-に付与済)
 - [動作確認](#動作確認)
 - [ロールバック](#ロールバック)
 - [ローカルテスト](#ローカルテスト)
@@ -90,6 +92,44 @@ bizport CloudFront WAF (`default_action = block`) は `allow_from_bizport_lambda
 
 ## デプロイ手順 (dev)
 
+> [!IMPORTANT]
+> 現状 ktc-talent-hub には Lambda 自動デプロイ workflow が無いため、**Lambda のコード更新は手動 `sam deploy`** で行う。本リポの GitHub Actions は frontend / backend のみで、`lambda/sam/` 配下は対象外。
+
+### TL;DR: コード更新（既存 dev スタックへの再デプロイ）
+
+`app/**` / `lambda/sam/template.yml` を変更したあとの最短手順 (CFN リソース構成に差分がないコード差分のみ向け):
+
+```bash
+aws sso login --profile dev                          # 初回 / トークン切れ時のみ
+cd lambda/sam
+npm test                                              # 任意。CI 相当のローカル検証
+sam build                                             # ローカルに Node 24 があれば --use-container 不要
+sam deploy --config-env DEV --profile dev-bizport-cicd --no-confirm-changeset
+```
+
+完了後の確認:
+
+```bash
+aws --profile dev-bizport-cicd lambda get-function-configuration \
+  --function-name dev-bizport-talenthub-ai-function \
+  --query '[LastModified,LastUpdateStatus,CodeSha256]' --output table
+```
+
+`LastUpdateStatus = Successful` で `LastModified` が直近時刻になっていれば反映済。
+
+### 必要な AWS 権限 (`dev-bizport-cicd-role` に付与済)
+
+`sam deploy` が裏で必要とするアクション (`dev-bizport-cicd-policy` に同梱):
+
+| アクション | リソース | 用途 |
+| --- | --- | --- |
+| `cloudformation:CreateChangeSet` / `ExecuteChangeSet` / `DescribeStacks` / `DescribeChangeSet` / `UpdateStack` | `arn:aws:cloudformation:*:342274811455:stack/dev-bizport-*` | SAM が CFN 経由でスタック更新 |
+| `s3:PutObject` / `GetBucketLocation` | `arn:aws:s3:::dev-application-resource-*` | sam build 成果物 (zip + テンプレ) を `s3://dev-application-resource-ap-northeast-1/lambda/bizport/dev/s3/` にアップロード |
+| `lambda:UpdateFunctionCode` / `UpdateFunctionConfiguration` / `GetFunction` / `AddPermission` 等 | `arn:aws:lambda:*:342274811455:function:dev-bizport-*` | コード差し替え / FunctionUrlConfig 等の更新 |
+| `iam:GetRole` / `TagRole` | `arn:aws:iam::342274811455:role/dev-bizport-*-lambda-execution-role` | 実行ロール参照 (実体は terraform 管理) |
+
+新しい AWS API を増やす変更を入れる場合は `dev-bizport-cicd-policy` 側 (terraform `pack.common.extra_cicd_role_policy_statements`) の追加も必要。
+
 ### 0. 事前準備（初回のみ）
 
 ```bash
@@ -98,40 +138,44 @@ cat <<'EOF' >> ~/.aws/config
 
 [profile dev-bizport-cicd]
 role_arn = arn:aws:iam::342274811455:role/dev-bizport-cicd-role
-source_profile = dev-test
+source_profile = dev
 region = ap-northeast-1
 EOF
 ```
+
+`source_profile` は `dev` (SSO Admin) でも `dev-test` (dev-popo-maintenance-sw) でも assume できる。`dev-bizport-cicd-role` の trust policy が両方を許可している。
 
 ツールの前提:
 
 | ツール | バージョン |
 | --- | --- |
 | AWS CLI | v2 |
-| AWS SAM CLI | latest (`brew install aws-sam-cli` 等) |
-| Node.js | 24+ |
-| Docker | (`sam build --use-container` を使うとき) |
+| AWS SAM CLI | 1.140+ (`brew install aws-sam-cli` 等) |
+| Node.js | 24+ (`--use-container` を使うなら省略可) |
+| Docker | (`sam build --use-container` を使うときのみ) |
 
 ### 1. SSO ログイン
 
 ```bash
-aws sso login --profile dev-test
+aws sso login --profile dev
 ```
 
-### 2. 依存インストール（Lambda にバンドルする node_modules）
+### 2. 依存インストール（任意 / ローカルテスト用）
 
 ```bash
 cd lambda/sam
-npm ci --omit=dev    # package-lock.json から再現性ある install
+npm ci    # node:test で `--experimental-test-module-mocks` を動かすため devDeps も含めて install
 ```
+
+> SAM build 内で `package-lock.json` から再度 npm install が走るため、Lambda へのバンドル用途では事前 `npm ci` は不要。ローカルで `npm test` を回したい場合のみ実行する。
 
 ### 3. SAM build
 
 ```bash
-sam build --use-container    # Node.js 24 ランタイム image を使うので Docker 必要
+sam build    # ローカルに Node 24 があれば OK
+# あるいは Docker で:
+sam build --use-container
 ```
-
-ローカルに Node.js 24 がある場合は `--use-container` 省略可。
 
 ### 4. SAM deploy (DEV)
 
@@ -139,7 +183,7 @@ sam build --use-container    # Node.js 24 ランタイム image を使うので 
 sam deploy --config-env DEV --profile dev-bizport-cicd
 ```
 
-`samconfig.toml` の `confirm_changeset = true` で初回は changeset 確認プロンプトが出る → 内容を確認して `y`。CI で自動化するなら:
+`samconfig.toml` の `confirm_changeset = true` でデフォルトは changeset 確認プロンプト → 内容を確認して `y`。コード差分のみで自動化したい場合は:
 
 ```bash
 sam deploy --config-env DEV --profile dev-bizport-cicd --no-confirm-changeset \
