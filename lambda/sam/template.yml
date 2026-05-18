@@ -27,13 +27,13 @@ Parameters:
     Type: String
   BizportApiBaseUrl:
     Type: String
-    Description: bizport API のベース URL (`/api/v1/users/me` を叩く先)
+    Description: bizport API のベース URL (`/api/v1/auth/me` を叩く先)
   BedrockModelId:
     Type: String
     Description: 使用する Bedrock モデルの ID (ap-northeast-1 は Global cross-region inference のみ対応のため `global.anthropic.claude-sonnet-4-6` 等の inference profile ID を指定する)
   VpcId:
     Type: AWS::EC2::VPC::Id
-    Description: bizport VPC ID。Lambda を bizport の VPC 内に配置して bizport NAT Gateway 経由で `/api/v1/users/me` を叩く構成。
+    Description: bizport VPC ID。Lambda を bizport の VPC 内に配置して bizport NAT Gateway 経由で `/api/v1/auth/me` を叩く構成。
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
     Description: bizport の private application subnet IDs (複数 AZ)。Lambda はここに ENI を作成する。

@@ -2,7 +2,7 @@
 
 タレントハブ向け Bedrock streaming proxy Lambda。
 
-bizport の `/api/v1/users/me` で Entra JWT を検証 → Amazon Bedrock `InvokeModelWithResponseStreamCommand` を SSE で返す Lambda Function URL。
+bizport の `/api/v1/auth/me` で Entra JWT を検証 → Amazon Bedrock `InvokeModelWithResponseStreamCommand` を SSE で返す Lambda Function URL。
 
 > [!NOTE]
 > Lambda Function URL の `RESPONSE_STREAM` (native SSE) は **Node.js ランタイム専用** のため Node.js 24 で実装している ([AWS docs](https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html))。
@@ -59,7 +59,7 @@ lambda/sam/
 │   ├── functions/
 │   │   └── talenthubAiProxy.mjs   # ハンドラ (awslambda.streamifyResponse + 入力強制 + SSE)
 │   └── libs/
-│       └── bizportAuth.mjs        # bizport /api/v1/users/me JWT 検証パススルー
+│       └── bizportAuth.mjs        # bizport /api/v1/auth/me JWT 検証パススルー
 └── tests/
     └── functions/
         └── talenthubAiProxy.test.mjs   # node:test (mock.module で AWS SDK / bizportAuth モック)

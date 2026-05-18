@@ -127,7 +127,7 @@ export const handler = awslambda.streamifyResponse(
       return;
     }
 
-    // 1. 認証 (bizport /api/v1/users/me パススルー検証)
+    // 1. 認証 (bizport /api/v1/auth/me パススルー検証)
     let user;
     try {
       user = await validateViaBizport(getAuthorizationHeader(event));
