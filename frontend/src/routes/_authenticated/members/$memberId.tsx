@@ -11,6 +11,7 @@ import { ProfileTab } from "@/components/member/ProfileTab";
 import { ReviewsTab } from "@/components/member/ReviewsTab";
 import { OneOnOneWizard } from "@/components/one-on-one/OneOnOneWizard";
 import { Tabs } from "@/components/ui/Tabs";
+import { showApiErrorToast } from "@/lib/api/errorToast";
 import { dataStore } from "@/lib/data-store";
 import {
 	parseActionItems,
@@ -74,7 +75,7 @@ function MemberDetailPage() {
 					url: `/api/members/${memberId}/extras`,
 				});
 			} catch (err) {
-				console.warn("failed to load member extras", err);
+				showApiErrorToast(err);
 				return EMPTY_EXTRAS;
 			}
 		},
@@ -102,7 +103,7 @@ function MemberDetailPage() {
 					url: "/api/docs",
 				});
 			} catch (err) {
-				console.warn("failed to load docs", err);
+				showApiErrorToast(err);
 				return null;
 			}
 		},

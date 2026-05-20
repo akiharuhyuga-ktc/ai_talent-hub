@@ -10,6 +10,7 @@
 import type { AxiosRequestConfig } from "axios";
 import { setMockResolver } from "@/api/custom-instance";
 import { dataStore } from "@/lib/data-store";
+import { isDemoMode } from "@/lib/data-store/demo-mode";
 import { lookupDemoText, sseResponse } from "./aiResponseStub";
 import { mockDb } from "./db";
 
@@ -179,9 +180,9 @@ function installFetchMock() {
 						? input.url
 						: String(input);
 
-		// AI proxy (Bedrock streaming) を傍受。本番では Lambda に流れるが、
-		// demo モードではユースケース別の固定応答をストリームで返す。
-		if (/\/api\/ai\/invoke$/.test(url)) {
+		// AI proxy (Bedrock streaming) — 画面トグル ON のときだけ傍受してデモ応答を返す。
+		// OFF のときは本物の fetch に戻し、Vite proxy 経由で実 Lambda に流す。
+		if (isDemoMode() && /\/api\/ai\/invoke$/.test(url)) {
 			await wait(200);
 			const useCase =
 				init?.headers instanceof Headers

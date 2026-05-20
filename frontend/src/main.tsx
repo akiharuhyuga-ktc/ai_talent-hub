@@ -1,14 +1,24 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+	MutationCache,
+	QueryCache,
+	QueryClient,
+	QueryClientProvider,
+} from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { Toaster } from "sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 import { initPrompts } from "./lib/ai/prompts/loader";
+import { showApiErrorToast } from "./lib/api/errorToast";
 import { isTauri } from "./lib/data-store/detect";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+	queryCache: new QueryCache({ onError: showApiErrorToast }),
+	mutationCache: new MutationCache({ onError: showApiErrorToast }),
+});
 
 const router = createRouter({
 	routeTree,
@@ -24,15 +34,14 @@ declare module "@tanstack/react-router" {
 
 async function bootstrap() {
 	// モック動作の判定:
-	//   - VITE_DEMO_MODE=true        → 必ずモック
-	//   - dev かつ VITE_DEMO_MODE!=="false" → デフォルトでモック (従来挙動維持)
-	//   - それ以外 (Tauri prod / browser prod) → 実 proxy へ
+	//   - VITE_DEMO_MODE=true → 必ずモック (AI も demo 応答)
+	//   - dev                 → MSW を起動。AI handler は VITE_DEMO_MODE 次第で
+	//                            外れ、AI だけ Vite proxy 経由で実 Lambda に流れる
+	//   - production browser  → MSW 起動しない (実 API へ)
 	// Tauri は Service Worker が動かないので demo-mock (window.fetch ラッパ) を、
 	// ブラウザは MSW を使う。
 	const demoExplicit = import.meta.env.VITE_DEMO_MODE === "true";
-	const demoDevDefault =
-		import.meta.env.DEV && import.meta.env.VITE_DEMO_MODE !== "false";
-	const useMock = demoExplicit || demoDevDefault;
+	const useMock = demoExplicit || import.meta.env.DEV;
 
 	if (useMock) {
 		if (isTauri()) {
@@ -53,6 +62,7 @@ async function bootstrap() {
 				<AuthProvider>
 					<RouterProvider router={router} />
 				</AuthProvider>
+				<Toaster position="bottom-right" richColors closeButton />
 			</QueryClientProvider>
 		</StrictMode>,
 	);

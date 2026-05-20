@@ -89,7 +89,7 @@ quality: lint typecheck test ## Lint + 型チェック + テストをまとめ�
 desktop: ## デスクトップアプリをビルド（本番用）
 	@cd frontend && pnpm tauri build
 
-desktop-dev: ## デスクトップアプリを開発モードで起動（MSW モック有効）
+desktop-dev: ## デスクトップアプリを開発モードで起動（demo-mock 有効、画面トグルで AI のみ実 Lambda へ切替可）
 	@cd frontend && pnpm tauri dev
 
 desktop-demo: ## デスクトップアプリをデモモードでビルド（モックデータ同梱）

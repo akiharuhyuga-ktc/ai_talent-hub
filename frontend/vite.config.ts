@@ -24,8 +24,10 @@ export default defineConfig({
 		strictPort: true,
 		open: !isTauri,
 		proxy: {
-			"/api": {
-				target: "http://backend:8080",
+			// AI proxy のみ bizport 配下の Lambda へ転送する。
+			// それ以外の /api/* は MSW (ブラウザ Service Worker) が intercept する想定。
+			"/api/ai": {
+				target: "https://dev-bizport.kinto-mobility.jp",
 				changeOrigin: true,
 			},
 			// Microsoft の /devicecode は CORS を許可していないため、dev では Vite proxy を経由する。
