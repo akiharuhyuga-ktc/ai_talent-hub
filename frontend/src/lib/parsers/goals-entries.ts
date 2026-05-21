@@ -1,9 +1,16 @@
 import type { GoalProgressEntry } from "@/lib/types";
 
+const FIELD_HEADING_RE = /^#{1,4}\s*([①②③④⑤⑥⑦⑧⑨⑩])\s+(.+?)_目標\s*$/m;
+
 export function parseGoalEntries(
 	rawMarkdown: string | null,
 ): GoalProgressEntry[] {
 	if (!rawMarkdown) return [];
+
+	// カオナビ 2 フィールド形式 (## ① 短期成果評価_目標) を最優先で判定
+	if (FIELD_HEADING_RE.test(rawMarkdown)) {
+		return parseFieldFormat(rawMarkdown);
+	}
 
 	const isWizardFormat = /目標[①②③④⑤⑥⑦⑧⑨⑩]/.test(rawMarkdown);
 
@@ -11,6 +18,62 @@ export function parseGoalEntries(
 		return parseWizardFormat(rawMarkdown);
 	}
 	return parseTemplateFormat(rawMarkdown.split("\n"));
+}
+
+function parseFieldFormat(raw: string): GoalProgressEntry[] {
+	const entries: GoalProgressEntry[] = [];
+	const headingGlobalRe = /^#{1,4}\s*([①②③④⑤⑥⑦⑧⑨⑩])\s+(.+?)_目標\s*$/gm;
+	const matches = Array.from(raw.matchAll(headingGlobalRe));
+
+	for (let i = 0; i < matches.length; i++) {
+		const match = matches[i];
+		const circle = match[1];
+		const type = match[2].trim();
+		// biome-ignore lint/style/noNonNullAssertion: matchAll always provides index
+		const startIdx = match.index! + match[0].length;
+		const endIdx =
+			// biome-ignore lint/style/noNonNullAssertion: matchAll always provides index
+			i + 1 < matches.length ? matches[i + 1].index! : raw.length;
+		const section = raw
+			.slice(startIdx, endIdx)
+			.replace(/^\s*---\s*$/gm, "")
+			.trim();
+
+		const getField = (prefix: string): string => {
+			const re = new RegExp(`[-└]\\s*${prefix}[：:]\\s*(.+)`, "m");
+			const m = section.match(re);
+			return m ? m[1].trim() : "";
+		};
+
+		entries.push({
+			goalLabel: `目標${circle}（${type}）`,
+			goalText: extractBody(section),
+			achievedState: getField("達成した姿"),
+			milestone: getField("中間確認"),
+			verificationMethod: getField("検証方法"),
+			status: "",
+			progressComment: "",
+		});
+	}
+
+	return entries;
+}
+
+function extractBody(section: string): string {
+	// └ で始まるメタ行 (達成した姿 / 検証方法など) より前の本文部分を抽出
+	const lines = section.split("\n");
+	const bodyLines: string[] = [];
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (
+			trimmed.startsWith("└") ||
+			/^[-]\s*(達成した姿|検証方法|中間確認)/.test(trimmed)
+		) {
+			break;
+		}
+		bodyLines.push(line);
+	}
+	return bodyLines.join("\n").trim();
 }
 
 function parseWizardFormat(raw: string): GoalProgressEntry[] {

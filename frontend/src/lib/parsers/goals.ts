@@ -26,8 +26,25 @@ const NUM_CIRCLE_MAP: Record<number, string> = {
 	10: "⑩",
 };
 
+// 旧フォーマット (Wizard 旧版 / 手動入力):
+//   **目標①（短期成果評価）：明確に測定可能な成果を完遂する**
 const GOAL_HEADING_RE =
 	/^#{0,4}\s*\*{0,2}\s*目標([①②③④⑤⑥⑦⑧⑨⑩])[（(](.+?)[）)][：:](.+?)(?:\*{0,2})$/;
+
+// 新フォーマット (カオナビ 2 フィールド形式、AI 出力):
+//   ## ① 短期成果評価_目標
+// title は持たないので type 名を流用する。
+const FIELD_HEADING_RE = /^#{1,4}\s*([①②③④⑤⑥⑦⑧⑨⑩])\s+(.+?)_目標\s*$/;
+
+function matchGoalHeading(
+	line: string,
+): { label: string; type: string; title: string } | null {
+	const m1 = line.match(GOAL_HEADING_RE);
+	if (m1) return { label: m1[1], type: m1[2], title: m1[3].trim() };
+	const m2 = line.match(FIELD_HEADING_RE);
+	if (m2) return { label: m2[1], type: m2[2].trim(), title: m2[2].trim() };
+	return null;
+}
 
 export function parseGoalsToSections(markdown: string): ParsedGoals {
 	const lines = markdown.split("\n");
@@ -39,14 +56,9 @@ export function parseGoalsToSections(markdown: string): ParsedGoals {
 		title: string;
 	}[] = [];
 	for (let i = 0; i < lines.length; i++) {
-		const match = lines[i].match(GOAL_HEADING_RE);
-		if (match) {
-			goalStarts.push({
-				lineIndex: i,
-				label: match[1],
-				type: match[2],
-				title: match[3].trim(),
-			});
+		const heading = matchGoalHeading(lines[i]);
+		if (heading) {
+			goalStarts.push({ lineIndex: i, ...heading });
 		}
 	}
 
@@ -83,7 +95,7 @@ export function parseGoalsToSections(markdown: string): ParsedGoals {
 function findFooterStart(lines: string[], fromLine: number): number {
 	for (let i = fromLine; i < lines.length; i++) {
 		const line = lines[i];
-		if (GOAL_HEADING_RE.test(line)) continue;
+		if (matchGoalHeading(line)) continue;
 		if (/^#{1,2}\s/.test(line)) return i;
 	}
 	return lines.length;
@@ -115,5 +127,6 @@ export function stripGoalHeading(content: string): string {
 			/^#{0,4}\s*\*{0,2}\s*目標[①②③④⑤⑥⑦⑧⑨⑩][（(].+?[）)][：:].+?(?:\*{0,2})$\n*/m,
 			"",
 		)
+		.replace(/^#{1,4}\s*[①②③④⑤⑥⑦⑧⑨⑩]\s+.+?_目標\s*$\n*/m, "")
 		.trimStart();
 }
