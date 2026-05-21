@@ -51,7 +51,9 @@ export function Step6GoalGeneration({
 					setError("目標の生成に失敗しました");
 				}
 			} finally {
-				setIsStreaming(false);
+				if (!controller.signal.aborted) {
+					setIsStreaming(false);
+				}
 			}
 		})();
 
