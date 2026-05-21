@@ -24,9 +24,9 @@ README.md を参照。補足:
 ```bash
 cd frontend
 npm install
-npm run dev      # http://localhost:3000
+npm run dev      # http://localhost:5173
 npm run build    # 本番ビルド
-npm run lint     # ESLint
+npm run lint     # Biome
 ```
 
 ## 指摘事項の管理
@@ -48,7 +48,17 @@ npm run lint     # ESLint
 
 ## プロジェクト固有の注意点
 
-- AI 機能は Anthropic Claude SDK (`@anthropic-ai/sdk`) を使用。呼び出しは `lib/ai/` に集約。
-- メンバーデータは Markdown ファイル（frontmatter + 本文）で管理。パーサーは `lib/parsers/`。
-- AI プロンプトテンプレートは `lib/prompts/` に配置。
+- AI 機能は AWS Lambda (Bedrock streaming proxy) 経由。フロント側は `frontend/src/lib/ai/sseFetch.ts` の `aiSseRun` と `frontend/src/lib/ai/client.ts` の用途別関数 (`requestDiagnosis` 等) を使う。フロントから Anthropic / AWS の SDK を直接呼ばない（API キーは Lambda 側 env のみ保持）。
+- メンバーデータは Markdown ファイル（frontmatter + 本文）で管理。パーサーは `frontend/src/lib/parsers/`。
+- AI プロンプトテンプレートは `frontend/src/lib/ai/prompts/` に配置（バンドル既定値 + Lambda の `/api/ai/prompts` から取得した上書き値の stale-while-revalidate）。
 - コミットメッセージ: 日本語 OK
+
+## API エラー通知の規約
+
+API 呼び出しが失敗した場合は **必ずユーザーに見える形で通知** する。silent failure は禁止。
+
+- React Query 経由の呼び出し: `QueryClient` の `QueryCache.onError` / `MutationCache.onError` で `showApiErrorToast` を自動発火（`frontend/src/main.tsx`）。queryFn 内で try-catch して fallback を返す場合は、catch 内で明示的に `showApiErrorToast(err)` を呼ぶ
+- AI クライアント: `frontend/src/lib/ai/sseFetch.ts` の `aiSseRun` 経由で呼べば、throw 前に自動でトースト通知される
+- 抑止対象: `AbortError` (ユーザー中断) と 401 (AuthContext のセッション切れダイアログと衝突)
+
+「とりあえず console.warn で済ませる」のは NG。気づけないバグの温床になる（`tmp/feedback.md` 2026-04-23 参照）。

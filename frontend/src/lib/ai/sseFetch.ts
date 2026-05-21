@@ -8,6 +8,8 @@
  * - レスポンス: Anthropic Messages streaming format の SSE
  */
 import { getApiBase, getBearerAuth } from "@/lib/api/config";
+import { showApiErrorToast } from "@/lib/api/errorToast";
+import { isDemoMode } from "@/lib/data-store/demo-mode";
 import type {
 	AnthropicInvokeRequest,
 	AnthropicMessage,
@@ -24,7 +26,7 @@ export interface AiSseRunOpts {
 	signal?: AbortSignal;
 	/**
 	 * デモモード時に demo-mock がユースケース別の固定応答を返すためのヒント。
-	 * 本番ビルドでは付与されない (proxy には届かない)。
+	 * 画面トグル (DemoModeContext) OFF 時 / 本番ビルドでは付与されない。
 	 */
 	demoKey?: PromptKey;
 	onText?: (cumulative: string) => void;
@@ -32,6 +34,16 @@ export interface AiSseRunOpts {
 }
 
 export async function aiSseRun(opts: AiSseRunOpts): Promise<string> {
+	try {
+		return await aiSseRunInner(opts);
+	} catch (err) {
+		// 呼び出し側 (useEffect 内など) が握り潰しがちなので、ここで必ず通知する
+		showApiErrorToast(err);
+		throw err;
+	}
+}
+
+async function aiSseRunInner(opts: AiSseRunOpts): Promise<string> {
 	const payload: AnthropicInvokeRequest = {
 		anthropic_version: ANTHROPIC_BEDROCK_VERSION,
 		max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
@@ -140,7 +152,7 @@ async function buildHeaders(
 	if (auth) {
 		headers["X-Bizport-Authorization"] = auth;
 	}
-	if (demoKey && import.meta.env.VITE_DEMO_MODE === "true") {
+	if (demoKey && isDemoMode()) {
 		headers["x-demo-use-case"] = demoKey;
 	}
 	return headers;

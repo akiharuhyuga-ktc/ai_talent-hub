@@ -244,7 +244,7 @@ data/v1/demo-members/                ← gitignore 済。各自の作業領域
 - `demo-members/` が空のときは起動時 / 初回アクセス時に `frontend/src/mocks/seeds/members/` から自動コピー
 - 編集はすべて `demo-members/` に書かれ、本番データには影響しない
 - リセット: `make demo-reset`（`data/v1/demo-members/` を削除 → 次回起動で再 seed）
-- AI 応答はデモモードでもモック固定応答 (MSW / window.fetch ラッパ) で返り、実 proxy には出ない。出力は `demo-members/` に保存されるため実データは汚染されない（AI 経路の詳細は「AI 統合」セクション参照）
+- AI 応答もトグルに連動: ON ならモック固定応答 (MSW / window.fetch ラッパ)、OFF なら実 Lambda proxy へ流れる（詳細は「AI 統合」セクション参照）
 
 seed のスキーマは `profile.md` 等のフォーマット変更時に追従させる必要がある。
 
@@ -325,15 +325,23 @@ Lambda パッケージにテンプレファイル群を同梱し、handler が m
 
 ### 動作モード切替
 
-`frontend/.env.example` の `VITE_DEMO_MODE` と `VITE_API_BASE_URL` の組み合わせで切替する。
+AI 経路のモック / 実 proxy 切替は **画面サイドバーのデモモードトグル** (`DemoModeContext`、`localStorage.demoMode`) が master。`VITE_DEMO_MODE` は MSW を起動するかどうかだけを補助的に決める。
 
-| モード | `VITE_DEMO_MODE` | `VITE_API_BASE_URL` | 挙動 |
+| 環境 | モック実装 | トグル ON | トグル OFF |
 |---|---|---|---|
-| dev デフォルト | 未設定 | 不要 | MSW Service Worker が `/api/ai/invoke` を傍受し固定応答 SSE を返す |
-| 強制モック | `true` | 不要 | ブラウザは MSW、Tauri は `window.fetch` ラッパでモック |
-| 実 proxy 接続 | `false` | `https://dev-bizport.kinto-mobility.jp` | 実 Lambda proxy へ POST (Lambda 側 CORS 対応が前提) |
+| ブラウザ (`npm run dev`) | MSW Service Worker | `/api/ai/invoke` を傍受しデモ応答 | `passthrough()` → Vite proxy `/api/ai` → 実 Lambda |
+| Tauri (`make desktop-dev`) | `window.fetch` ラッパ (`demo-mock.ts`) | 傍受しデモ応答 | 原 `fetch` → Vite proxy `/api/ai` → 実 Lambda |
+| production browser | 無効 | — | 実 Lambda へ直接 |
 
-クライアント送信時、demo モードでは `x-demo-use-case` ヘッダ (例: `diagnosis`, `goalGeneration`) を付与し、モック側で用途別の固定応答に分岐する。本番 proxy には届かないヘッダ。
+`VITE_DEMO_MODE=true` を立てれば production browser ビルドでも MSW を起動できる (社内デモ用)。dev 中は `VITE_DEMO_MODE` の値に関わらず MSW / demo-mock が起動するので、通常は触らなくてよい。
+
+クライアント送信時、トグル ON のときだけ `x-demo-use-case` ヘッダ (例: `diagnosis`, `goalGeneration`) を付与し、モック側で用途別の固定応答に分岐する (本番 proxy には届かないヘッダ)。
+
+### エラー通知
+
+AI 呼び出しが失敗した場合、`sseFetch.ts` の `aiSseRun` が **throw する前に必ず `showApiErrorToast` を呼ぶ**。呼び出し側 (useEffect 等) で握り潰しても右下にトーストで通知される。`AbortError` (ユーザー中断) と 401 (セッション切れダイアログと衝突) は抑止。
+
+React Query 経由の API エラーは `QueryClient` の `QueryCache.onError` / `MutationCache.onError` で同じく `showApiErrorToast` に流れる (`frontend/src/main.tsx`)。
 
 ### SSE パーサ
 
@@ -357,8 +365,9 @@ VITE_AZURE_TENANT_ID=
 VITE_API_SCOPE=               # 自前 API のカスタムスコープ。Phase 1 では空可
 
 # AI proxy 接続設定
-VITE_API_BASE_URL=            # Lambda proxy のベース URL。空ならモック (相対パス /api/...)
-VITE_DEMO_MODE=               # "true" で強制モック / "false" で実 proxy / 未設定なら dev はモック・本番は実 proxy
+VITE_API_BASE_URL=            # Lambda proxy のベース URL。空なら相対パス /api/... (Vite proxy 経由)
+VITE_DEMO_MODE=               # MSW 起動補助フラグ。"true" なら production でも MSW 起動 / それ以外は dev のみ起動
+                              # 注: AI 経路の demo / 実 proxy 切替は画面トグル (DemoModeContext) が master
 ```
 
 ### Lambda / Backend 側

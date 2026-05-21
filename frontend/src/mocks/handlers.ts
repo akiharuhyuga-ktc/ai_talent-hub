@@ -1,5 +1,6 @@
-import { delay, HttpResponse, http } from "msw";
+import { delay, HttpResponse, http, passthrough } from "msw";
 import { dataStore } from "@/lib/data-store";
+import { isDemoMode } from "@/lib/data-store/demo-mode";
 import { lookupDemoText, sseResponse } from "./aiResponseStub";
 import { mockDb } from "./db";
 
@@ -108,10 +109,12 @@ export const handlers = [
 	}),
 
 	// -----------------------------------------------------------------------
-	// AI proxy (Bedrock streaming) — 本番では Lambda Function URL に流れる。
-	// dev/demo では x-demo-use-case ヘッダで分岐して固定応答をストリーム。
+	// AI proxy (Bedrock streaming) — 画面トグル (DemoModeContext) で挙動切替。
+	// ON  → MSW が x-demo-use-case ヘッダで分岐し固定応答をストリーム
+	// OFF → passthrough() で MSW を素通り → Vite proxy 経由で実 Lambda へ
 	// -----------------------------------------------------------------------
 	http.post("/api/ai/invoke", async ({ request }) => {
+		if (!isDemoMode()) return passthrough();
 		await delay(200);
 		const useCase = request.headers.get("x-demo-use-case");
 		return sseResponse(lookupDemoText(useCase));
