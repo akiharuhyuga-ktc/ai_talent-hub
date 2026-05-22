@@ -80,12 +80,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			setFlow({ phase: "idle" });
 		} catch (err) {
 			if (controller.signal.aborted) return;
+			// Tauri の invoke() は Rust 側の Err(String) を「文字列」のまま reject するため、
+			// Error/DeviceCodeError 以外に「素の string」もメッセージとして拾う。
+			console.error("auth login failed:", err);
 			const message =
 				err instanceof DeviceCodeError
 					? err.message
 					: err instanceof Error
 						? err.message
-						: "ログインに失敗しました。";
+						: typeof err === "string" && err.length > 0
+							? err
+							: "ログインに失敗しました。";
 			setFlow({ phase: "error", message });
 		}
 	}, []);
