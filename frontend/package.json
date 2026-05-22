@@ -26,6 +26,7 @@
     "@tanstack/react-router-devtools": "^1.162.6",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-fs": "^2.5.0",
+    "@tauri-apps/plugin-http": "^2.5.9",
     "axios": "^1.13.5",
     "clsx": "^2.1.1",
     "jwt-decode": "^4.0.0",

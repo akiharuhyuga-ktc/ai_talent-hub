@@ -9,6 +9,7 @@
  */
 import { getApiBase, getBearerAuth } from "@/lib/api/config";
 import { showApiErrorToast } from "@/lib/api/errorToast";
+import { httpFetch } from "@/lib/api/http";
 import { isDemoMode } from "@/lib/data-store/demo-mode";
 import type {
 	AnthropicInvokeRequest,
@@ -55,7 +56,7 @@ async function aiSseRunInner(opts: AiSseRunOpts): Promise<string> {
 	const headers = await buildHeaders(body, opts.demoKey);
 	const url = `${getApiBase()}/api/ai/invoke`;
 
-	const res = await fetch(url, {
+	const res = await httpFetch(url, {
 		method: "POST",
 		headers,
 		body,

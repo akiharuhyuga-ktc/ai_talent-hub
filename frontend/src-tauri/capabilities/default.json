@@ -25,6 +25,13 @@
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "https://login.microsoftonline.com/*" }]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://dev-bizport.kinto-mobility.jp/*" },
+        { "url": "https://login.microsoftonline.com/*" }
+      ]
     }
   ]
 }

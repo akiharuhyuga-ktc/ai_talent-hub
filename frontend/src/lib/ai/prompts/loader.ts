@@ -9,6 +9,7 @@
  * fetch 失敗時はバンドルされた DEFAULT_PROMPTS で動作継続する。
  */
 import { getApiBase, getBearerAuth } from "@/lib/api/config";
+import { httpFetch } from "@/lib/api/http";
 import type {
 	PromptBundle,
 	PromptDictionary,
@@ -44,7 +45,7 @@ export async function refreshPrompts(): Promise<void> {
 	if (!auth) return;
 
 	try {
-		const res = await fetch(`${base}/api/ai/prompts`, {
+		const res = await httpFetch(`${base}/api/ai/prompts`, {
 			headers: { "X-Bizport-Authorization": auth },
 		});
 		if (!res.ok) return;
