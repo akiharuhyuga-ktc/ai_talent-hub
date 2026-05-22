@@ -95,10 +95,10 @@ DESKTOP_API_BASE ?= https://dev-bizport.kinto-mobility.jp
 desktop: ## デスクトップアプリをビルド（本番用）
 	@cd frontend && VITE_API_BASE_URL=$(DESKTOP_API_BASE) pnpm tauri build
 
-desktop-dev: ## デスクトップアプリを開発モードで起動（AI は Tauri plugin-http 経由で Lambda に直行）
+desktop-dev: ## デスクトップアプリを開発モードで起動（デモトグル表示・AI は実 Lambda）
 	@cd frontend && VITE_API_BASE_URL=$(DESKTOP_API_BASE) pnpm tauri dev
 
-desktop-demo: ## デスクトップアプリをデモモードでビルド（モックデータ同梱）
+desktop-demo: ## デスクトップアプリをデバッグビルド（テスト配布用・デモトグル表示・AI は実 Lambda）
 	@cd frontend && VITE_DEMO_MODE=true VITE_API_BASE_URL=$(DESKTOP_API_BASE) pnpm tauri build
 
 # ============================================================================

@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useState } from "react";
+import { isDemoToggleEnabled } from "@/lib/data-store/demo-mode";
 
 interface DemoModeContextValue {
 	enabled: boolean;
@@ -13,9 +14,9 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
 	const queryClient = useQueryClient();
 
 	const [enabled, setEnabled] = useState(() => {
-		// 本番／Tauri リリースビルドではデモモードを必ず無効。
-		// dev でのみ localStorage から復元する。
-		if (!import.meta.env.DEV) return false;
+		// 本番リリースビルドではデモモードを必ず無効。
+		// dev / デバッグビルド (VITE_DEMO_MODE=true) でのみ localStorage から復元する。
+		if (!isDemoToggleEnabled()) return false;
 		try {
 			return localStorage.getItem("demoMode") === "true";
 		} catch {
@@ -24,7 +25,7 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
 	});
 
 	const toggle = useCallback(() => {
-		if (!import.meta.env.DEV) return;
+		if (!isDemoToggleEnabled()) return;
 		setEnabled((prev) => {
 			const next = !prev;
 			try {
