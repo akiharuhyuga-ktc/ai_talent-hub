@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useDemoMode } from "@/contexts/DemoModeContext";
 import { useAuth } from "@/hooks/useAuth";
+import { isDemoToggleEnabled } from "@/lib/data-store/demo-mode";
 
 const navItems = [
 	{ href: "/", label: "ダッシュボード", icon: LayoutDashboard },
@@ -38,6 +39,13 @@ export function Sidebar() {
 
 	return (
 		<aside className="w-80 shrink-0 bg-brand-800 flex flex-col h-screen sticky top-0">
+			{/* DEBUG バナー — make desktop-demo / dev でのみ表示 */}
+			{isDemoToggleEnabled() && (
+				<div className="bg-orange-500 text-white text-xs font-bold tracking-widest px-4 py-1.5 text-center uppercase">
+					Debug Build
+				</div>
+			)}
+
 			{/* Logo */}
 			<div className="w-full overflow-hidden">
 				<img
@@ -77,8 +85,9 @@ export function Sidebar() {
 			<div className="px-6 pb-6 space-y-4">
 				<div className="border-t border-brand-700 pt-4" />
 
-				{/* Demo toggle — dev ビルドのみ表示。本番／Tauri リリースには出さない */}
-				{import.meta.env.DEV && (
+				{/* Demo toggle — dev / デバッグビルド (VITE_DEMO_MODE=true) のみ表示。
+				    通常の本番リリース (make desktop) には出さない */}
+				{isDemoToggleEnabled() && (
 					<>
 						<button
 							type="button"

@@ -37,11 +37,12 @@ async function bootstrap() {
 	//   - VITE_DEMO_MODE=true → 必ずモック (AI も demo 応答)
 	//   - dev                 → MSW を起動。AI handler は VITE_DEMO_MODE 次第で
 	//                            外れ、AI だけ Vite proxy 経由で実 Lambda に流れる
+	//   - Tauri (本番含む)    → demo-mock を起動。組織方針等は mockDb が master
+	//                            なので Tauri 本番でもこれが必要。AI は demo-mock
+	//                            内で isDemoMode() OFF なら素通りして実 Lambda へ
 	//   - production browser  → MSW 起動しない (実 API へ)
-	// Tauri は Service Worker が動かないので demo-mock (window.fetch ラッパ) を、
-	// ブラウザは MSW を使う。
 	const demoExplicit = import.meta.env.VITE_DEMO_MODE === "true";
-	const useMock = demoExplicit || import.meta.env.DEV;
+	const useMock = demoExplicit || import.meta.env.DEV || isTauri();
 
 	if (useMock) {
 		if (isTauri()) {

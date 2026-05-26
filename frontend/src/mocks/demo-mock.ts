@@ -4,14 +4,12 @@
  * Tauri リリースビルド（tauri:// プロトコル）では MSW の Service Worker が
  * 動作しないため、customInstance に直接モックデータを注入する。
  *
- * - Axios 経由の JSON エンドポイント → setMockResolver で直接データを返す
- * - fetch 経由の SSE エンドポイント → window.fetch をラップ
+ * AI 経路 (`/api/ai/invoke`) は本モジュールでは intercept しない。常に実 Lambda へ
+ * 通信する方針（Tauri 本番は plugin-http 経由、dev は Vite proxy 経由）。
  */
 import type { AxiosRequestConfig } from "axios";
 import { setMockResolver } from "@/api/custom-instance";
 import { dataStore } from "@/lib/data-store";
-import { isDemoMode } from "@/lib/data-store/demo-mode";
-import { lookupDemoText, sseResponse } from "./aiResponseStub";
 import { mockDb } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -164,60 +162,9 @@ function mockResolver(config: AxiosRequestConfig): Promise<unknown> | null {
 }
 
 // ---------------------------------------------------------------------------
-// AI proxy (fetch-based) — /api/ai/invoke を window.fetch で傍受
-// ---------------------------------------------------------------------------
-
-function installFetchMock() {
-	const originalFetch = window.fetch.bind(window);
-
-	window.fetch = async (input, init) => {
-		const url =
-			typeof input === "string"
-				? input
-				: input instanceof URL
-					? input.href
-					: input instanceof Request
-						? input.url
-						: String(input);
-
-		// AI proxy (Bedrock streaming) — 画面トグル ON のときだけ傍受してデモ応答を返す。
-		// OFF のときは本物の fetch に戻し、Vite proxy 経由で実 Lambda に流す。
-		if (isDemoMode() && /\/api\/ai\/invoke$/.test(url)) {
-			await wait(200);
-			const useCase =
-				init?.headers instanceof Headers
-					? init.headers.get("x-demo-use-case")
-					: (getHeaderFromInit(init?.headers, "x-demo-use-case") ?? null);
-			return sseResponse(lookupDemoText(useCase));
-		}
-
-		return originalFetch(input, init);
-	};
-}
-
-function getHeaderFromInit(
-	headers: HeadersInit | undefined,
-	name: string,
-): string | null {
-	if (!headers) return null;
-	const lower = name.toLowerCase();
-	if (Array.isArray(headers)) {
-		for (const [k, v] of headers) {
-			if (k.toLowerCase() === lower) return v;
-		}
-		return null;
-	}
-	for (const [k, v] of Object.entries(headers)) {
-		if (k.toLowerCase() === lower) return v;
-	}
-	return null;
-}
-
-// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
 export function enableDemoMock() {
 	setMockResolver(mockResolver);
-	installFetchMock();
 }

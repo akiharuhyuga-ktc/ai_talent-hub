@@ -86,14 +86,20 @@ quality: lint typecheck test ## Lint + 型チェック + テストをまとめ�
 # Desktop (Tauri)
 # ============================================================================
 
+# Tauri 本番ビルドは Vite proxy が無いため、AI proxy の絶対 URL を build 時に注入する。
+# dev では `.env.local` の VITE_API_BASE_URL=（空）が使われ、相対 URL → Vite proxy で
+# 同じ Lambda に到達する。
+# `make desktop DESKTOP_API_BASE=https://...` や環境変数で上書き可能。
+DESKTOP_API_BASE ?= https://dev-bizport.kinto-mobility.jp
+
 desktop: ## デスクトップアプリをビルド（本番用）
-	@cd frontend && pnpm tauri build
+	@cd frontend && VITE_API_BASE_URL=$(DESKTOP_API_BASE) pnpm tauri build
 
-desktop-dev: ## デスクトップアプリを開発モードで起動（demo-mock 有効、画面トグルで AI のみ実 Lambda へ切替可）
-	@cd frontend && pnpm tauri dev
+desktop-dev: ## デスクトップアプリを開発モードで起動（デモトグル表示・AI は実 Lambda）
+	@cd frontend && VITE_API_BASE_URL=$(DESKTOP_API_BASE) pnpm tauri dev
 
-desktop-demo: ## デスクトップアプリをデモモードでビルド（モックデータ同梱）
-	@cd frontend && VITE_DEMO_MODE=true pnpm tauri build
+desktop-demo: ## デスクトップアプリをデバッグビルド（テスト配布用・デモトグル表示・AI は実 Lambda）
+	@cd frontend && VITE_DEMO_MODE=true VITE_API_BASE_URL=$(DESKTOP_API_BASE) pnpm tauri build
 
 # ============================================================================
 # Demo data
