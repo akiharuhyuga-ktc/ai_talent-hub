@@ -130,6 +130,135 @@ async function writeSubDirFile(
 	await writeTextFile(await join(dir, `${key}.md`), content);
 }
 
+// ---------------------------------------------------------------------------
+// Org Docs (組織方針・評価基準・ガイドライン)
+// ---------------------------------------------------------------------------
+
+// 読み取り優先順位:
+//   1. $APPDATA/data/v1/shared/ — ユーザーが編集・保存したファイル
+//   2. $RESOURCE/talent-management/shared/ — アプリバンドルの初期ファイル
+
+async function sharedAppDataDir(): Promise<string> {
+	const { appDataDir, join } = await getTauriPath();
+	return await join(await appDataDir(), "data", "v1", "shared");
+}
+
+async function sharedResourceDir(): Promise<string> {
+	const { resolveResource } = await getTauriPath();
+	return await resolveResource("talent-management/shared");
+}
+
+async function listOrgPolicyYears(dir: string): Promise<number[]> {
+	const { exists, readDir } = await getTauriFs();
+	if (!(await exists(dir))) return [];
+	const entries = await readDir(dir);
+	return entries
+		.map((e) => e.name.match(/^org-policy-(\d{4})\.md$/)?.[1])
+		.filter((v): v is string => !!v)
+		.map(Number)
+		.sort((a, b) => b - a);
+}
+
+async function safeReadTauriFile(
+	dir: string,
+	filename: string,
+): Promise<string> {
+	const { join } = await getTauriPath();
+	const { exists, readTextFile } = await getTauriFs();
+	const p = await join(dir, filename);
+	return (await exists(p)) ? await readTextFile(p) : "";
+}
+
+export async function readOrgDocs(opts?: {
+	year?: number;
+	strict?: boolean;
+}): Promise<{
+	orgPolicy: string;
+	criteria: string;
+	guidelines: string;
+	policyYear: number | null;
+	availableYears: number[];
+}> {
+	const { join } = await getTauriPath();
+	const { exists, readTextFile } = await getTauriFs();
+
+	const appDataShared = await sharedAppDataDir();
+	const resourceShared = await sharedResourceDir();
+
+	// 両ディレクトリの年度を Set でマージ（重複排除・降順）
+	const [appYears, resYears] = await Promise.all([
+		listOrgPolicyYears(appDataShared),
+		listOrgPolicyYears(resourceShared),
+	]);
+	const availableYears = [...new Set([...appYears, ...resYears])].sort(
+		(a, b) => b - a,
+	);
+
+	// $APPDATA 優先でポリシーファイルを探す
+	const findPolicy = async (
+		year: number,
+	): Promise<{ content: string; found: boolean }> => {
+		const filename = `org-policy-${year}.md`;
+		const appPath = await join(appDataShared, filename);
+		if (await exists(appPath)) {
+			return { content: await readTextFile(appPath), found: true };
+		}
+		const content = await safeReadTauriFile(resourceShared, filename);
+		return { content, found: content.length > 0 };
+	};
+
+	let policyYear: number | null = null;
+	let orgPolicy = "";
+
+	if (opts?.year !== undefined) {
+		const { content, found } = await findPolicy(opts.year);
+		if (found) {
+			orgPolicy = content;
+			policyYear = opts.year;
+		} else if (!opts.strict && availableYears.length > 0) {
+			policyYear = availableYears[0];
+			orgPolicy = (await findPolicy(policyYear)).content;
+		}
+	} else if (availableYears.length > 0) {
+		policyYear = availableYears[0];
+		orgPolicy = (await findPolicy(policyYear)).content;
+	} else {
+		orgPolicy = await safeReadTauriFile(resourceShared, "department-policy.md");
+	}
+
+	const readDoc = async (filename: string): Promise<string> => {
+		const appPath = await join(appDataShared, filename);
+		if (await exists(appPath)) return await readTextFile(appPath);
+		return await safeReadTauriFile(resourceShared, filename);
+	};
+
+	const [criteria, guidelines] = await Promise.all([
+		readDoc("evaluation-criteria.md"),
+		readDoc("guidelines.md"),
+	]);
+
+	return { orgPolicy, criteria, guidelines, policyYear, availableYears };
+}
+
+export async function writeOrgPolicy(
+	year: number,
+	content: string,
+	overwrite: boolean,
+): Promise<{ ok: boolean; conflict: boolean }> {
+	const { join } = await getTauriPath();
+	const { exists, mkdir, writeTextFile } = await getTauriFs();
+
+	const dir = await sharedAppDataDir();
+	await mkdir(dir, { recursive: true });
+
+	const filePath = await join(dir, `org-policy-${year}.md`);
+	if (!overwrite && (await exists(filePath))) {
+		return { ok: false, conflict: true };
+	}
+	await writeTextFile(filePath, content);
+	return { ok: true, conflict: false };
+}
+
 function toSummary(record: MemberRecord): MemberSummary {
 	return {
 		id: record.id,

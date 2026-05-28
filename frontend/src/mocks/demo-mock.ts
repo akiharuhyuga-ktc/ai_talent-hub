@@ -10,7 +10,7 @@
 import type { AxiosRequestConfig } from "axios";
 import { setMockResolver } from "@/api/custom-instance";
 import { dataStore } from "@/lib/data-store";
-import { mockDb } from "./db";
+import { readOrgDocs, writeOrgPolicy } from "@/lib/data-store/tauri-fs";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -130,18 +130,47 @@ const axiosRoutes: MockRoute[] = [
 		},
 	},
 	{
+		// Tauri本番: $RESOURCE/talent-management/shared/ を読む（$APPDATA 優先）
+		// ?year= / ?strict= クエリパラメータを tauri-fs.readOrgDocs() に転送する
 		method: "get",
-		pattern: /^\/api\/docs$/,
-		handler: async () => {
+		pattern: /^\/api\/docs(\?|$)/,
+		handler: async (config) => {
 			await wait(200);
-			return mockDb.getOrgDocs();
+			const rawUrl = config.url || "";
+			const qIdx = rawUrl.indexOf("?");
+			const sp = new URLSearchParams(qIdx >= 0 ? rawUrl.slice(qIdx + 1) : "");
+			const yearParam = sp.get("year");
+			const strictParam = sp.get("strict");
+			const opts: { year?: number; strict?: boolean } = {};
+			if (yearParam) opts.year = Number(yearParam);
+			if (strictParam === "true") opts.strict = true;
+			return await readOrgDocs(opts);
 		},
 	},
 	{
 		method: "post",
 		pattern: /^\/api\/docs\/policy$/,
-		handler: async () => {
+		handler: async (config) => {
 			await wait(300);
+			const body =
+				typeof config.data === "string" ? JSON.parse(config.data) : config.data;
+			const { year, content, overwrite } = body ?? {};
+			if (!year || content === undefined) return { ok: false };
+			const result = await writeOrgPolicy(
+				Number(year),
+				String(content),
+				Boolean(overwrite),
+			);
+			if (result.conflict) {
+				const err = new Error(
+					`年度 ${year} の方針はすでに存在します`,
+				) as Error & { response?: { status: number; data: unknown } };
+				err.response = {
+					status: 409,
+					data: { error: "conflict", message: err.message },
+				};
+				throw err;
+			}
 			return { ok: true };
 		},
 	},

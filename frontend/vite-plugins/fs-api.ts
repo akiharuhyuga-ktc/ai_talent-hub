@@ -36,11 +36,21 @@ const DATA_ROOT = process.env.DATA_ROOT
 	? path.resolve(process.env.DATA_ROOT)
 	: DEFAULT_DATA_ROOT;
 
+const TALENT_SHARED_DIR = process.env.TALENT_SHARED_DIR
+	? path.resolve(process.env.TALENT_SHARED_DIR)
+	: path.resolve(process.cwd(), "talent-management", "shared");
+
 const MEMBERS_DIR = path.join(DATA_ROOT, "members");
 const DEMO_MEMBERS_DIR = path.join(DATA_ROOT, "demo-members");
 
 // Vite dev server の cwd は frontend/ ディレクトリ
-const SEED_DIR = path.resolve(process.cwd(), "src", "mocks", "seeds", "members");
+const SEED_DIR = path.resolve(
+	process.cwd(),
+	"src",
+	"mocks",
+	"seeds",
+	"members",
+);
 
 const SUB_DIRS = ["goals", "one-on-one", "reviews"] as const;
 type SubDir = (typeof SUB_DIRS)[number];
@@ -155,7 +165,12 @@ export function fsApiPlugin(): Plugin {
 		configureServer(server) {
 			server.middlewares.use(async (req, res, next) => {
 				const url = req.url ?? "";
-				if (!url.startsWith("/api/fs/")) {
+				const isDocsRoute =
+					url === "/api/docs" ||
+					url.startsWith("/api/docs?") ||
+					url === "/api/docs/policy";
+
+				if (!url.startsWith("/api/fs/") && !isDocsRoute) {
 					next();
 					return;
 				}
@@ -166,6 +181,143 @@ export function fsApiPlugin(): Plugin {
 				const mode = parseMode(url);
 
 				try {
+					// ----------------------------------------------------------------
+					// GET /api/docs — 組織方針・評価基準・ガイドライン
+					// クエリ: ?year=YYYY  指定年度の組織方針を返す
+					//         ?strict=true  指定年度が存在しない場合は orgPolicy を空文字にする
+					// ----------------------------------------------------------------
+					if (isDocsRoute && method === "GET") {
+						const parsed = new URL(url, "http://localhost");
+						const yearParam = parsed.searchParams.get("year");
+						const strict = parsed.searchParams.get("strict") === "true";
+
+						// 利用可能な年度一覧（org-policy-YYYY.md を数値ソート降順）
+						let availableYears: number[] = [];
+						try {
+							const entries = existsSync(TALENT_SHARED_DIR)
+								? await fs.readdir(TALENT_SHARED_DIR)
+								: [];
+							availableYears = entries
+								.map((f) => f.match(/^org-policy-(\d{4})\.md$/)?.[1])
+								.filter((v): v is string => !!v)
+								.map(Number)
+								.sort((a, b) => b - a);
+						} catch {
+							// ディレクトリが存在しない場合は空配列のまま
+						}
+
+						const readFile = async (filePath: string): Promise<string> => {
+							try {
+								return existsSync(filePath)
+									? await fs.readFile(filePath, "utf-8")
+									: "";
+							} catch {
+								return "";
+							}
+						};
+
+						let policyYear: number | null = null;
+						let orgPolicy = "";
+
+						if (yearParam !== null) {
+							const requestedYear = Number.parseInt(yearParam, 10);
+							if (
+								Number.isInteger(requestedYear) &&
+								requestedYear >= 2000 &&
+								requestedYear <= 2099
+							) {
+								const versionedPath = path.join(
+									TALENT_SHARED_DIR,
+									`org-policy-${requestedYear}.md`,
+								);
+								if (existsSync(versionedPath)) {
+									orgPolicy = await readFile(versionedPath);
+									policyYear = requestedYear;
+								} else if (!strict && availableYears.length > 0) {
+									// strict でなければ最新年度にフォールバック
+									policyYear = availableYears[0];
+									orgPolicy = await readFile(
+										path.join(TALENT_SHARED_DIR, `org-policy-${policyYear}.md`),
+									);
+								}
+								// strict=true かつ該当年度なし → orgPolicy は空文字のまま
+							}
+						} else if (availableYears.length > 0) {
+							// year 指定なし → 最新年度
+							policyYear = availableYears[0];
+							orgPolicy = await readFile(
+								path.join(TALENT_SHARED_DIR, `org-policy-${policyYear}.md`),
+							);
+						} else {
+							// フォールバック: department-policy.md
+							orgPolicy = await readFile(
+								path.join(TALENT_SHARED_DIR, "department-policy.md"),
+							);
+						}
+
+						const criteria = await readFile(
+							path.join(TALENT_SHARED_DIR, "evaluation-criteria.md"),
+						);
+						const guidelines = await readFile(
+							path.join(TALENT_SHARED_DIR, "guidelines.md"),
+						);
+
+						return json(res, 200, {
+							orgPolicy,
+							criteria,
+							guidelines,
+							policyYear,
+							availableYears,
+						});
+					}
+
+					// ----------------------------------------------------------------
+					// POST /api/docs/policy — 組織方針を保存
+					// Body: { year: number, content: string, overwrite: boolean }
+					// 409: 既存ファイルがあり overwrite=false の場合
+					// ----------------------------------------------------------------
+					if (isDocsRoute && method === "POST") {
+						const body = await readBody(req);
+						let payload: {
+							year?: unknown;
+							content?: unknown;
+							overwrite?: unknown;
+						};
+						try {
+							payload = JSON.parse(body) as {
+								year?: unknown;
+								content?: unknown;
+								overwrite?: unknown;
+							};
+						} catch {
+							return text(res, 400, "invalid JSON");
+						}
+
+						const year = Number(payload.year);
+						const content = String(payload.content ?? "");
+						const overwrite = Boolean(payload.overwrite);
+
+						if (!Number.isInteger(year) || year < 2000 || year > 2099) {
+							return text(res, 400, "invalid year");
+						}
+
+						await ensureDir(TALENT_SHARED_DIR);
+						const filePath = path.join(
+							TALENT_SHARED_DIR,
+							`org-policy-${year}.md`,
+						);
+
+						if (!overwrite && existsSync(filePath)) {
+							return json(res, 409, { error: "既存のファイルが存在します" });
+						}
+
+						await fs.writeFile(filePath, content, "utf-8");
+						return json(res, 200, { ok: true });
+					}
+
+					// ----------------------------------------------------------------
+					// /api/fs/* — メンバーデータ
+					// ----------------------------------------------------------------
 					if (parts[2] !== "members") {
 						return text(res, 404, "fs-api route not found");
 					}

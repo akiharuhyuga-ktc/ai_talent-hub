@@ -2,7 +2,6 @@ import { delay, HttpResponse, http, passthrough } from "msw";
 import { dataStore } from "@/lib/data-store";
 import { isDemoMode } from "@/lib/data-store/demo-mode";
 import { lookupDemoText, sseResponse } from "./aiResponseStub";
-import { mockDb } from "./db";
 
 // ---------------------------------------------------------------------------
 // Handlers
@@ -97,16 +96,11 @@ export const handlers = [
 
 	// -----------------------------------------------------------------------
 	// Docs / Policy
+	// fs-api.ts (Vite dev middleware) が talent-management/shared/ を読んで処理する。
+	// passthrough() にすることで SW をすり抜けて Vite dev server に届く。
 	// -----------------------------------------------------------------------
-	http.get("/api/docs", async () => {
-		await delay(200);
-		return HttpResponse.json(mockDb.getOrgDocs());
-	}),
-
-	http.post("/api/docs/policy", async () => {
-		await delay(300);
-		return HttpResponse.json({ ok: true });
-	}),
+	http.get("/api/docs", () => passthrough()),
+	http.post("/api/docs/policy", () => passthrough()),
 
 	// -----------------------------------------------------------------------
 	// AI proxy (Bedrock streaming) — 画面トグル (DemoModeContext) で挙動切替。

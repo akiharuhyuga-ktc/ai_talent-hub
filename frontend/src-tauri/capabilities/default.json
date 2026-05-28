@@ -12,7 +12,9 @@
       "identifier": "fs:scope",
       "allow": [
         { "path": "$APPDATA/data/v1/**" },
-        { "path": "$APPDATA/data/v1" }
+        { "path": "$APPDATA/data/v1" },
+        { "path": "$RESOURCE/talent-management/shared/**" },
+        { "path": "$RESOURCE/talent-management/shared" }
       ]
     },
     "fs:allow-mkdir",
