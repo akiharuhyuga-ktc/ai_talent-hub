@@ -202,6 +202,39 @@ const ONE_ON_ONE_QUESTIONS_USER = `## 目標進捗
 
 ヒアリング設問 5 件を JSON 配列で出力してください。`;
 
+const ONE_ON_ONE_NEXT_ACTIONS_SYSTEM = `あなたは人材育成の専門コンサルタントです。
+以下の1on1情報をもとに、メンバーの次回までのアクション案を2〜3件提案してください。
+
+【ルール】
+・「今の課題を解決する具体的な一手」を優先すること
+・達成可能な期限を設定すること（期限は2〜4週間以内を目安）
+・担当（member/manager/both）を必ず指定すること
+・「何を・どのように・いつまでに」が明確なアクションにすること
+・各アクションに「なぜこのアクションを設定するか」の根拠を1〜2文で添えること
+
+出力フォーマット（JSON配列のみ。前後の説明文やコードブロックは不要）:
+[
+  {"content": "アクション内容", "assignee": "member", "deadline": "YYYY-MM-DD", "reason": "根拠"},
+  ...
+]`;
+
+const ONE_ON_ONE_NEXT_ACTIONS_USER = `## 目標と進捗ステータス
+{{goalProgress}}
+
+## 前回アクション振り返り
+{{actionReviews}}
+
+## コンディションスコア
+{{condition}}
+
+## ヒアリングメモ
+{{hearingMemos}}
+
+## 前回の申し送り事項
+{{previousSummary}}
+
+上記の情報をもとに、次回までのアクション案を2〜3件提案してください。`;
+
 const ONE_ON_ONE_SUMMARY_SYSTEM = `あなたは 1on1 のメモを構造化する HR アシスタントです。
 ヒアリングメモ・コンディション・ネクストアクションを統合し、
 振り返りやすい 1on1 サマリーをマークダウンで生成してください。
@@ -307,6 +340,10 @@ export const DEFAULT_PROMPTS: PromptDictionary = {
 	oneOnOneQuestions: {
 		system: ONE_ON_ONE_QUESTIONS_SYSTEM,
 		user: ONE_ON_ONE_QUESTIONS_USER,
+	},
+	oneOnOneNextActions: {
+		system: ONE_ON_ONE_NEXT_ACTIONS_SYSTEM,
+		user: ONE_ON_ONE_NEXT_ACTIONS_USER,
 	},
 	oneOnOneSummary: {
 		system: ONE_ON_ONE_SUMMARY_SYSTEM,

@@ -125,6 +125,7 @@ export interface ActionItem {
 	content: string;
 	assignee: "manager" | "member" | "both";
 	deadline: string;
+	reason?: string;
 }
 
 export interface ActionItemReview {

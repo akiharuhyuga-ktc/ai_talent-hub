@@ -6,6 +6,7 @@
  * これを呼ぶだけで AI ストリーミングを使えるようにする。
  */
 import type { HearingQuestionItem } from "@/api/generated/types";
+import type { ActionItem } from "@/lib/types";
 import { getPrompt, renderTemplate } from "./prompts/loader";
 import { aiSseRun } from "./sseFetch";
 import type { AnthropicMessage, PromptKey } from "./types";
@@ -200,6 +201,32 @@ export async function requestOneOnOneQuestions(
 	return parseHearingQuestions(fullText);
 }
 
+export interface OneOnOneNextActionsArgs {
+	goalProgress: unknown;
+	actionReviews: unknown;
+	condition: unknown;
+	hearingMemos: unknown;
+	previousSummary: string;
+}
+
+export async function requestOneOnOneNextActions(
+	args: OneOnOneNextActionsArgs,
+	opts?: Omit<BaseOpts, "onText">,
+): Promise<ActionItem[]> {
+	const fullText = await runSinglePrompt(
+		"oneOnOneNextActions",
+		{ signal: opts?.signal },
+		{
+			goalProgress: args.goalProgress,
+			actionReviews: args.actionReviews,
+			condition: args.condition,
+			hearingMemos: args.hearingMemos,
+			previousSummary: args.previousSummary || "(初回)",
+		},
+	);
+	return parseNextActions(fullText);
+}
+
 export interface OneOnOneSummaryArgs {
 	yearMonth: string;
 	actionReviews: unknown;
@@ -368,6 +395,30 @@ function parseHearingQuestions(text: string): HearingQuestionItem[] {
 				);
 			})
 			.slice(0, 10);
+	} catch {
+		return [];
+	}
+}
+
+function parseNextActions(text: string): ActionItem[] {
+	const trimmed = stripCodeFence(text).trim();
+	const start = trimmed.indexOf("[");
+	const end = trimmed.lastIndexOf("]");
+	if (start < 0 || end <= start) return [];
+	try {
+		const arr = JSON.parse(trimmed.slice(start, end + 1)) as unknown;
+		if (!Array.isArray(arr)) return [];
+		return arr
+			.filter((x): x is ActionItem => {
+				if (!x || typeof x !== "object") return false;
+				const obj = x as Record<string, unknown>;
+				return (
+					typeof obj.content === "string" &&
+					["manager", "member", "both"].includes(obj.assignee as string) &&
+					typeof obj.deadline === "string"
+				);
+			})
+			.slice(0, 5);
 	} catch {
 		return [];
 	}

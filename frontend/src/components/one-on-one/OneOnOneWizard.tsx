@@ -1,5 +1,8 @@
 import { useCallback, useReducer } from "react";
-import { requestOneOnOneQuestions } from "@/lib/ai/client";
+import {
+	requestOneOnOneNextActions,
+	requestOneOnOneQuestions,
+} from "@/lib/ai/client";
 import { parseGoalEntries } from "@/lib/parsers/goals-entries";
 import type {
 	ActionItem,
@@ -28,12 +31,14 @@ type Action =
 	  }
 	| { type: "SET_NEXT_ACTIONS"; payload: ActionItem[] }
 	| { type: "SET_PREFETCHED_QUESTIONS"; payload: HearingQuestion[] }
+	| { type: "SET_PREFETCHED_NEXT_ACTIONS"; payload: ActionItem[] }
 	| { type: "NEXT_STEP" }
 	| { type: "PREV_STEP" }
 	| { type: "GO_TO_STEP"; payload: number };
 
 interface WizardInternalState extends OneOnOneWizardState {
 	prefetchedQuestions: HearingQuestion[] | null;
+	prefetchedNextActions: ActionItem[] | null;
 }
 
 function createInitialState(
@@ -67,6 +72,7 @@ function createInitialState(
 		aiSummary: null,
 		isFirstTime,
 		prefetchedQuestions: null,
+		prefetchedNextActions: null,
 	};
 }
 
@@ -92,6 +98,8 @@ function reducer(
 			return { ...state, nextActions: action.payload, currentStep: 6 };
 		case "SET_PREFETCHED_QUESTIONS":
 			return { ...state, prefetchedQuestions: action.payload };
+		case "SET_PREFETCHED_NEXT_ACTIONS":
+			return { ...state, prefetchedNextActions: action.payload };
 		case "NEXT_STEP":
 			return { ...state, currentStep: state.currentStep + 1 };
 		case "PREV_STEP":
@@ -151,9 +159,39 @@ export function OneOnOneWizard({ context, onClose }: OneOnOneWizardProps) {
 		[context, state.goalProgress, state.actionReviews],
 	);
 
+	const prefetchNextActions = useCallback(
+		async (hearingQuestions: HearingQuestion[]) => {
+			try {
+				const items = await requestOneOnOneNextActions({
+					goalProgress: state.goalProgress,
+					actionReviews: state.actionReviews,
+					condition: state.condition,
+					hearingMemos: hearingQuestions.map((q) => ({
+						question: q.question,
+						memo: q.memo,
+					})),
+					previousSummary: context.previousSummary,
+				});
+				dispatch({ type: "SET_PREFETCHED_NEXT_ACTIONS", payload: items });
+			} catch {
+				// 失敗時は [] を渡して Step5 に手動入力フォームを表示させる
+				dispatch({ type: "SET_PREFETCHED_NEXT_ACTIONS", payload: [] });
+			}
+		},
+		[context, state.goalProgress, state.actionReviews, state.condition],
+	);
+
 	const handleConditionNext = (condition: ConditionScore) => {
 		dispatch({ type: "SET_CONDITION", payload: condition });
 		prefetchQuestions(condition);
+	};
+
+	const handleHearingNext = (
+		questions: HearingQuestion[],
+		additionalMemo: string,
+	) => {
+		dispatch({ type: "SET_HEARING", payload: { questions, additionalMemo } });
+		prefetchNextActions(questions);
 	};
 
 	const renderStep = () => {
@@ -199,12 +237,7 @@ export function OneOnOneWizard({ context, onClose }: OneOnOneWizardProps) {
 					<OOStep4Hearing
 						state={state}
 						context={context}
-						onNext={(questions, additionalMemo) =>
-							dispatch({
-								type: "SET_HEARING",
-								payload: { questions, additionalMemo },
-							})
-						}
+						onNext={handleHearingNext}
 						onBack={() => dispatch({ type: "PREV_STEP" })}
 						prefetchedQuestions={state.prefetchedQuestions}
 					/>
@@ -216,6 +249,7 @@ export function OneOnOneWizard({ context, onClose }: OneOnOneWizardProps) {
 							dispatch({ type: "SET_NEXT_ACTIONS", payload: actions })
 						}
 						onBack={() => dispatch({ type: "PREV_STEP" })}
+						prefetchedNextActions={state.prefetchedNextActions}
 					/>
 				);
 			case 6:

@@ -72,7 +72,7 @@ const axiosRoutes: MockRoute[] = [
 						team: m.teamShort,
 						hasGoal: goals.some((g) => g.period === period),
 						oneOnOneMonths: oneOnOnes.map((o) => o.date.split("-")[1]),
-						hasReview: reviews.length > 0,
+						hasReview: reviews.some((r) => r.period === period),
 					};
 				}),
 			);

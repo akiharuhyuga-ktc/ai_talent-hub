@@ -34,6 +34,7 @@ export type PromptKey =
 	| "evalDraft"
 	| "evalComment"
 	| "oneOnOneQuestions"
+	| "oneOnOneNextActions"
 	| "oneOnOneSummary"
 	| "policyDirection"
 	| "policyDraft"

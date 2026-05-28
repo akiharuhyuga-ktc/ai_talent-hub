@@ -15,10 +15,37 @@ function emptyAction(): ActionItem {
 interface Props {
 	onComplete: (actions: ActionItem[]) => void;
 	onBack: () => void;
+	prefetchedNextActions: ActionItem[] | null;
 }
 
-export function OOStep5NextActions({ onComplete, onBack }: Props) {
-	const [actions, setActions] = useState<ActionItem[]>([emptyAction()]);
+export function OOStep5NextActions({
+	onComplete,
+	onBack,
+	prefetchedNextActions,
+}: Props) {
+	const [actions, setActions] = useState<ActionItem[]>(() => {
+		if (prefetchedNextActions !== null && prefetchedNextActions.length > 0) {
+			return prefetchedNextActions;
+		}
+		return [emptyAction()];
+	});
+
+	// ウィザード側でプリフェッチ中 → ローディング表示
+	if (prefetchedNextActions === null) {
+		return (
+			<div>
+				<h2 className="text-4xl font-bold text-gray-800 mb-3">
+					アクション設定
+				</h2>
+				<div className="flex items-center gap-3 text-xl text-gray-500 py-16">
+					<span className="animate-spin inline-block">⟳</span>
+					AI がアクション案を生成中...
+				</div>
+			</div>
+		);
+	}
+
+	const fetchError = prefetchedNextActions.length === 0;
 
 	const updateAction = (
 		index: number,
@@ -47,7 +74,9 @@ export function OOStep5NextActions({ onComplete, onBack }: Props) {
 		<div>
 			<h2 className="text-4xl font-bold text-gray-800 mb-3">アクション設定</h2>
 			<p className="text-xl text-gray-500 mb-8">
-				次回までのアクションを設定してください。
+				{fetchError
+					? "AI提案の取得に失敗しました。手動でアクションを入力してください。"
+					: "AIが提案したアクションを確認・編集してください。"}
 			</p>
 
 			<div className="space-y-6 mb-8">
@@ -120,6 +149,13 @@ export function OOStep5NextActions({ onComplete, onBack }: Props) {
 									/>
 								</div>
 							</div>
+
+							{action.reason && (
+								<div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-base text-blue-700">
+									<span className="font-medium">AI根拠：</span>
+									{action.reason}
+								</div>
+							)}
 						</div>
 					</div>
 				))}
