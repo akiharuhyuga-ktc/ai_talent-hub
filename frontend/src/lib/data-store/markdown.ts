@@ -1,4 +1,4 @@
-import type { MemberRecord } from "@/api/generated/types";
+import type { MemberRecord, ProjectAllocation } from "@/api/generated/types";
 
 /**
  * profile.md 形式のシリアライズ／パース
@@ -51,9 +51,40 @@ export function serializeProfile(draft: ProfileDraft): string {
 }
 
 function extractField(markdown: string, label: string): string {
-	const regex = new RegExp(`^\\-\\s*${label}：\\s*(.+)$`, "m");
+	const regex = new RegExp(
+		`-\\s*${label}[：:]([\\s\\S]*?)(?=\\n-\\s|\\n##|\\n<!--|$)`,
+	);
 	const match = markdown.match(regex);
 	return match ? match[1].trim() : "";
+}
+
+function parseProjectLine(line: string): ProjectAllocation | null {
+	const match = line.match(
+		/^-\s+(.+?)[：:]\s*4月\s*(\d+)%\s*\/\s*5月\s*(\d+)%\s*\/\s*6月\s*(\d+)%/,
+	);
+	if (!match) return null;
+	const [, name, a, m, j] = match;
+	const april = Number.parseInt(a, 10);
+	const may = Number.parseInt(m, 10);
+	const june = Number.parseInt(j, 10);
+	return {
+		name: name.trim(),
+		april,
+		may,
+		june,
+		avgPct: Math.round((april + may + june) / 3),
+	};
+}
+
+export function parseProjects(markdown: string): ProjectAllocation[] {
+	const sectionMatch = markdown.match(
+		/## 担当プロジェクト.*?\n([\s\S]*?)(?=\n##|$)/,
+	);
+	if (!sectionMatch) return [];
+	return sectionMatch[1]
+		.split("\n")
+		.map(parseProjectLine)
+		.filter((p): p is ProjectAllocation => p !== null);
 }
 
 function extractHtmlMeta(markdown: string, key: string): string {
@@ -75,6 +106,22 @@ export function parseProfile(markdown: string): MemberRecord {
 		extractHtmlMeta(markdown, "id") || `mbr_${Date.now().toString(36)}`;
 	const slug = extractHtmlMeta(markdown, "slug") || toSlug(name);
 
+	const roleSectionMatch = markdown.match(
+		/## 期待する役割\n([\s\S]*?)(?=\n##|\n<!--|$)/,
+	);
+	const roleSection = roleSectionMatch ? roleSectionMatch[1] : "";
+	const longTermMatch = roleSection.match(
+		/- 中長期的なキャリア方向性[：:]([\s\S]*?)(?=\n-|\n<!--|$)/,
+	);
+	const currentRole = roleSection
+		.split("\n")
+		.filter(
+			(l) => l.startsWith("- ") && !l.includes("中長期的なキャリア方向性"),
+		)
+		.map((l) => l.replace(/^- /, ""))
+		.join("\n")
+		.trim();
+
 	return {
 		id,
 		slug,
@@ -85,8 +132,16 @@ export function parseProfile(markdown: string): MemberRecord {
 		joinedAt,
 		mainProject,
 		rdPct: Number.isFinite(rdPct) ? rdPct : 0,
-		skills: { technical: "", experience: "", strengths: "", challenges: "" },
-		expectedRole: { current: "", longTerm: "" },
+		skills: {
+			technical: extractField(markdown, "技術スキル"),
+			experience: extractField(markdown, "業務経験"),
+			strengths: extractField(markdown, "強み"),
+			challenges: extractField(markdown, "成長課題"),
+		},
+		expectedRole: {
+			current: currentRole,
+			longTerm: longTermMatch ? longTermMatch[1].trim() : "",
+		},
 		rawMarkdown: markdown,
 		activePeriod: "2026-h1",
 	};

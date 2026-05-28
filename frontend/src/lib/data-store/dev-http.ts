@@ -4,6 +4,7 @@ import { demoQuerySuffix } from "./demo-mode";
 import {
 	generateMemberId,
 	parseProfile,
+	parseProjects,
 	serializeProfile,
 	toSlug,
 } from "./markdown";
@@ -100,7 +101,7 @@ function toSummary(record: MemberRecord): MemberSummary {
 		team: record.team,
 		teamShort: record.teamShort,
 		joinedAt: record.joinedAt,
-		projects: [],
+		projects: parseProjects(record.rawMarkdown),
 		mainProject: record.mainProject,
 		rdPct: record.rdPct,
 	};
